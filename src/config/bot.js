@@ -11,7 +11,7 @@ export const botConfig = {
   // - "invisible" = appears offline
   presence: {
     // Current online state shown on Discord.
-    status: "online",
+    status: "idle",
 
     // Activity lines shown under the bot name.
     // `type` number mapping from Discord:
@@ -141,7 +141,7 @@ export const botConfig = {
     },
     footer: {
       // Default footer text used in bot embeds.
-      text: "Titan Bot",
+      text: "MidNight",
       // Footer icon URL (null = no icon).
       icon: null,
     },
@@ -466,6 +466,9 @@ export const botConfig = {
     reactionRoles: true,
     joinToCreate: true,
 
+    // Starboard.
+    starboard: true,
+
     // Utility/quality-of-life modules.
     voice: true,
     search: true,
@@ -543,6 +546,7 @@ const COMMAND_CATEGORY_FEATURE_MAP = {
   reaction_roles: "reactionRoles",
   search: "search",
   serverstats: "counter",
+  starboard: "starboard",
   ticket: "tickets",
   tools: "tools",
   utility: "utility",

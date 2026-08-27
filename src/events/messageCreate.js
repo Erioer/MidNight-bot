@@ -7,6 +7,7 @@ import { parsePrefixCommand } from '../utils/prefixParser.js';
 import { supportsPrefixExecution, executePrefixCommand, resolvePrefixAccessKey } from '../utils/messageAdapter.js';
 import { resolveCommandAlias, resolveSubcommandAlias } from '../config/commands/commandAliases.js';
 import { getPrefixRestriction } from '../config/commands/prefixRestrictions.js';
+import { REACTION_PREFIX_SHORTCUTS } from '../config/commands/reactionEmotions.js';
 import { getGuildConfig } from '../services/config/guildConfig.js';
 import { getCommandPrefix, getBotMessage, isBotOwner, isCommandCategoryEnabled, isMaintenanceMode } from '../config/bot.js';
 import { enforceAbuseProtection, formatCooldownDuration } from '../utils/abuseProtection.js';
@@ -62,6 +63,11 @@ async function handlePrefixCommand(message, client) {
       args = [musicPrefixShortcut, ...args];
     }
 
+    if (REACTION_PREFIX_SHORTCUTS.has(musicPrefixShortcut) && !client.commands.has(musicPrefixShortcut)) {
+      commandName = 'react';
+      args = [musicPrefixShortcut, ...args];
+    }
+
     logger.info(`Prefix command detected: ${commandName}, args: ${args.join(', ')}`);
 
     const resolvedCommandName = resolveCommandAlias(commandName);
@@ -95,7 +101,7 @@ async function handlePrefixCommand(message, client) {
       return;
     }
 
-    const restriction = getPrefixRestriction(command, args, resolveSubcommandAlias);
+        const restriction = getPrefixRestriction(command, args, resolveSubcommandAlias);
     if (!supportsPrefixExecution(command) || restriction.blocked) {
       if (restriction.blocked && restriction.reason) {
         const embed = createEmbed({
@@ -158,7 +164,6 @@ async function handleCountingGame(message, client) {
     const invalidAttempt = !validCount || message.author.id === config.lastUserId;
 
     if (invalidAttempt) {
-      await message.delete().catch(() => {});
       await saveCountingGameConfig(client, message.guild.id, {
         ...config,
         nextNumber: 1,
@@ -166,14 +171,12 @@ async function handleCountingGame(message, client) {
         currentStreak: 0,
       });
 
-      const failureMessage = await message.channel.send(`❌ Count broken by <@${message.author.id}>. The sequence has been reset to **1**.`);
-      setTimeout(() => {
-        failureMessage.delete().catch(() => {});
-      }, 10000);
+      await message.channel.send(`❌ Count broken by <@${message.author.id}>. The sequence has been reset to **1**.`);
 
       return true;
     }
 
+    await message.react('✅').catch(() => {});
     await recordCorrectCount(client, message.guild.id, message.author.id);
     return true;
   } catch (error) {
@@ -228,7 +231,7 @@ async function handleLeveling(message, client) {
     }
 
     const minXP = levelingConfig.xpRange?.min || levelingConfig.xpPerMessage?.min || 15;
-    const maxXP = levelingConfig.xpRange?.max || levelingConfig.xpPerMessage?.max || 25;
+    const maxXP = levelingConfig.xpRange?.max || levelingConfig.xpPerMessage?.max || 40;
 
     const safeMinXP = Math.max(1, minXP);
     const safeMaxXP = Math.max(safeMinXP, maxXP);
@@ -240,7 +243,7 @@ async function handleLeveling(message, client) {
       finalXP = Math.floor(finalXP * levelingConfig.xpMultiplier);
     }
 
-    const result = await addXp(client, message.guild, message.member, finalXP);
+    const result = await addXp(client, message.guild, message.member, finalXP, message.channel);
 
     if (result?.leveledUp) {
       logger.info(

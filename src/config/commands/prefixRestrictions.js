@@ -1,3 +1,5 @@
+import { isPrefixEnabled } from './commandPolicy.js';
+
 /**
  * Prefix command restrictions — dashboard and advanced setup flows stay slash-only.
  */
@@ -72,6 +74,10 @@ function isSubcommandBlocked(commandName, subcommandName) {
  * @returns {{ blocked: boolean, reason?: string }}
  */
 export function getPrefixRestriction(command, args, resolveSubcommandAlias) {
+  if (!isPrefixEnabled(command?.category, command?.data?.name)) {
+    return { blocked: true, reason: 'This command is only available as a slash command.' };
+  }
+
   if (!command?.data?.toJSON) {
     return { blocked: false };
   }

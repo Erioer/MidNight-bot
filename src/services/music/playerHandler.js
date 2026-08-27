@@ -1,7 +1,8 @@
 // Player event handlers for Riffy. Adapted from Musicify playerHandler (Apache-2.0).
 
 import { logger } from '../../utils/logger.js';
-import { getGuildMusicData, clearUpdateInterval } from './playerStore.js';
+import { getGuildMusicData, clearUpdateInterval, clearAutoLeaveTimer } from './playerStore.js';
+import { setVoiceChannelStatus, clearVoiceChannelStatus } from './voiceStatus.js';
 import {
     buildNowPlayingEmbed,
     buildPlayerButtonRows,
@@ -147,6 +148,7 @@ export function setupPlayerHandler(client) {
             const channelId = guildData.playerChannelId || player.textChannel;
             await editOrSendPlayerMessage(client, guildData, channelId, embed, components);
             startUpdateInterval(client, player.guildId);
+            setVoiceChannelStatus(client, player.guildId, track.info?.title).catch(() => null);
         } catch (error) {
             logger.error('Music trackStart error:', error);
         }
@@ -161,6 +163,8 @@ export function setupPlayerHandler(client) {
                 player.autoplay(player);
                 return;
             }
+
+            clearVoiceChannelStatus(client, player.guildId).catch(() => null);
 
             if (guildData.playerMessageId && guildData.playerChannelId) {
                 try {
@@ -200,6 +204,8 @@ export function setupPlayerHandler(client) {
     client.riffy.on('playerDisconnect', async (player) => {
         const guildData = getGuildMusicData(player.guildId);
         clearUpdateInterval(guildData);
+        clearAutoLeaveTimer(guildData);
+        clearVoiceChannelStatus(client, player.guildId).catch(() => null);
 
         if (guildData.playerMessageId && guildData.playerChannelId) {
             try {

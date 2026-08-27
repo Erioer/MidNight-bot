@@ -14,7 +14,15 @@ export class GuildMusicData {
         this.updateInterval = null;
         this.idleTimeout = null;
         this.autoPaused = false;
+        this.autoLeaveTimer = null;
         this.stopConfirmPending = null;
+    }
+}
+
+export function clearAutoLeaveTimer(guildData) {
+    if (guildData.autoLeaveTimer) {
+        clearTimeout(guildData.autoLeaveTimer);
+        guildData.autoLeaveTimer = null;
     }
 }
 
@@ -41,6 +49,7 @@ export function deleteGuildMusicData(guildId) {
         if (guildData.idleTimeout) {
             clearTimeout(guildData.idleTimeout);
         }
+        clearAutoLeaveTimer(guildData);
     }
     guildStore.delete(guildId);
 }

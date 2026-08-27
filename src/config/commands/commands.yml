@@ -1,0 +1,42 @@
+# MidNight command policy
+#
+# Controls every command in the bot from one file. Settings cascade:
+#   defaults -> categories -> commands
+# Only list what you want to change. Everything defaults to "on".
+#
+# Restart the bot to apply changes. Slash-registration changes can take
+# up to an hour to show on Discord's side.
+
+defaults:
+  # enabled: load the command at all. false removes it from slash, prefix,
+  #          and the /commands dashboard entirely.
+  enabled: true
+  # slash: register as a slash command (uses one of the 100 global slots).
+  slash: true
+  # prefix: usable via the text prefix (e.g. $help).
+  prefix: true
+  # adminOnly: require the Manage Server permission.
+  adminOnly: false
+
+categories:
+  # Disable an entire feature here. Example:
+  # moderation:
+  #   enabled: false
+  # economy:
+  #   enabled: false
+  # fun:
+  #   slash: false
+  #
+  # Category keys are the command folder names, case-insensitive
+  # (moderation, economy, fun, music, reaction_roles, jointocreate, ...).
+
+commands:
+  # Per-command overrides. Command names are lowercase, no prefix.
+  # Commands that are structurally prefix-only (like the starboard ones)
+  # cannot be toggled to slash; their `slash` key is ignored.
+
+  # Starboard
+  setchannelstarboard:
+    adminOnly: true
+  removestarboard:
+    adminOnly: true

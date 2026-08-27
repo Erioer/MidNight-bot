@@ -1,8 +1,9 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { Collection } from 'discord.js';
+import { Collection, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
+import { getCommandPolicy } from '../../config/commands/commandPolicy.js';
 import botConfig from '../../config/bot.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -30,6 +31,24 @@ if (subOption.type === 1) {
     }
     
     return subcommands;
+}
+
+function applyAdminOnlyPermissions(command) {
+    const data = command.data;
+    if (!data) {
+        return;
+    }
+
+    const existing = data.toJSON?.().default_member_permissions ?? data.default_member_permissions;
+    if (existing) {
+        return;
+    }
+
+    if (typeof data.setDefaultMemberPermissions === 'function') {
+        data.setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+    } else {
+        data.default_member_permissions = String(PermissionFlagsBits.ManageGuild);
+    }
 }
 
 async function getAllFiles(directory, fileList = []) {
@@ -80,19 +99,37 @@ export async function loadCommands(client) {
             command.filePath = normalizedPath;
             
             const primaryCommandName = command.data.name;
-            
+
+            const policy = getCommandPolicy(category, primaryCommandName);
+            if (!policy.enabled) {
+                logger.info(`Skipping disabled command: ${primaryCommandName} (category: ${category})`);
+                continue;
+            }
+
+            if (policy.adminOnly) {
+                applyAdminOnlyPermissions(command);
+            }
+
             if (!uniqueCommandNames.has(primaryCommandName)) {
                 uniqueCommandNames.add(primaryCommandName);
                 
                 client.commands.set(primaryCommandName, command);
             }
             
-            const subcommands = getSubcommandInfo(command.data.toJSON());
-            
-            logger.info(`Loaded command: ${primaryCommandName} from ${normalizedPath} (category: ${category})`);
-            
-            if (subcommands.length > 0) {
-                logger.info(`  - Subcommands: ${subcommands.join(', ')}`);
+            // Commands with a plain-object `data` (no `.toJSON`) are prefix-only by
+            // convention: they still load into client.commands for $-prefix lookup, but
+            // collectCommandPayloads() below skips them from Discord slash registration,
+            // so they never count toward the 100-command global limit.
+            if (typeof command.data.toJSON === 'function') {
+                const subcommands = getSubcommandInfo(command.data.toJSON());
+
+                logger.info(`Loaded command: ${primaryCommandName} from ${normalizedPath} (category: ${category})`);
+
+                if (subcommands.length > 0) {
+                    logger.info(`  - Subcommands: ${subcommands.join(', ')}`);
+                }
+            } else {
+                logger.info(`Loaded command: ${primaryCommandName} from ${normalizedPath} (category: ${category}) [prefix-only, not registered as a slash command]`);
             }
             
         } catch (error) {
@@ -101,13 +138,14 @@ export async function loadCommands(client) {
     }
     
     const commandsWithSubcommands = Array.from(client.commands.values()).filter(cmd => {
-        const subcommands = getSubcommandInfo(cmd.data.toJSON());
-        return subcommands.length > 0;
-    });
-    
-    const totalSubcommands = commandsWithSubcommands.reduce((total, cmd) => {
-        return total + getSubcommandInfo(cmd.data.toJSON()).length;
-    }, 0);
+		if (typeof cmd.data?.toJSON !== 'function') return false; // prefix-only commands have no toJSON
+		const subcommands = getSubcommandInfo(cmd.data.toJSON());
+		return subcommands.length > 0;
+	});
+
+	const totalSubcommands = commandsWithSubcommands.reduce((total, cmd) => {
+		return total + getSubcommandInfo(cmd.data.toJSON()).length;
+	}, 0);
     
     const uniqueCommands = new Set();
     for (const [name, command] of client.commands.entries()) {
@@ -126,6 +164,16 @@ function collectCommandPayloads(client) {
     const registeredNames = new Set();
 
     for (const command of client.commands.values()) {
+        if (command.prefixOnly === true) {
+            logger.debug(`Skipping slash registration for prefix-only command: ${command.data?.name}`);
+            continue;
+        }
+
+        if (getCommandPolicy(command.category, command.data?.name)?.slash === false) {
+            logger.debug(`Skipping slash registration for slash-disabled command: ${command.data?.name}`);
+            continue;
+        }
+
         if (!command.data || typeof command.data.toJSON !== 'function') {
             logger.warn(`Command missing data or toJSON method: ${command}`);
             continue;

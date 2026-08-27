@@ -3,7 +3,7 @@
 import { getGuildConfig } from './config/guildConfig.js';
 import { getGuildBirthdays, setBirthday as dbSetBirthday, deleteBirthday as dbDeleteBirthday, getMonthName, getBirthdayTrackingKey } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
-import { TitanBotError, ErrorTypes } from '../utils/errorHandler.js';
+import { MidNightError, ErrorTypes } from '../utils/errorHandler.js';
 
 export function validateBirthday(month, day) {
   
@@ -54,7 +54,7 @@ export async function setBirthday(client, guildId, userId, month, day) {
         error: validation.error
       });
       
-      throw new TitanBotError(
+      throw new MidNightError(
         validation.error,
         ErrorTypes.VALIDATION,
         validation.error,
@@ -65,7 +65,7 @@ export async function setBirthday(client, guildId, userId, month, day) {
     const success = await dbSetBirthday(client, guildId, userId, month, day);
     
     if (!success) {
-      throw new TitanBotError(
+      throw new MidNightError(
         'Failed to save birthday to database',
         ErrorTypes.DATABASE,
         'Failed to set your birthday. Please try again later.',
@@ -170,7 +170,7 @@ export async function deleteBirthday(client, guildId, userId) {
     const success = await dbDeleteBirthday(client, guildId, userId);
     
     if (!success) {
-      throw new TitanBotError(
+      throw new MidNightError(
         'Failed to delete birthday from database',
         ErrorTypes.DATABASE,
         'Failed to remove your birthday. Please try again.',
