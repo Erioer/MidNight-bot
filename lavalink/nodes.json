@@ -26,5 +26,12 @@
     "password": "free",
     "secure": true,
     "name": "TriniumHost"
-  }
+  },
+    {
+   "host": "lavalinkv4.serenetia.com",
+  "password": "https://dsc.gg/ajidevserver",
+  "port": 443,
+  "secure": true,
+  "name": "Serenetia V2"
+}
 ]
