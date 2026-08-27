@@ -1,5 +1,5 @@
 {
-  "name": "titanbot",
+  "name": "midnight",
   "version": "2.1.0",
   "description": "Modular Ultimate Community Bot by Touchpoint Support",
   "main": "src/app.js",
@@ -21,6 +21,7 @@
     "discord.js": "^14.26.4",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "js-yaml": "^4.1.0",
     "node-cron": "^4.2.1",
     "pg": "^8.11.3",
     "winston": "^3.19.0",
