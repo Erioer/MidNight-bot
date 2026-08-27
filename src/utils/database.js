@@ -17,6 +17,7 @@ export {
     getGuildBirthdaysKey,
     getBirthdayLeftBackupKey,
     getBirthdayTrackingKey,
+    getUserLikedSongsKey,
     getTicketKey,
     getTicketCounterKey,
     getInviteTrackingKey,

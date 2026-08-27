@@ -1,6 +1,6 @@
 // serviceErrorBoundary.js
 
-import { createError, ErrorTypes, TitanBotError, categorizeError, getUserMessage } from './errorHandler.js';
+import { createError, ErrorTypes, MidNightError, categorizeError } from './errorHandler.js';
 import { resolveErrorCode, getErrorMetadata } from './errorRegistry.js';
 
 function normalizeBoundaryContext(context = {}) {
@@ -12,7 +12,7 @@ function normalizeBoundaryContext(context = {}) {
 }
 
 export function ensureTypedServiceError(error, options = {}) {
-  if (error instanceof TitanBotError) {
+  if (error instanceof MidNightError) {
     return error;
   }
 
@@ -31,14 +31,7 @@ export function ensureTypedServiceError(error, options = {}) {
   });
   const errorMetadata = getErrorMetadata(errorCode);
   const message = options.message || `${service}.${operation} failed`;
-  const userMessage = options.userMessage || getUserMessage(error);
-  const isExpectedUserFailure = [
-    ErrorTypes.VALIDATION,
-    ErrorTypes.USER_INPUT,
-    ErrorTypes.CONFIGURATION,
-    ErrorTypes.PERMISSION,
-    ErrorTypes.RATE_LIMIT,
-  ].includes(type);
+  const userMessage = options.userMessage || 'Something went wrong while processing your request.';
 
   return createError(message, type, userMessage, {
     ...context,
@@ -50,7 +43,7 @@ export function ensureTypedServiceError(error, options = {}) {
     retryable: errorMetadata.retryable,
     originalErrorMessage: error?.message || String(error),
     originalErrorName: error?.name || 'Error',
-    expected: options.expected ?? isExpectedUserFailure,
+    expected: false
   });
 }
 

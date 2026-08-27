@@ -8,6 +8,10 @@ export const getGuildBirthdaysKey = (guildId) => `guild:${guildId}:birthdays`;
 export const getBirthdayLeftBackupKey = (guildId) => `guild:${guildId}:birthdays:left`;
 export const getBirthdayTrackingKey = (guildId) => `guild:${guildId}:birthdays:tracking`;
 
+export function getUserLikedSongsKey(userId) {
+    return `user:${userId}:likes`;
+}
+
 export function getTicketKey(guildId, channelId) {
     return `guild:${guildId}:ticket:${channelId}`;
 }
@@ -110,6 +114,26 @@ export function getReactionRoleKey(guildId, messageId) {
 
 export function getReactionRolesPrefix(guildId) {
     return `guild:${guildId}:reaction_roles:`;
+}
+
+export function getStarboardConfigKey(guildId) {
+    return `guild:${guildId}:starboard:config`;
+}
+
+export function getStarboardMessageKey(guildId, originalMessageId) {
+    return `guild:${guildId}:starboard:messages:${originalMessageId}`;
+}
+
+export function getStarboardMessagesPrefix(guildId) {
+    return `guild:${guildId}:starboard:messages:`;
+}
+
+export function getReactionCountKey(guildId, action, giverId, receiverId) {
+    return `guild:${guildId}:fun:reactions:${action}:${giverId}:${receiverId}`;
+}
+
+export function getReactionBackKey(guildId, messageId) {
+    return `guild:${guildId}:fun:reactions:back:${messageId}`;
 }
 
 export function getServerCountersKey(guildId) {

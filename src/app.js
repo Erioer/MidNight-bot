@@ -1,4 +1,4 @@
-﻿import 'dotenv/config';
+import 'dotenv/config';
 import { Client, Collection, GatewayIntentBits } from 'discord.js';
 import { REST } from '@discordjs/rest';
 import express from 'express';
@@ -18,7 +18,7 @@ import { shutdownMusic } from './services/music/playerHandler.js';
 import pkg from '../package.json' with { type: 'json' };
 import { EXPECTED_SCHEMA_VERSION, EXPECTED_SCHEMA_LABEL } from './config/database/schemaVersion.js';
 
-class TitanBot extends Client {
+class MidNight extends Client {
   constructor() {
     super({
       intents: [
@@ -50,7 +50,7 @@ class TitanBot extends Client {
 
   async start() {
     try {
-      startupLog('Starting TitanBot...');
+      startupLog('Starting MidNight...');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       startupLog('Initializing database...');
@@ -204,7 +204,7 @@ class TitanBot extends Client {
 
     app.get('/', (req, res) => {
       res.status(200).json({ 
-        message: 'TitanBot System Online',
+        message: 'MidNight System Online',
         version: pkg.version,
         timestamp: new Date().toISOString()
       });
@@ -388,7 +388,7 @@ class TitanBot extends Client {
 }
 
 try {
-  const bot = new TitanBot();
+  const bot = new MidNight();
   
   const setupShutdown = () => {
     process.on('SIGTERM', () => bot.shutdown('SIGTERM'));
@@ -428,4 +428,4 @@ try {
   process.exit(1);
 }
 
-export default TitanBot;
+export default MidNight;
