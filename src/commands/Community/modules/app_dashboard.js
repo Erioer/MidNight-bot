@@ -21,7 +21,7 @@ import {
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 import { successEmbed } from '../../../utils/embeds.js';
 import { logger } from '../../../utils/logger.js';
-import { TitanBotError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
+import { MidNightError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
 import { safeDeferInteraction } from '../../../utils/interactionValidator.js';
 import {
     getApplicationSettings,
@@ -159,7 +159,7 @@ export default {
                 roles.length === 0;
 
             if (isCompletelyUnconfigured) {
-                throw new TitanBotError(
+                throw new MidNightError(
                     'Applications system not set up',
                     ErrorTypes.CONFIGURATION,
                     'The applications system has not been configured yet. Please run `/app-admin setup` to create your first application.',
@@ -184,9 +184,9 @@ export default {
             await showApplicationDashboard(interaction, defaultRole, settings, roles, guildId, client);
 
         } catch (error) {
-            if (error instanceof TitanBotError) throw error;
+            if (error instanceof MidNightError) throw error;
             logger.error('Unexpected error in app_dashboard:', error);
-            throw new TitanBotError(
+            throw new MidNightError(
                 `Applications dashboard failed: ${error.message}`,
                 ErrorTypes.UNKNOWN,
                 'Failed to open the applications dashboard.',
@@ -389,14 +389,14 @@ function setupCollectors(interaction, settings, roles, guildId, client, selected
                     break;
             }
         } catch (error) {
-            if (error instanceof TitanBotError) {
+            if (error instanceof MidNightError) {
                 logger.debug(`Applications config validation error: ${error.message}`);
             } else {
                 logger.error('Unexpected applications dashboard error:', error);
             }
 
             const errorMessage =
-                error instanceof TitanBotError
+                error instanceof MidNightError
                     ? error.userMessage || 'An error occurred while processing your selection.'
                     : 'An unexpected error occurred while updating the configuration.';
 

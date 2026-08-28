@@ -4,7 +4,7 @@ import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { WarningService } from '../../services/moderation/warningService.js';
 import { ModerationService } from '../../services/moderation/moderationService.js';
-import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
     data: new SlashCommandBuilder()
@@ -43,7 +43,7 @@ export default {
         const guildId = interaction.guildId;
 
         if (!target) {
-            throw new TitanBotError(
+            throw new MidNightError(
                 'Missing target user',
                 ErrorTypes.USER_INPUT,
                 'You must specify a user to warn.',
@@ -52,7 +52,7 @@ export default {
         }
 
         if (!reason) {
-            throw new TitanBotError(
+            throw new MidNightError(
                 'Missing warning reason',
                 ErrorTypes.VALIDATION,
                 'You must provide a reason for the warning.',
@@ -61,7 +61,7 @@ export default {
         }
 
         if (!member) {
-            throw new TitanBotError(
+            throw new MidNightError(
                 "Target not found",
                 ErrorTypes.USER_INPUT,
                 "The target user is not currently in this server."

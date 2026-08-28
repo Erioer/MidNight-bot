@@ -17,6 +17,12 @@ import {
     replyMusicSuccess,
 } from '../../services/music/musicActions.js';
 import { deferMusicCommand } from '../../services/music/prefixSupport.js';
+import {
+    addCurrentSongToLikes,
+    listLikedSongs,
+    removeLikedSong,
+    playLikedSong,
+} from '../../services/music/likedSongsService.js';
 
 export default {
     category: 'Music',
@@ -102,11 +108,70 @@ export default {
                 .addBooleanOption((opt) =>
                     opt.setName('enabled').setDescription('Enable or disable 24/7 mode').setRequired(true),
                 ),
+        )
+        .addSubcommandGroup((group) =>
+            group
+                .setName('likes')
+                .setDescription('Manage your personal liked songs playlist')
+                .addSubcommand((sub) =>
+                    sub.setName('add').setDescription('Save the currently playing track to your liked songs'),
+                )
+                .addSubcommand((sub) =>
+                    sub.setName('list').setDescription('Show your liked songs'),
+                )
+                .addSubcommand((sub) =>
+                    sub
+                        .setName('remove')
+                        .setDescription('Remove a song from your liked songs')
+                        .addIntegerOption((opt) =>
+                            opt.setName('number').setDescription('Position of the song to remove').setRequired(true).setMinValue(1),
+                        ),
+                )
+                .addSubcommand((sub) =>
+                    sub
+                        .setName('play')
+                        .setDescription('Play a song from your liked songs')
+                        .addIntegerOption((opt) =>
+                            opt.setName('number').setDescription('Position of the song to play').setRequired(true).setMinValue(1),
+                        ),
+                ),
         ),
 
     async execute(interaction, config, client) {
         await deferMusicCommand(interaction);
+        const subcommandGroup = interaction.options.getSubcommandGroup();
         const subcommand = interaction.options.getSubcommand();
+
+        if (subcommandGroup === 'likes') {
+            const userId = interaction.user.id;
+            switch (subcommand) {
+                case 'add': {
+                    const embed = await addCurrentSongToLikes(client, interaction, userId);
+                    await replyMusicSuccess(interaction, embed);
+                    break;
+                }
+                case 'list': {
+                    const embed = await listLikedSongs(client, userId);
+                    await replyMusicSuccess(interaction, embed);
+                    break;
+                }
+                case 'remove': {
+                    const embed = await removeLikedSong(client, userId, interaction.options.getInteger('number'));
+                    await replyMusicSuccess(interaction, embed);
+                    break;
+                }
+                case 'play': {
+                    const embed = await playLikedSong(client, interaction, userId, interaction.options.getInteger('number'));
+                    await replyMusicSuccess(interaction, embed);
+                    break;
+                }
+                default:
+                    await InteractionHelper.safeEditReply(interaction, {
+                        content: 'Unknown music likes subcommand.',
+                    });
+            }
+            return;
+        }
 
         switch (subcommand) {
             case 'pause': {

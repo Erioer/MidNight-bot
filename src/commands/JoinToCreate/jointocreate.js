@@ -2,7 +2,7 @@ import { getColor } from '../../config/bot.js';
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, LabelBuilder } from 'discord.js';
 import { successEmbed, warningEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
-import { TitanBotError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
+import { MidNightError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import {
     initializeJoinToCreate,
@@ -76,7 +76,7 @@ export default {
         try {
             
             if (!hasManageGuildPermission(interaction.member)) {
-                throw new TitanBotError(
+                throw new MidNightError(
                     'User lacks ManageGuild permission',
                     ErrorTypes.PERMISSION,
                     'You need **Manage Server** permission to use this command.'
@@ -100,9 +100,9 @@ export default {
             try {
                 let errorMessage = 'An error occurred while executing this command.';
                 
-                if (error instanceof TitanBotError) {
+                if (error instanceof MidNightError) {
                     errorMessage = error.userMessage || 'An error occurred. Please try again.';
-                    logger.debug(`TitanBotError [${error.type}]: ${error.message}`, error.context || {});
+                    logger.debug(`MidNightError [${error.type}]: ${error.message}`, error.context || {});
                 } else {
                     logger.error('Unexpected error in jointocreate command:', error);
                     errorMessage = 'An unexpected error occurred. Please try again or contact support.';
@@ -152,7 +152,7 @@ async function handleSetupSubcommand(interaction, client) {
                 const primaryTrigger = activeTriggerChannels[0];
                 const errorMessage = `This server already has a Join to Create channel set up: ${primaryTrigger}\n\nUse \`/jointocreate dashboard\` to modify it, or remove it first before creating a new one.`;
 
-                throw new TitanBotError(
+                throw new MidNightError(
                     'Guild already has a Join to Create channel',
                     ErrorTypes.VALIDATION,
                     errorMessage,
@@ -213,10 +213,10 @@ async function handleSetupSubcommand(interaction, client) {
 
     } catch (error) {
         logger.error('Error in handleSetupSubcommand:', error);
-        if (error instanceof TitanBotError) {
+        if (error instanceof MidNightError) {
             throw error;
         }
-        throw new TitanBotError(
+        throw new MidNightError(
             `Setup failed: ${error.message}`,
             ErrorTypes.DISCORD_API,
             'Failed to set up Join to Create system. Please check bot permissions.'
@@ -286,7 +286,7 @@ async function handleConfigSubcommand(interaction, client) {
         const message = await interaction.fetchReply();
 
         if (!message || typeof message.createMessageComponentCollector !== 'function') {
-            throw new TitanBotError(
+            throw new MidNightError(
                 'Failed to fetch interaction reply for collector setup',
                 ErrorTypes.DISCORD_API,
                 'Failed to open configuration controls. Please run `/jointocreate dashboard` again.'
@@ -321,11 +321,11 @@ async function handleConfigSubcommand(interaction, client) {
                     await handleChannelDeletion(buttonInteraction, triggerChannel, currentConfig, client);
                 }
             } catch (error) {
-                const userMessage = error instanceof TitanBotError
+                const userMessage = error instanceof MidNightError
                     ? error.userMessage || 'An error occurred.'
                     : 'An error occurred while processing your request.';
 
-                if (error instanceof TitanBotError) {
+                if (error instanceof MidNightError) {
                     logger.debug(`Button interaction validation error: ${error.message}`, error.context || {});
                 } else {
                     logger.error('Unexpected error in config button interaction:', error);
@@ -353,10 +353,10 @@ async function handleConfigSubcommand(interaction, client) {
         });
 
     } catch (error) {
-        if (error instanceof TitanBotError) {
+        if (error instanceof MidNightError) {
             throw error;
         }
-        throw new TitanBotError(
+        throw new MidNightError(
             `Config failed: ${error.message}`,
             ErrorTypes.DATABASE,
             'Failed to load configuration.'
@@ -438,11 +438,11 @@ async function handleNameTemplateModal(interaction, triggerChannel, currentConfi
         if (error.code === 'INTERACTION_COLLECTOR_ERROR') {
             return;
         }
-        if (error instanceof TitanBotError) {
+        if (error instanceof MidNightError) {
             throw error;
         }
         logger.error('Unexpected error in name template modal:', error);
-        throw new TitanBotError(
+        throw new MidNightError(
             `Modal error: ${error.message}`,
             ErrorTypes.UNKNOWN,
             'An error occurred while updating the template.'
@@ -506,11 +506,11 @@ async function handleUserLimitModal(interaction, triggerChannel, currentConfig, 
         if (error.code === 'INTERACTION_COLLECTOR_ERROR') {
             return;
         }
-        if (error instanceof TitanBotError) {
+        if (error instanceof MidNightError) {
             throw error;
         }
         logger.error('Unexpected error in user limit modal:', error);
-        throw new TitanBotError(
+        throw new MidNightError(
             `Modal error: ${error.message}`,
             ErrorTypes.UNKNOWN,
             'An error occurred while updating the user limit.'
@@ -574,11 +574,11 @@ async function handleBitrateModal(interaction, triggerChannel, currentConfig, cl
         if (error.code === 'INTERACTION_COLLECTOR_ERROR') {
             return;
         }
-        if (error instanceof TitanBotError) {
+        if (error instanceof MidNightError) {
             throw error;
         }
         logger.error('Unexpected error in bitrate modal:', error);
-        throw new TitanBotError(
+        throw new MidNightError(
             `Modal error: ${error.message}`,
             ErrorTypes.UNKNOWN,
             'An error occurred while updating the bitrate.'
@@ -671,11 +671,11 @@ async function handleChannelDeletion(interaction, triggerChannel, currentConfig,
         });
 
     } catch (error) {
-        if (error instanceof TitanBotError) {
+        if (error instanceof MidNightError) {
             throw error;
         }
         logger.error('Unexpected error in handleChannelDeletion:', error);
-        throw new TitanBotError(
+        throw new MidNightError(
             `Deletion error: ${error.message}`,
             ErrorTypes.UNKNOWN,
             'An error occurred while removing the channel.'

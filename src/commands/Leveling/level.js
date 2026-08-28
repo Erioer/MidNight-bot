@@ -3,7 +3,7 @@ import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } f
 import { createEmbed } from '../../utils/embeds.js';
 import { getLevelingConfig, saveLevelingConfig } from '../../services/leveling/leveling.js';
 import { botHasPermission } from '../../utils/permissionGuard.js';
-import { TitanBotError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
+import { MidNightError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { logger } from '../../utils/logger.js';
 import levelDashboard from './modules/level_dashboard.js';
@@ -21,9 +21,9 @@ export default {
                 .addChannelOption((option) =>
                     option
                         .setName('channel')
-                        .setDescription('Channel to send level-up notifications in')
+                        .setDescription('Channel to send level-up notifications in (optional — omit to disable announcements)')
                         .addChannelTypes(ChannelType.GuildText)
-                        .setRequired(true),
+                        .setRequired(false),
                 )
                 .addIntegerOption((option) =>
                     option
@@ -95,8 +95,8 @@ export default {
                 return await replyUserError(interaction, { type: ErrorTypes.VALIDATION, message: `Minimum XP (**${xpMin}**) cannot be greater than maximum XP (**${xpMax}**).` });
             }
 
-            if (!botHasPermission(channel, ['SendMessages', 'EmbedLinks'])) {
-                throw new TitanBotError(
+            if (channel && !botHasPermission(channel, ['SendMessages', 'EmbedLinks'])) {
+                throw new MidNightError(
                     'Bot missing permissions in the specified channel',
                     ErrorTypes.PERMISSION,
                     `I need **SendMessages** and **EmbedLinks** permissions in ${channel} to send level-up notifications.`,
@@ -106,24 +106,27 @@ export default {
             const existingConfig = await getLevelingConfig(client, interaction.guildId);
 
             if (existingConfig.configured) {
-                return await replyUserError(interaction, { type: ErrorTypes.UNKNOWN, message: `The leveling system is already set up on this server (level-up notifications go to <#${existingConfig.levelUpChannel}>).\n\nUse \`/level dashboard\` to adjust any settings.` });
+                const channelRef = existingConfig.levelUpChannel
+                    ? `(level-up notifications go to <#${existingConfig.levelUpChannel}>)`
+                    : '(level-up announcements are disabled)';
+                return await replyUserError(interaction, { type: ErrorTypes.UNKNOWN, message: `The leveling system is already set up on this server ${channelRef}.\n\nUse \`/level dashboard\` to adjust any settings.` });
             }
 
             const newConfig = {
                 ...existingConfig,
                 configured: true,
                 enabled: true,
-                levelUpChannel: channel.id,
+                levelUpChannel: channel?.id ?? null,
                 xpRange: { min: xpMin, max: xpMax },
                 xpCooldown: xpCooldown,
                 levelUpMessage: message,
-                announceLevelUp: true,
+                announceLevelUp: Boolean(channel),
             };
 
             await saveLevelingConfig(client, interaction.guildId, newConfig);
 
             logger.info(`Leveling system set up in guild ${interaction.guildId}`, {
-                channelId: channel.id,
+                channelId: channel?.id ?? null,
                 xpMin,
                 xpMax,
                 xpCooldown,
@@ -136,7 +139,7 @@ export default {
                         title: 'Leveling System Set Up',
                         description:
                             `The leveling system is now **enabled** and ready to go.\n\n` +
-                            `**Level-up Channel:** ${channel}\n` +
+                            `**Level-up Channel:** ${channel ?? '`None` (announcements disabled)`'}\n` +
                             `**XP per Message:** ${xpMin} – ${xpMax}\n` +
                             `**XP Cooldown:** ${xpCooldown}s\n` +
                             `**Level-up Message:** \`${message}\`\n\n` +

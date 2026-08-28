@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { logger } from '../../utils/logger.js';
-import { TitanBotError, ErrorTypes } from '../../utils/errorHandler.js';
+import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getUserLevelData, getLevelingConfig, getXpForLevel } from '../../services/leveling/leveling.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -39,7 +39,7 @@ export default {
       .catch(() => null);
 
     if (!member) {
-      throw new TitanBotError(
+      throw new MidNightError(
         `User ${targetUser.id} not found in guild`,
         ErrorTypes.USER_INPUT,
         'Could not find the specified user in this server.'

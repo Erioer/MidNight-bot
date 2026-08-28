@@ -19,18 +19,20 @@ import {
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 import { successEmbed } from '../../../utils/embeds.js';
 import { logger } from '../../../utils/logger.js';
-import { TitanBotError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
+import { MidNightError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
 import { getLevelingConfig, saveLevelingConfig } from '../../../services/leveling/leveling.js';
 import { botHasPermission } from '../../../utils/permissionGuard.js';
 import { startDashboardSession } from '../../../utils/dashboardSession.js';
 
 function buildDashboardEmbed(cfg, guild) {
-    const channel = cfg.levelUpChannel ? `<#${cfg.levelUpChannel}>` : '`Not set`';
     const xpMin = cfg.xpRange?.min ?? cfg.xpPerMessage?.min ?? 15;
-    const xpMax = cfg.xpRange?.max ?? cfg.xpPerMessage?.max ?? 25;
+    const xpMax = cfg.xpRange?.max ?? cfg.xpPerMessage?.max ?? 40;
     const cooldown = cfg.xpCooldown ?? 60;
-    const rawMsg = cfg.levelUpMessage || '{user} has leveled up to level {level}!';
+    const rawMsg = cfg.levelUpMessage || '{user} has earned the {role} role!';
     const msgPreview = `\`${rawMsg.length > 60 ? rawMsg.substring(0, 60) + '…' : rawMsg}\``;
+    const firstPlaceRole = cfg.firstPlaceRoleId ? `<@&${cfg.firstPlaceRoleId}>` : '`Not set`';
+    const boosterRole = cfg.boosterRoleId ? `<@&${cfg.boosterRoleId}>` : '`Not set`';
+    const reactionXpOn = cfg.reactionXp?.enabled === true;
 
     const rewards = cfg.roleRewards ?? {};
     const rewardEntries = Object.entries(rewards).sort(([a], [b]) => Number(a) - Number(b));
@@ -48,12 +50,13 @@ function buildDashboardEmbed(cfg, guild) {
         .setDescription(`Manage leveling settings for **${guild.name}**.\nSelect an option below to modify a setting.`)
         .setColor(getColor('info'))
         .addFields(
-            { name: 'Level-up Channel', value: channel, inline: true },
             { name: 'System Status', value: cfg.enabled ? '**Enabled**' : '**Disabled**', inline: true },
             { name: 'Announcements', value: cfg.announceLevelUp !== false ? '**Enabled**' : '**Disabled**', inline: true },
+            { name: 'Reaction XP', value: reactionXpOn ? '**Enabled**' : '**Disabled**', inline: true },
             { name: 'XP per Message', value: `\`${xpMin} – ${xpMax}\``, inline: true },
             { name: 'XP Cooldown', value: `\`${cooldown}s\``, inline: true },
-            { name: '\u200B', value: '\u200B', inline: true },
+            { name: 'First-Place Role', value: firstPlaceRole, inline: true },
+            { name: 'Booster Role', value: boosterRole, inline: true },
             { name: 'Level-up Message', value: msgPreview, inline: false },
             { name: 'Role Rewards', value: rewardsValue, inline: false },
             { name: 'Ignored Channels', value: ignoredChValue, inline: true },
@@ -69,13 +72,8 @@ function buildSelectMenu(guildId) {
         .setPlaceholder('Select a setting to configure...')
         .addOptions(
             new StringSelectMenuOptionBuilder()
-                .setLabel('Change Level-up Channel')
-                .setDescription('Set the channel where level-up notifications are sent')
-                .setValue('channel')
-                .setEmoji('📢'),
-            new StringSelectMenuOptionBuilder()
                 .setLabel('Edit Level-up Message')
-                .setDescription('Customise the message shown when a user levels up')
+                .setDescription('Customise the message shown when a user earns a role')
                 .setValue('message')
                 .setEmoji('💬'),
             new StringSelectMenuOptionBuilder()
@@ -99,6 +97,16 @@ function buildSelectMenu(guildId) {
                 .setValue('role_reward_remove')
                 .setEmoji('\ud83d\uddd1\ufe0f'),
             new StringSelectMenuOptionBuilder()
+                .setLabel('Set First-Place Role')
+                .setDescription('Role given to whoever is currently #1 on the XP leaderboard')
+                .setValue('first_place_role')
+                .setEmoji('👑'),
+            new StringSelectMenuOptionBuilder()
+                .setLabel('Set Booster Role')
+                .setDescription('Role that grants a 10% XP bonus (alongside native server boosters)')
+                .setValue('booster_role')
+                .setEmoji('🚀'),
+            new StringSelectMenuOptionBuilder()
                 .setLabel('Ignored Channels')
                 .setDescription('Toggle channels where XP will not be awarded')
                 .setValue('ignore_channels')
@@ -114,6 +122,7 @@ function buildSelectMenu(guildId) {
 function buildButtonRow(cfg, guildId, disabled = false) {
     const announceOn = cfg.announceLevelUp !== false;
     const systemOn = cfg.enabled !== false;
+    const reactionXpOn = cfg.reactionXp?.enabled === true;
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(`level_cfg_toggle_announce_${guildId}`)
@@ -126,6 +135,12 @@ function buildButtonRow(cfg, guildId, disabled = false) {
             .setLabel('Leveling')
             .setStyle(systemOn ? ButtonStyle.Success : ButtonStyle.Danger)
             .setEmoji('⚡')
+            .setDisabled(disabled),
+        new ButtonBuilder()
+            .setCustomId(`level_cfg_toggle_reactionxp_${guildId}`)
+            .setLabel('Reaction XP')
+            .setStyle(reactionXpOn ? ButtonStyle.Success : ButtonStyle.Danger)
+            .setEmoji('🚀')
             .setDisabled(disabled),
     );
 }
@@ -148,14 +163,6 @@ export default {
             const guildId = interaction.guild.id;
             const cfg = await getLevelingConfig(client, guildId);
 
-            if (!cfg.configured) {
-                throw new TitanBotError(
-                    'Leveling system not configured',
-                    ErrorTypes.CONFIGURATION,
-                    'The leveling system has not been set up yet. Run `/level setup` first to configure it.',
-                );
-            }
-
             await startDashboardSession({
                 interaction,
                 embeds: [buildDashboardEmbed(cfg, interaction.guild)],
@@ -166,13 +173,11 @@ export default {
                 selectMenuId: `level_cfg_${guildId}`,
                 buttonMatcher: (customId) =>
                     customId === `level_cfg_toggle_announce_${guildId}` ||
-                    customId === `level_cfg_toggle_system_${guildId}`,
+                    customId === `level_cfg_toggle_system_${guildId}` ||
+                    customId === `level_cfg_toggle_reactionxp_${guildId}`,
                 onSelect: async (selectInteraction) => {
                     const selectedOption = selectInteraction.values[0];
                     switch (selectedOption) {
-                        case 'channel':
-                            await handleChannel(selectInteraction, interaction, cfg, guildId, client);
-                            break;
                         case 'message':
                             await handleMessage(selectInteraction, interaction, cfg, guildId, client);
                             break;
@@ -188,6 +193,12 @@ export default {
                         case 'role_reward_remove':
                             await handleRoleRewardRemove(selectInteraction, interaction, cfg, guildId, client);
                             break;
+                        case 'first_place_role':
+                            await handleFirstPlaceRole(selectInteraction, interaction, cfg, guildId, client);
+                            break;
+                        case 'booster_role':
+                            await handleBoosterRole(selectInteraction, interaction, cfg, guildId, client);
+                            break;
                         case 'ignore_channels':
                             await handleIgnoreChannels(selectInteraction, interaction, cfg, guildId, client);
                             break;
@@ -199,6 +210,7 @@ export default {
                 onButton: async (btnInteraction) => {
                     await btnInteraction.deferUpdate().catch(() => null);
                     const isAnnounce = btnInteraction.customId === `level_cfg_toggle_announce_${guildId}`;
+                    const isReactionXp = btnInteraction.customId === `level_cfg_toggle_reactionxp_${guildId}`;
 
                     if (isAnnounce) {
                         cfg.announceLevelUp = cfg.announceLevelUp === false;
@@ -208,6 +220,19 @@ export default {
                                 successEmbed(
                                     '✅ Announcements Updated',
                                     `Level-up announcements are now **${cfg.announceLevelUp ? 'enabled' : 'disabled'}**.`,
+                                ),
+                            ],
+                            flags: MessageFlags.Ephemeral,
+                        });
+                    } else if (isReactionXp) {
+                        cfg.reactionXp = cfg.reactionXp ?? { min: 25, max: 25, cooldown: 300 };
+                        cfg.reactionXp.enabled = cfg.reactionXp.enabled !== true;
+                        await saveLevelingConfig(client, guildId, cfg);
+                        await btnInteraction.followUp({
+                            embeds: [
+                                successEmbed(
+                                    '✅ Reaction XP Updated',
+                                    `Reaction XP is now **${cfg.reactionXp.enabled ? 'enabled' : 'disabled'}**.${cfg.reactionXp.enabled ? `\nBoth the reactor and the message author earn **${cfg.reactionXp.min}–${cfg.reactionXp.max} XP** (${cfg.reactionXp.cooldown}s cooldown each).` : ''}`,
                                 ),
                             ],
                             flags: MessageFlags.Ephemeral,
@@ -231,9 +256,9 @@ export default {
                 },
             });
         } catch (error) {
-            if (error instanceof TitanBotError) throw error;
+            if (error instanceof MidNightError) throw error;
             logger.error('Unexpected error in level_dashboard:', error);
-            throw new TitanBotError(
+            throw new MidNightError(
                 `Level dashboard failed: ${error.message}`,
                 ErrorTypes.UNKNOWN,
                 'Failed to open the leveling dashboard.',
@@ -372,50 +397,87 @@ async function handleRoleRewardRemove(selectInteraction, rootInteraction, cfg, g
     await refreshDashboard(rootInteraction, cfg, guildId);
 }
 
-async function handleChannel(selectInteraction, rootInteraction, cfg, guildId, client) {
+async function handleFirstPlaceRole(selectInteraction, rootInteraction, cfg, guildId, client) {
     const modal = new ModalBuilder()
-        .setCustomId(`level_cfg_channel_modal_${guildId}`)
-        .setTitle('\ud83d\udce2 Change Level-up Channel');
+        .setCustomId(`level_cfg_first_place_${guildId}`)
+        .setTitle('\ud83d\udce2 Set First-Place Role');
 
-    const channelSelect = new ChannelSelectMenuBuilder()
-        .setCustomId('levelup_channel')
-        .setPlaceholder('Select a text channel...')
+    const roleSelect = new RoleSelectMenuBuilder()
+        .setCustomId('first_place_role')
+        .setPlaceholder('Select the role for #1 on the leaderboard...')
         .setMinValues(1)
         .setMaxValues(1)
-        .addChannelTypes(ChannelType.GuildText)
         .setRequired(true);
 
-    const channelLabel = new LabelBuilder()
-        .setLabel('Level-up Channel')
-        .setDescription('Channel where level-up notifications will be sent')
-        .setChannelSelectMenuComponent(channelSelect);
+    const roleLabel = new LabelBuilder()
+        .setLabel('First-Place Role')
+        .setDescription('Automatically moves to whoever is currently #1 on the XP leaderboard')
+        .setRoleSelectMenuComponent(roleSelect);
 
-    modal.addLabelComponents(channelLabel);
+    modal.addLabelComponents(roleLabel);
 
     await selectInteraction.showModal(modal);
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
-            filter: i => i.customId === `level_cfg_channel_modal_${guildId}` && i.user.id === selectInteraction.user.id,
+            filter: i => i.customId === `level_cfg_first_place_${guildId}` && i.user.id === selectInteraction.user.id,
             time: 120_000,
         })
         .catch(() => null);
 
     if (!submitted) return;
 
-    const channelId = submitted.fields.getField('levelup_channel').values[0];
-    const channel = selectInteraction.guild.channels.cache.get(channelId);
+    const roleId = submitted.fields.getField('first_place_role').values[0];
 
-    if (channel && !botHasPermission(channel, ['SendMessages', 'EmbedLinks'])) {
-        await replyUserError(submitted, { type: ErrorTypes.PERMISSION, message: `I need **SendMessages** and **EmbedLinks** permissions in ${channel} to send level-up notifications.` });
-        return;
-    }
-
-    cfg.levelUpChannel = channelId;
+    cfg.firstPlaceRoleId = roleId;
+    cfg.topXpHolder = null;
     await saveLevelingConfig(client, guildId, cfg);
 
     await submitted.reply({
-        embeds: [successEmbed('\u2705 Channel Updated', `Level-up notifications will now be sent in ${channel ??`<#${channelId}>`}.`)],
+        embeds: [successEmbed('\u2705 Role Set', `<@&${roleId}> will now be given to whoever reaches #1 on the XP leaderboard.`)],
+        flags: MessageFlags.Ephemeral,
+    });
+
+    await refreshDashboard(rootInteraction, cfg, guildId);
+}
+
+async function handleBoosterRole(selectInteraction, rootInteraction, cfg, guildId, client) {
+    const modal = new ModalBuilder()
+        .setCustomId(`level_cfg_booster_role_${guildId}`)
+        .setTitle('🚀 Set Booster Role');
+
+    const roleSelect = new RoleSelectMenuBuilder()
+        .setCustomId('booster_role')
+        .setPlaceholder('Select the role that grants the 10% XP bonus...')
+        .setMinValues(1)
+        .setMaxValues(1)
+        .setRequired(true);
+
+    const roleLabel = new LabelBuilder()
+        .setLabel('Booster Role')
+        .setDescription('Members with this role earn a flat 10% XP bonus (alongside native server boosters)')
+        .setRoleSelectMenuComponent(roleSelect);
+
+    modal.addLabelComponents(roleLabel);
+
+    await selectInteraction.showModal(modal);
+
+    const submitted = await selectInteraction
+        .awaitModalSubmit({
+            filter: i => i.customId === `level_cfg_booster_role_${guildId}` && i.user.id === selectInteraction.user.id,
+            time: 120_000,
+        })
+        .catch(() => null);
+
+    if (!submitted) return;
+
+    const roleId = submitted.fields.getField('booster_role').values[0];
+
+    cfg.boosterRoleId = roleId;
+    await saveLevelingConfig(client, guildId, cfg);
+
+    await submitted.reply({
+        embeds: [successEmbed('✅ Role Set', `<@&${roleId}> will now receive a **+10%** XP bonus on all XP earned.`)],
         flags: MessageFlags.Ephemeral,
     });
 
@@ -543,13 +605,13 @@ async function handleMessage(selectInteraction, rootInteraction, cfg, guildId, c
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('message_input')
-                    .setLabel('Message ({user} and {level} are available)')
+                    .setLabel('Message ({user}, {role}, {level} available)')
                     .setStyle(TextInputStyle.Paragraph)
-                    .setValue(cfg.levelUpMessage || '{user} has leveled up to level {level}!')
+                    .setValue(cfg.levelUpMessage || '{user} has earned the {role} role!')
                     .setMaxLength(500)
                     .setMinLength(1)
                     .setRequired(true)
-                    .setPlaceholder('{user} has leveled up to level {level}!'),
+                    .setPlaceholder('{user} has earned the {role} role!'),
             ),
         );
 
@@ -567,16 +629,16 @@ async function handleMessage(selectInteraction, rootInteraction, cfg, guildId, c
 
     const newMessage = submitted.fields.getTextInputValue('message_input').trim();
 
-    if (!newMessage.includes('{user}') && !newMessage.includes('{level}')) {
+    if (!newMessage.includes('{user}') && !newMessage.includes('{role}')) {
         logger.warn(
-            `Level-up message set without {user} or {level} placeholders in guild ${guildId}`,
+            `Level-up message set without {user} or {role} placeholders in guild ${guildId}`,
         );
     }
 
     cfg.levelUpMessage = newMessage;
     await saveLevelingConfig(client, guildId, cfg);
 
-    const preview = newMessage.replace('{user}', '@User').replace('{level}', '5');
+    const preview = newMessage.replace('{user}', '@User').replace('{role}', 'Champion').replace('{level}', '5');
 
     await submitted.reply({
         embeds: [
@@ -593,7 +655,7 @@ async function handleMessage(selectInteraction, rootInteraction, cfg, guildId, c
 
 async function handleXpRange(selectInteraction, rootInteraction, cfg, guildId, client) {
     const currentMin = cfg.xpRange?.min ?? cfg.xpPerMessage?.min ?? 15;
-    const currentMax = cfg.xpRange?.max ?? cfg.xpPerMessage?.max ?? 25;
+    const currentMax = cfg.xpRange?.max ?? cfg.xpPerMessage?.max ?? 40;
 
     const modal = new ModalBuilder()
         .setCustomId('level_cfg_xp_range')
@@ -619,7 +681,7 @@ async function handleXpRange(selectInteraction, rootInteraction, cfg, guildId, c
                     .setMaxLength(3)
                     .setMinLength(1)
                     .setRequired(true)
-                    .setPlaceholder('25'),
+                    .setPlaceholder('40'),
             ),
         );
 
