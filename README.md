@@ -53,8 +53,6 @@
 
 * Queue management system to add, remove, move, clear, and paginate tracks.
 
-* Prefix shortcuts including `!play`, `!skip`, `!stop`, `!queue`, and `!react <emotion>`.
-
 
 ### Additional Features
 
@@ -72,6 +70,8 @@
 * **Birthday System**: Timezone support and automatic day-of announcements.
 
 * **Welcome & Verification**: Custom embeds, auto-role on join, verification gates, and join-to-create temporary voice channels.
+
+* Prefix shortcuts including `!play`, `!skip`, `!stop`, `!queue`, and `!react <emotion>`.
 
 
 ## Quick Setup
