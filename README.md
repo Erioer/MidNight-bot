@@ -1,286 +1,134 @@
-# TitanBot - Ultimate Discord Bot
+# MidNight — Feature-Rich Discord Bot
 
-**TitanBot** is a powerful, feature-rich Discord bot designed to enhance your server experience with comprehensive moderation tools, engaging economy systems, utility features, and much more. Built with modern Discord.js v14 and PostgreSQL for optimal performance and data persistence.
+**MidNight** is a comprehensive Discord bot combining moderation, economy, music, entertainment, and community tools into a single ESM-native package. It is built with discord.js 14 and PostgreSQL.
 
-[![Support Server](https://img.shields.io/badge/-Support%20Server-%235865F2?logo=discord&logoColor=white&style=flat-square&logoWidth=20)](https://discord.gg/8kJBYhTGW9)
-[![Discord.js](https://img.shields.io/npm/v/discord.js?style=flat-square&labelColor=%23202225&color=%23202225&logo=npm&logoColor=white&logoWidth=20)](https://www.npmjs.com/package/discord.js)
-![PostgreSQL](https://img.shields.io/badge/-PostgreSQL-%23336791?logo=postgresql&logoColor=white&style=flat-square&logoWidth=20)
-
-## Table of Contents
-
-- [Features Overview](#features-overview)
-- [Quick Setup](#quick-setup)
-- [Manual Installation Steps](#manual-installation-steps)
-- [Support Server](https://discord.gg/QnWNz2dKCE)
-- [Required Bot Intents](#bot-intents)
-- [Contributing](CONTRIBUTING.md)
-
-<a name="features-overview"></a>
 ## Features Overview
 
-TitanBot offers a complete suite of tools for Discord server management and community engagement:
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
 ### Moderation & Administration
-- **Mass Actions** - Bulk ban/kick capabilities
-- **User Notes** - Keep detailed moderation records
-- **Case Management** - View and track all mod actions
+
+
+* Mass ban/kick capabilities.
+
+* User notes and case management.
+
+* Abuse protection with cooldowns.
+
 
 ### Economy System
-- **Shop & Inventory** - Buy and manage items
-- **Gambling** - Risk it for rewards
-- **Pay System** - Transfer money between users
+
+
+* Shop, inventory, and item trading.
+
+* Gambling, daily rewards, and pay systems.
+
+* Configurable per-server economy.
+
 
 ### Fun & Entertainment
-- **Random Facts** - Learn something new
-- **Wanted Poster** - Create fun wanted images
-- **Text Reversal** - Reverse any text
 
-### Advanced Ticket System
-- **Claim & Priority** - Staff ticket management
-- **Ticket Limits** - Prevent spam
-- **Transcript System** - Save ticket history
 
-### Server Stats
-- **Member Counter** - Live member count channels
-- **Voice Counters** - Track voice stats
-- **Dynamic Updates** - Real-time channel updates
+* 59 reaction emotion GIFs powered by the nekos.best API, displaying the `anime_name` beneath the GIF. *(For the complete list of available reaction commands, refer to the `commands.txt` file included in the repository).*
 
-### Reaction Roles
-- **Role Assignment** - Self-assignable roles
-- **Emoji Selection** - Reaction-based system
-- **Multi-role Support** - Multiple role options
+* 4 image types (husbando, kitsune, neko, waifu) displaying the `artist_name` beneath the image.
 
-</td>
-<td width="50%" valign="top">
+* Counting system that automatically verifies and reacts with a ✅ to correct numbers.
 
-### Leveling & XP System
-- **XP Tracking** - Automatic message-based XP
-- **Level Roles** - Auto-assign roles by level
-- **Custom Configuration** - Personalize leveling
+* Additional tools like text reversal, wanted posters, and random facts.
 
-### Giveaways & Events
-- **Multiple Winners** - Support multi-winner giveaways
-- **Auto Picking** - Automatic winner selection
-- **Reroll System** - Pick new winners if needed
-
-### Birthday System
-- **Birthday Tracking** - Never miss a birthday
-- **Auto Announcements** - Celebrate automatically
-- **Timezone Support** - Accurate worldwide tracking
-
-### Utility Tools
-- **Report System** - Report issues to staff
-- **Todo Lists** - Personal task management
-- **First Message** - Jump to channel's first message
-
-### Welcome System
-- **Welcome Messages** - Greet new members
-- **Auto Roles** - Assign roles on join
-- **Custom Embeds** - Personalized messages
-  
-### Music
-- **24/7 Mode** - Play music 24/7
-- **Interative Button System** - Manage music through buttons
-- **Supports EVERY platform** - Supports spotify, deezer, youtube, apple music
-  
-</td>
-</tr>
-</table>
-
-<a name="quick-setup"></a>
-## Quick Setup (Recommended for non-coders)
-
-### Video Tutorial
-For a detailed step-by-step setup guide, watch our comprehensive video tutorial:
-[**TitanBot Setup Tutorial**](https://www.youtube.com/@TouchDisc)
-
-## Docker Deployment (Recommended)
-
-TitanBot is fully containerized for easy deployment.
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/codebymitch/TitanBot.git
-   cd TitanBot
-   ```
-
-2. **Configure environment variables:**
-   ```bash
-   cp .env.example .env
-   ```
-   Set at minimum `DISCORD_TOKEN`, `CLIENT_ID`, and `GUILD_ID`. Docker Compose also reads `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from `.env` (defaults: `titanbot` / `password` / `titanbot`).
-
-3. **Build and start the containers:**
-   ```bash
-   docker compose up -d --build
-   ```
-
-4. **Check status:**
-   ```bash
-   docker compose ps
-   curl http://localhost:3000/health
-   ```
-
-This starts the bot and PostgreSQL. The compose file sets `POSTGRES_SSL=false` and `AUTO_MIGRATE=true` for the bundled database. Music uses public Lavalink v4 nodes from `lavalink/nodes.json` by default.
 
 ### Music
 
-Music uses [Lavalink v4](https://github.com/lavalink-devs/Lavalink) via [Riffy](https://github.com/riffy-rb/riffy), similar to [Musicify](https://github.com/codebymitch/Musicify).
 
-1. By default, the bot loads multiple public v4 SSL nodes from [`lavalink/nodes.json`](lavalink/nodes.json) (sourced from [lavalink.darrennathanael.com](https://lavalink.darrennathanael.com/SSL/Lavalink-SSL/)). Edit that file to add or remove nodes.
-2. To self-host Lavalink instead, run `docker compose --profile local-lavalink up -d` and set single-node env vars in `.env`:
-   ```env
-   LAVALINK_HOST=lavalink
-   LAVALINK_PORT=2333
-   LAVALINK_PASSWORD=youshallnotpass
-   LAVALINK_SECURE=false
-   ```
-   Remove or rename `lavalink/nodes.json` so the bot falls back to those env vars.
-3. Override nodes inline with `LAVALINK_NODES` (JSON array) or point at another file with `LAVALINK_NODES_FILE`.
-4. Use `/play <song>` from a voice channel, or `/join` to connect without playing. Prefix shortcuts: `join`, `np`, `leave`, `pause`, `resume`, `skip`, `stop`, `volume <0-100>`, or `music <subcommand>`. Use `/nowplaying` and `/queue` for status; `/music` for loop, shuffle, seek, and other controls.
+* Multi-platform search supporting Spotify, Deezer, and Apple Music, while blocking YouTube URLs.
+
+* 24/7 mode ensuring persistent playback.
+
+* Auto-leave system that automatically disconnects the bot when there are no users remaining in the voice channel.
+
+* Auto status changer that updates the voice channel status to display the name of the currently playing song.
+
+* Custom user playlists (likes/hearts list) allowing users to save and play back their own songs using the bot's default PostgreSQL database.
+
+* Interactive buttons for play, skip, shuffle, loop, and queue controls.
+
+* Queue management system to add, remove, move, clear, and paginate tracks.
+
+* Prefix shortcuts including `!play`, `!skip`, `!stop`, `!queue`, and `!react <emotion>`.
+
+
+### Additional Features
+
+
+* **Leveling System**: An Arcane-style progression system featuring custom level rewards, special rewards for the highest rank holder, and configurable ignored channels/roles.
+
+* **Starboard**: Highlight community messages with full support for archiving images and GIFs.
+
+* **Advanced Ticket System**: Priority management, configurable limits, transcripts, and a staff dashboard.
+
+* **Server Stats & Reaction Roles**: Live voice/member counters, multi-role support, and dashboards.
+
+* **Giveaways**: Multi-winner support, rerolls, timed entries, and automated announcements.
+
+* **Birthday System**: Timezone support and automatic day-of announcements.
+
+* **Welcome & Verification**: Custom embeds, auto-role on join, verification gates, and join-to-create temporary voice channels.
+
+
+## Quick Setup
+
+
+### Docker Deployment (Recommended)
+
+
+1. Clone the repository using `git clone [https://github.com/Erioer/MidNight-bot.git](https://github.com/Erioer/MidNight-bot.git)` and navigate inside with `cd MidNight`.
+
+2. Configure environment variables by copying the template: `cp .env.example .env`. At minimum, set `DISCORD_TOKEN`, `CLIENT_ID`, and `GUILD_ID`. Docker Compose will read `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from `.env`, which default to `midnight` / `password` / `midnight`.
+
+3. Build and start the bot with `docker compose up -d --build`.
+
+4. Verify the deployment using `docker compose ps` and `curl http://localhost:3000/health`. By default, `POSTGRES_SSL=false` and `AUTO_MIGRATE=true` are set in the compose file.
+
 
 ### Using GitHub Container Registry
 
-The bot is automatically published to GitHub Container Registry on every push to main.
+Pull the latest image using `docker pull ghcr.io/codebymitch/midnight:main`.
 
-```bash
-docker pull ghcr.io/codebymitch/titanbot:main
-```
+## Music Setup
 
-<a name="manual-installation-steps"></a>
-## Manual Installation Steps
+Music is powered by Lavalink v4 via Riffy.
+
+* **Default Setup**: Multiple public v4 SSL nodes load from `lavalink/nodes.json`. Edit this file to manage node connections.
+
+* **Self-Hosted Setup**: Run `docker compose --profile local-lavalink up -d`. Add the following to `.env`: `LAVALINK_HOST=lavalink`, `LAVALINK_PORT=2333`, `LAVALINK_PASSWORD=youshallnotpass`, and `LAVALINK_SECURE=false`. Remove or rename `lavalink/nodes.json` to enforce environment-variable fallback.
+
+* **Voice Channel Status**: Requires the `SET_VOICE_CHANNEL_STATUS` permission on the bot's role. Without it, the current song status silently fails and logs a warning.
+
+
+## Manual Installation
 
 ### Prerequisites
-- Node.js 20.10.0 or higher
-- PostgreSQL server (recommended) or memory storage fallback
-- Discord bot application with proper intents
 
-1. **Clone the Repository**
-   ```bash
-   git clone https://github.com/codebymitch/TitanBot.git
-   cd TitanBot
-   ```
+* Node.js 20.10.0 or higher.
 
-2. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+* PostgreSQL (recommended) or in-memory fallback.
 
-3. **Configure Environment Variables**
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` with your configuration (only the following variables require configuration, leave remaining variables as default):
-   ```env
-   # Discord Bot Configuration
-   DISCORD_TOKEN=your_discord_bot_token_here
-   CLIENT_ID=your_discord_client_id_here
-   GUILD_ID=your_discord_guild_id_here
 
-   # PostgreSQL Configuration (Primary Database)
-   POSTGRES_URL=postgresql://postgres:yourpassword@localhost:5432/titanbot
-   POSTGRES_HOST=localhost
-   POSTGRES_PORT=5432
-   POSTGRES_DB=titanbot
-   POSTGRES_USER=postgres
-   POSTGRES_PASSWORD=yourpassword
-   ```
+### Steps
 
-   Production note:
-   - `NODE_ENV=production`
-   - `LOG_LEVEL=warn` for a clean production console (critical issues + startup status)
-   - `LOG_LEVEL=info` if you want more detailed operational logs
-   - If your chosen `PORT` is already used, TitanBot automatically tries the next port(s)
 
-   Environment options reference:
-   - `NODE_ENV`: `development`, `production`, `test` (any non-`production` value is treated as non-production)
-   - `LOG_LEVEL`: `error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`
-   - Accepted aliases for `LOG_LEVEL` in this bot: `warns`, `warning`, `warnings` → `warn`
+1. Clone the repository with `git clone [https://github.com/Erioer/MidNight.git](https://github.com/Erioer/MidNight.git)`, navigate to `cd MidNight`, and run `npm install`.
 
-   Recommended production `.env` (easy mode + default mode):
-   ```env
-   NODE_ENV=production
-   LOG_LEVEL=warn
-   WEB_HOST=0.0.0.0
-   PORT=3000
-   PORT_RETRY_ATTEMPTS=5
-   ```
-   This gives clear startup/online status messages while keeping logs simple for non-technical operators.
-   If port `3000` is busy, the bot tries the next available ports automatically (up to `PORT_RETRY_ATTEMPTS`).
+2. Copy `.env.example` to `.env` and configure `DISCORD_TOKEN`, `CLIENT_ID`, and `GUILD_ID`.
 
-### Multiple servers
+3. For production environments, define `NODE_ENV=production`, `LOG_LEVEL=warn`, `WEB_HOST=0.0.0.0`, `PORT=3000`, and `PORT_RETRY_ATTEMPTS=5`.
 
-Slash commands are registered **globally** on startup (via `CLIENT_ID`), so the bot works in every server it is invited to. `GUILD_ID` stays in the tutorial `.env` for setup steps but is not used for command registration.
+4. Set up PostgreSQL by creating the database `createdb midnight` and configuring user privileges.
 
-Notes:
-- Global slash commands may take up to about an hour to propagate on first deploy
-- Each server has **isolated** data: config, economy, tickets, leveling, dashboards, warnings, etc. (all keys are scoped as `guild:{guildId}:...`)
-- In the [Discord Developer Portal](https://discord.com/developers/applications), ensure your bot is not restricted to a single guild if you plan to invite it elsewhere
-- Generate an OAuth2 invite URL from the [Discord Developer Portal](https://discord.com/developers/applications) (OAuth2 → URL Generator, scopes: `bot` and `applications.commands`)
+5. Verify the database using `npm run migrate:check` and start the bot using `npm start`.
 
-4. **Setup PostgreSQL Database** (Optional but recommended)
-   ```bash
-   # Create database and user
-   createdb titanbot
-   createuser titanbot
-   psql -c "ALTER USER titanbot PASSWORD 'yourpassword';"
-   psql -c "GRANT ALL PRIVILEGES ON DATABASE titanbot TO titanbot;"
-   ```
 
-5. **Verify Database Setup**
-   ```bash
-   npm run migrate:check
-   ```
+## Required Bot Intents & Permissions
 
-6. **Start the Bot**
-   ```bash
-   npm start
-   ```
+* **Intents**: Guilds, Guild Messages, Message Content, Guild Members, Guild Message Reactions, Guild Voice States, and Direct Messages.
 
-> **Note on database migrations:** Schema tables and legacy key migrations run
-> **automatically on startup**, so` managed hosts like **Railway** need no manual
-> migration step — just deploy/restart. To disable auto-migration set
-> `AUTO_MIGRATE=false`. You can still run a manual key migration locally with
-> `node scripts/migrate-keys.js --dry-run` (preview) or `node scripts/migrate-keys.js`.
-<a name="bot-intents"></a>
-
-## Required Bot Intents
-TitanBot requires the following Discord intents:
-- **Guilds**
-- **Guild Messages**
-- **Message Content**
-- **Guild Members**
-- **Guild Message Reactions**
-- **Guild Voice States**
-- **Direct Messages**
-- **Bot**
-- **Applications.commands**
-
-### Required Permissions
-- **View Channels**
-- **Send Messages**
-- **Embed Links**
-- **Attach Files**
-- **Read Message History**
-- **Manage Messages**
-- **Manage Channels**
-- **Manage Roles**
-- **Kick Members**
-- **Manage Messages**
-- **Ban Members**
-- **Moderate Members**
-- **Connect**
-
-## License
-
-TitanBot is released under the MIT License. See [LICENSE](LICENSE) for details.
-
-## Thank You
-
-Thank you for choosing TitanBot for your Discord server! We're constantly working to improve and add new features based on community feedback.
-
-*Last updated: May 2026*
+* **Permissions**: View Channels, Send Messages, Embed Links, Attach Files, Read Message History, Manage Messages, Manage Channels, Manage Roles, Kick/Ban/Moderate Members, Connect, and Voice Channel Status (required for the now-playing status feature).
