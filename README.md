@@ -131,4 +131,7 @@ Music is powered by Lavalink v4 via Riffy.
 
 * **Intents**: Guilds, Guild Messages, Message Content, Guild Members, Guild Message Reactions, Guild Voice States, and Direct Messages.
 
-* **Permissions**: View Channels, Send Messages, Embed Links, Attach Files, Read Message History, Manage Messages, Manage Channels, Manage Roles, Kick/Ban/Moderate Members, Connect, and Voice Channel Status (required for the now-playing status feature).
+* **Permissions**: View Channels, Send Messages, Embed Links, Attach Files, Read Message History, Manage Messages, Manage Channels, Manage Roles, Kick/Ban/Moderate Members, Connect, and Voice Channel Status (required for the now-playing status feature).*
+
+## Read the original repo's README for the information i may have missed here
+[Link to Original repo](https://github.com/codebymitch/TitanBot)
