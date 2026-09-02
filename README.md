@@ -2,10 +2,53 @@
 
 **MidNight** is a comprehensive Discord bot combining moderation, economy, music, entertainment, and community tools into a single ESM-native package. It is built with discord.js 14 and PostgreSQL.
 
+## List of changes in this fork
+Note: All the commands that I added are prefix only because the TitanBot for some reason already had 99 registered commands and discord only allows for 100 so yeah, prefix future proof adding commands without having to deal with original code
+(Also use `/configwizard` to set a prefix because prefix are not enabled by default)
+
+### 1. Added starboard system with image & GIF compatibility
+  * Commands: `setchannelstarboard <channel> <emoji> <threshold>`, and
+              `removestarboard`
+    
+### 2. Level System rework
+ The level system is now verses Arcane bot's premium leveling system:
+* Voice leveling/xp: ✅
+* Custom XP values: ✅
+* Role rewards: **infinite**
+* Role rewards per level: **infinite**
+* First place role updates: **updates the second you level up** (soo its better at something at least)
+* Booster roles: **infinite**
+
+Note: All of the above features related to leveling just now were Arcane's premium features, Now listing more leveling features that i added
+  
+ * Reaction leveling/XP (i think i didn't gave a user-friendly option to change this so just edit the code for now)
+ * First rank holder rewards
+ * Booster roles
+ * Ignore channels or roles
+ * Edit level up messages
+ * Also `/level setup` does nothing in this fork and I'm too lazy to remove it
+
+### 3. Counting System (a tiny little change)
+  * Bot will react with ✅, why? because its kinda annoying to not know that the bot even registered the message
+
+### 4. Fun commands
+  * Added Commands: `fact`, `dogfact`, `catfact` and `react <emotion>` or just `<emotion>` for simplicity
+
+### 5. Music System tweak
+  * This bot will automatically leave the VC after **7s** when there's no user in the same VC as the bot
+  * Voice channel's status will automatically change to the name of the currently playing song
+  * Per-user likes: saves up to 100 songs with `/music likes` and play them back using bot's PostgreeSQL DB to store them
+  * Added Commands: `/music likes add`, `/music likes remove`, `/music likes play`, `/music likes list`
+
+---
+
 ## Features Overview
 
+<table>
+<tr>
+<td width="50%" valign="top">
+  
 ### Moderation & Administration
-
 
 * Mass ban/kick capabilities.
 
@@ -13,9 +56,7 @@
 
 * Abuse protection with cooldowns.
 
-
 ### Economy System
-
 
 * Shop, inventory, and item trading.
 
@@ -23,9 +64,7 @@
 
 * Configurable per-server economy.
 
-
 ### Fun & Entertainment
-
 
 * 59 reaction emotion GIFs powered by the nekos.best API, displaying the `anime_name` beneath the GIF. *(For the complete list of available reaction commands, refer to the `commands.txt` file included in the repository).*
 
@@ -35,9 +74,7 @@
 
 * Additional tools like text reversal, wanted posters, and random facts.
 
-
 ### Music
-
 
 * Multi-platform search supporting Spotify, Deezer, and Apple Music, while blocking YouTube URLs.
 
@@ -53,9 +90,7 @@
 
 * Queue management system to add, remove, move, clear, and paginate tracks.
 
-
 ### Additional Features
-
 
 * **Leveling System**: An Arcane-style progression system featuring custom level rewards, special rewards for the highest rank holder, and configurable ignored channels/roles.
 
@@ -71,16 +106,17 @@
 
 * **Welcome & Verification**: Custom embeds, auto-role on join, verification gates, and join-to-create temporary voice channels.
 
-* Prefix shortcuts including `!play`, `!skip`, `!stop`, `!queue`, and `!react <emotion>`.
+* Prefix shortcuts including `!play`, `!skip`, `!stop`, `!queue`, and `!react <emotion>` or you can just do `<emotion>`.
 
+</td>
+</tr>
+</table>
 
 ## Quick Setup
-
-
 ### Docker Deployment (Recommended)
 
 
-1. Clone the repository using `git clone [https://github.com/Erioer/MidNight-bot.git](https://github.com/Erioer/MidNight-bot.git)` and navigate inside with `cd MidNight`.
+1. Clone the repository using `git clone (https://github.com/Erioer/MidNight-bot.git` and navigate inside with `cd MidNight`.
 
 2. Configure environment variables by copying the template: `cp .env.example .env`. At minimum, set `DISCORD_TOKEN`, `CLIENT_ID`, and `GUILD_ID`. Docker Compose will read `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` from `.env`, which default to `midnight` / `password` / `midnight`.
 
@@ -91,7 +127,7 @@
 
 ### Using GitHub Container Registry
 
-Pull the latest image using `docker pull ghcr.io/codebymitch/midnight:main`.
+Pull the latest image using `docker pull ghcr.io/Erioer/MidNight:main`.
 
 ## Music Setup
 
@@ -133,5 +169,5 @@ Music is powered by Lavalink v4 via Riffy.
 
 * **Permissions**: View Channels, Send Messages, Embed Links, Attach Files, Read Message History, Manage Messages, Manage Channels, Manage Roles, Kick/Ban/Moderate Members, Connect, and Voice Channel Status (required for the now-playing status feature).*
 
-## Read the original repo's README for the information i may have missed here
+### Read the original repo's README for the information i may have missed here
 [Link to Original repo](https://github.com/codebymitch/TitanBot)
