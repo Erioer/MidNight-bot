@@ -1,6 +1,6 @@
-All 163 commands with description
+## All 163 commands with description
 
-— Applications —
+### — Applications —
 
 1. add-admin review — Approve or deny an application
 2. app-admin dashboard — Open the application configuration dashboard
@@ -10,7 +10,7 @@ All 163 commands with description
 6. apply status — Check the status of your application
 7. apply submit — Submit an application for a role
 
-— Auto Role & Verification —
+### — Auto Role & Verification —
 
 8. autorole add — Add a role to be automatically assigned to new members
 9. autorole list — List all auto-assigned roles
@@ -22,7 +22,7 @@ All 163 commands with description
 15. verification setup — Set up the verification system
 16. verify — Verify yourself and gain access to the server
 
-— Birthday —
+### — Birthday —
 
 17. birthday info — View birthday information
 18. birthday list — List all birthdays in the server
@@ -31,7 +31,7 @@ All 163 commands with description
 21. birthday set — Set your birthday
 22. birthday setchannel — Set or disable the channel for birthday announcements (Manage server required)
 
-— Economy —
+### — Economy —
 
 23. balance — Check your or someone else's balance
 24. beg — Beg for a small amount of money
@@ -53,7 +53,7 @@ All 163 commands with description
 40. withdraw — Withdraw money from your bank to your wallet
 41. work — Work to earn some money
 
-— Fun & Giveaways —
+### — Fun & Giveaways —
 
 42. baseconvert — Convert numbers between different bases
 43. calculate — Evaluate a mathematical expression
@@ -82,13 +82,13 @@ All 163 commands with description
 66. unixtime — Get the current Unix timestamp
 67. weather — Get real-time weather information for a location
 
-— Greet —
+### — Greet —
 
 68. goodbye setup — Set up the goodbye message
 69. greet dashboard — Open the welcome and goodbye configuration dashboard
 70. welcome setup — Set up the welcome message
 
-— Information —
+### — Information —
 
 71. avatar — Display a user's avatar image
 72. help — Display the help menu with all available commands
@@ -97,7 +97,7 @@ All 163 commands with description
 75. stats — View bot statistics
 76. userinfo — Get detailed information about a user
 
-— Leveling —
+### — Leveling —
 
 77. leaderboard — Show the server's level leaderboard
 78. level dashboard — Open the interactive leveling configuration dashboard
@@ -107,7 +107,7 @@ All 163 commands with description
 82. levelset — Set a user's level to a specific value
 83. rank — Check your or another user's rank and level
 
-— Moderation —
+### — Moderation —
 
 84. ban — Ban a user from the server
 85. cases — View moderation cases and audit logs
@@ -127,7 +127,7 @@ All 163 commands with description
 99. warn — Warn a user
 100. warnings — View all warnings for a user
 
-— Music —
+### — Music —
 
 101. join — Join your voice channel without starting playback
 102. music 247 — Toggle 247 mode (stay in voice channel when idle)
@@ -151,7 +151,7 @@ All 163 commands with description
 120. play — Play a song or add it to the queue
 121. queue — Show the current music queue
 
-— Productivity & Notes —
+### — Productivity & Notes —
 
 122. commands dashboard — Open the interactive command access dashboard
 123. commands disable — Disable a command or entire category
@@ -173,7 +173,7 @@ All 163 commands with description
 139. usernotes view — View notes for a user
 140. wipedata — Delete all your personal data from the bot (irreversible)
 
-— Server Features —
+### — Server Features —
 
 141. count disable — Disable the counting game for this server
 142. count leaderboard — Show the counting game leaderboard
@@ -191,7 +191,7 @@ All 163 commands with description
 154. serverstats update — Update an existing statistics tracker
 155. setchannelstarboard — Set a specified channel to starboard, set the emoji and threshold (can't create more than one) (a prefix only command)
 
-— Support & Tickets —
+### — Support & Tickets —
 
 156. claim — Claim an open ticket, assigning it to you
 157. close — Close the current ticket

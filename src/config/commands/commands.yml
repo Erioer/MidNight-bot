@@ -1,42 +1,602 @@
-# MidNight command policy
+# ============================================================
+# MidNight Command Policy
+# ============================================================
+# Controls every command in the bot from one file.
+# Settings cascade:  defaults  ->  category  ->  command
+# Only list what you want to change. Everything defaults to on.
 #
-# Controls every command in the bot from one file. Settings cascade:
-#   defaults -> categories -> commands
-# Only list what you want to change. Everything defaults to "on".
+# Key meanings:
+#   enabled   – Whether the command/category loads at all.
+#               false removes it from slash, prefix, and the
+#               /commands dashboard entirely.
+#   slash     – Register as a slash command.
+#   prefix    – Usable via the text prefix (e.g. $help).
+#   adminOnly – Require the Manage Server permission.
 #
-# Restart the bot to apply changes. Slash-registration changes can take
-# up to an hour to show on Discord's side.
+# For commands that are structurally prefix-only (e.g. starboard,
+# dogfact, fact, react) the slash key is ignored.
+# For commands that are structurally slash-only (e.g. help,
+# configwizard, play, queue, greet, wipedata) the prefix key is
+# ignored.
+#
+# Restart the bot to apply changes. Slash-registration changes
+# can take up to an hour to show on Discord's side.
+#
+# To restore all settings to their defaults, set the flag below
+# to true and restart. It will automatically reset itself after.
+# ============================================================
 
+restoreDefaults: false
+
+# ============================================================
+# Default values for every command in the bot.
+# These apply unless overridden by a category or command entry.
+# ============================================================
 defaults:
-  # enabled: load the command at all. false removes it from slash, prefix,
-  #          and the /commands dashboard entirely.
   enabled: true
-  # slash: register as a slash command (uses one of the 100 global slots).
   slash: true
-  # prefix: usable via the text prefix (e.g. $help).
   prefix: true
-  # adminOnly: require the Manage Server permission.
   adminOnly: false
 
+# ============================================================
+# Category-level overrides.
+# Category keys match the folder names under src/commands
+# (case-insensitive, spaces become underscores).
+#
+# enabled: false  → disables ALL commands in that category
+#                   regardless of individual command settings.
+# enabled: true   → allows individual commands to be toggled
+#                   independently (the default).
+#
+# The other three keys (slash, prefix, adminOnly) act as the
+# per-category default and CAN be overridden per-command.
+# ============================================================
 categories:
-  # Disable an entire feature here. Example:
-  # moderation:
-  #   enabled: false
+  # ——————————————————————————————————————————
+  # Birthday
+  # ——————————————————————————————————————————
+  # birthday:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Community
+  # ——————————————————————————————————————————
+  # community:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Core  (protected – cannot be disabled)
+  # ——————————————————————————————————————————
+  # core:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Economy
+  # ——————————————————————————————————————————
   # economy:
-  #   enabled: false
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Fun
+  # ——————————————————————————————————————————
   # fun:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Giveaway
+  # ——————————————————————————————————————————
+  # giveaway:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # JoinToCreate
+  # ——————————————————————————————————————————
+  # jointocreate:
+  #   enabled: true
+  #   adminOnly: true
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Leveling
+  # ——————————————————————————————————————————
+  # leveling:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Logging
+  # ——————————————————————————————————————————
+  # logging:
+  #   enabled: true
+  #   adminOnly: true
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Moderation
+  # ——————————————————————————————————————————
+  # moderation:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Music
+  # ——————————————————————————————————————————
+  # music:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Reaction_roles
+  # ——————————————————————————————————————————
+  # reaction_roles:
+  #   enabled: true
+  #   adminOnly: true
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Search
+  # ——————————————————————————————————————————
+  # search:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # ServerStats
+  # ——————————————————————————————————————————
+  # serverstats:
+  #   enabled: true
+  #   adminOnly: true
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Starboard  (prefix-only commands)
+  # ——————————————————————————————————————————
+  # starboard:
+  #   enabled: true
+  #   adminOnly: true
   #   slash: false
-  #
-  # Category keys are the command folder names, case-insensitive
-  # (moderation, economy, fun, music, reaction_roles, jointocreate, ...).
+  #   prefix: true
 
+  # ——————————————————————————————————————————
+  # Ticket
+  # ——————————————————————————————————————————
+  # ticket:
+  #   enabled: true
+  #   adminOnly: true
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Tools
+  # ——————————————————————————————————————————
+  # tools:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Utility
+  # ——————————————————————————————————————————
+  # utility:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Verification
+  # ——————————————————————————————————————————
+  # verification:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+  # ——————————————————————————————————————————
+  # Welcome
+  # ——————————————————————————————————————————
+  # welcome:
+  #   enabled: true
+  #   adminOnly: false
+  #   slash: true
+  #   prefix: true
+
+# ============================================================
+# Individual command overrides.
+# Command names are lowercase, matching the file/slash name.
+# Subcommands cannot be toggled individually; toggling the
+# parent command affects all its subcommands.
+#
+# Remove the # and set any key to override the category/default
+# value.  Only list keys you want to change.
+#
+# adminOnly    = require Manage Server permission
+# slash        = register as a slash command
+# prefix       = usable via text prefix
+# enabled      = load the command at all
+#
+# (Structurally prefix-only commands ignore slash.
+#  Structurally slash-only commands ignore prefix.)
+# ============================================================
 commands:
-  # Per-command overrides. Command names are lowercase, no prefix.
-  # Commands that are structurally prefix-only (like the starboard ones)
-  # cannot be toggled to slash; their `slash` key is ignored.
 
-  # Starboard
+  # ========================
+  # Birthday
+  # ========================
+  birthday:
+    # subcommands: set, info, list, remove, next, setchannel
+    # adminOnly: true  # uncomment to make all birthday subcommands admin-only
+
+  # ========================
+  # Community
+  # ========================
+  apply:
+    # subcommands: submit, status, list
+  app-admin:
+    adminOnly: true
+    # subcommands: setup, review, list, dashboard
+
+  # ========================
+  # Core  (protected – cannot be disabled)
+  # ========================
+  # help – slash-only by code; prefix is ignored
+  help:
+    slash: true
+    prefix: false
+  # commands – protected; adminOnly by code
+  commands:
+    adminOnly: true
+    # subcommands: dashboard, disable, enable
+  # configwizard – slash-only by code; protected; adminOnly by code
+  configwizard:
+    adminOnly: true
+    slash: true
+    prefix: false
+  # ping, stats, uptime, support are normal commands
+  ping:
+    # adminOnly: true
+  stats:
+    # adminOnly: true
+  uptime:
+    # adminOnly: true
+  support:
+    # adminOnly: true
+
+  # ========================
+  # Economy
+  # ========================
+  balance:
+    # adminOnly: true
+  beg:
+    # adminOnly: true
+  buy:
+    # adminOnly: true
+  crime:
+    # adminOnly: true
+  daily:
+    # adminOnly: true
+  deposit:
+    # adminOnly: true
+  economy:
+    adminOnly: true
+    slash: true
+    prefix: false
+    # subcommand: dashboard
+  eleaderboard:
+    # adminOnly: true
+  fish:
+    # adminOnly: true
+  gamble:
+    # adminOnly: true
+  inventory:
+    # adminOnly: true
+  mine:
+    # adminOnly: true
+  pay:
+    # adminOnly: true
+  rob:
+    # adminOnly: true
+  shop:
+    slash: true
+    prefix: false
+    # adminOnly: true
+  shop-config:
+    slash: true
+    prefix: false
+    adminOnly: true
+    # subcommand: setrole
+  slut:
+    # adminOnly: true
+  withdraw:
+    # adminOnly: true
+  work:
+    # adminOnly: true
+
+  # ========================
+  # Fun
+  # ========================
+  # catfact – prefix-only by code; slash is ignored
+  catfact:
+    slash: false
+    prefix: true
+  count:
+    adminOnly: true
+    # subcommands: setup, disable, status, reset, leaderboard
+  # dogfact – prefix-only by code; slash is ignored
+  dogfact:
+    slash: false
+    prefix: true
+  # fact – prefix-only by code; slash is ignored
+  fact:
+    slash: false
+    prefix: true
+  fight:
+    # adminOnly: true
+  flip:
+    # adminOnly: true
+  # react – prefix-only by code; slash is ignored
+  react:
+    slash: false
+    prefix: true
+  roll:
+    # adminOnly: true
+
+  # ========================
+  # Giveaway
+  # ========================
+  gcreate:
+    # adminOnly: true
+  gdelete:
+    adminOnly: true
+  gend:
+    adminOnly: true
+  greroll:
+    adminOnly: true
+
+  # ========================
+  # JoinToCreate
+  # ========================
+  jointocreate:
+    adminOnly: true
+    # subcommands: setup, dashboard
+
+  # ========================
+  # Leveling
+  # ========================
+  level:
+    adminOnly: true
+    # subcommands: setup, dashboard
+  leveladd:
+    adminOnly: true
+  levelremove:
+    adminOnly: true
+  levelset:
+    adminOnly: true
+  leaderboard:
+    # adminOnly: true
+  rank:
+    # adminOnly: true
+
+  # ========================
+  # Logging
+  # ========================
+  logging:
+    adminOnly: true
+    # subcommands: dashboard, channel
+
+  # ========================
+  # Moderation
+  # ========================
+  ban:
+    adminOnly: true
+  cases:
+    adminOnly: true
+  dm:
+    adminOnly: true
+  kick:
+    adminOnly: true
+  lock:
+    adminOnly: true
+  massban:
+    adminOnly: true
+  masskick:
+    adminOnly: true
+  purge:
+    adminOnly: true
+  say:
+    adminOnly: true
+  timeout:
+    adminOnly: true
+  unban:
+    adminOnly: true
+  unlock:
+    adminOnly: true
+  untimeout:
+    adminOnly: true
+  usernotes:
+    adminOnly: true
+    # subcommands: add, view, remove, clear
+  warn:
+    adminOnly: true
+  warnings:
+    adminOnly: true
+
+  # ========================
+  # Music
+  # ========================
+  join:
+    # adminOnly: true
+  music:
+    # subcommands: pause, resume, skip, stop, shuffle, loop,
+    #              volume, seek, remove, move, clear, leave, 247,
+    #              likes add, likes list, likes remove, likes play
+    # adminOnly: true
+  nowplaying:
+    # adminOnly: true
+  play:
+    slash: true
+    prefix: false
+    # adminOnly: true
+  queue:
+    slash: true
+    prefix: false
+    # adminOnly: true
+
+  # ========================
+  # Reaction_roles
+  # ========================
+  reactroles:
+    adminOnly: true
+    # subcommands: setup, dashboard
+
+  # ========================
+  # Search
+  # ========================
+  search:
+    # adminOnly: true
+    # subcommands: define, google, urban
+
+  # ========================
+  # ServerStats
+  # ========================
+  serverstats:
+    adminOnly: true
+    # subcommands: create, list, update, delete
+
+  # ========================
+  # Starboard  (prefix-only commands)
+  # ========================
   setchannelstarboard:
     adminOnly: true
+    slash: false
+    prefix: true
   removestarboard:
     adminOnly: true
+    slash: false
+    prefix: true
+
+  # ========================
+  # Ticket
+  # ========================
+  ticket:
+    adminOnly: true
+    # subcommands: setup, dashboard
+  claim:
+    # adminOnly: true
+  close:
+    # adminOnly: true
+  priority:
+    # adminOnly: true
+
+  # ========================
+  # Tools
+  # ========================
+  baseconvert:
+    # adminOnly: true
+  calculate:
+    # adminOnly: true
+  countdown:
+    # adminOnly: true
+  embedbuilder:
+    # adminOnly: true
+  generatepassword:
+    # adminOnly: true
+  hexcolor:
+    # adminOnly: true
+  poll:
+    # adminOnly: true
+  randomuser:
+    # adminOnly: true
+  shorten:
+    # adminOnly: true
+  time:
+    # adminOnly: true
+  unixtime:
+    # adminOnly: true
+
+  # ========================
+  # Utility
+  # ========================
+  avatar:
+    # adminOnly: true
+  firstmsg:
+    # adminOnly: true
+  report:
+    # subcommands: file, setchannel
+    # adminOnly: true
+  serverinfo:
+    # adminOnly: true
+  todo:
+    # subcommands: add, list, complete, remove,
+    #              share create, share add, share view,
+    #              share addtask, share remove
+    # adminOnly: true
+  userinfo:
+    # adminOnly: true
+  weather:
+    # adminOnly: true
+  wipedata:
+    slash: true
+    prefix: false
+    # adminOnly: true
+
+  # ========================
+  # Verification
+  # ========================
+  autoverify:
+    adminOnly: true
+    # subcommands: setup, dashboard
+  verify:
+    # adminOnly: true
+  verification:
+    adminOnly: true
+    # subcommands: setup, remove, dashboard
+
+  # ========================
+  # Welcome
+  # ========================
+  autorole:
+    adminOnly: true
+    # subcommands: add, remove, list
+  goodbye:
+    adminOnly: true
+    # subcommand: setup
+  greet:
+    adminOnly: true
+    slash: true
+    prefix: false
+    # subcommand: dashboard
+  welcome:
+    adminOnly: true
+    # subcommand: setup

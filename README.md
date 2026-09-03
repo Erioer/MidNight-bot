@@ -3,15 +3,18 @@
 **MidNight** is a comprehensive Discord bot combining moderation, economy, music, entertainment, and community tools into a single ESM-native package. It is built with discord.js 14 and PostgreSQL.
 
 ## List of changes in this fork
+
 Note: All the commands that I added are prefix only because the TitanBot for some reason already had 99 registered commands and discord only allows for 100 so yeah, prefix future proof adding commands without having to deal with original code
 (Also use `/configwizard` to set a prefix because prefix are not enabled by default)
 
 ### 1. Added starboard system with image & GIF compatibility
-  * Commands: `setchannelstarboard <channel> <emoji> <threshold>`, and
-              `removestarboard`
-    
+
+* Commands: `setchannelstarboard <channel> <emoji> <threshold>`, and `removestarboard`
+
 ### 2. Level System rework
- The level system is now verses Arcane bot's premium leveling system:
+
+The level system is now verses Arcane bot's premium leveling system:
+
 * Voice leveling/xp: ✅
 * Custom XP values: ✅
 * Role rewards: **infinite**
@@ -20,25 +23,37 @@ Note: All the commands that I added are prefix only because the TitanBot for som
 * Booster roles: **infinite**
 
 Note: All of the above features related to leveling just now were Arcane's premium features, Now listing more leveling features that i added
-  
- * Reaction leveling/XP (i think i didn't gave a user-friendly option to change this so just edit the code for now)
- * First rank holder rewards
- * Booster roles
- * Ignore channels or roles
- * Edit level up messages
- * Also `/level setup` does nothing in this fork and I'm too lazy to remove it
+
+* Reaction leveling/XP (i think i didn't gave a user-friendly option to change this so just edit the code for now)
+* First rank holder rewards
+* Booster roles
+* Ignore channels or roles
+* Edit level up messages
+* Also `/level setup` does nothing in this fork and I'm too lazy to remove it
 
 ### 3. Counting System (a tiny little change)
-  * Bot will react with ✅, why? because its kinda annoying to not know that the bot even registered the message
+
+* Bot will react with ✅, why? because its kinda annoying to not know that the bot even registered the message
 
 ### 4. Fun commands
-  * Added Commands: `fact`, `dogfact`, `catfact` and `react <emotion>` or just `<emotion>` for simplicity
 
-### 5. Music System tweak
-  * This bot will automatically leave the VC after **7s** when there's no user in the same VC as the bot
-  * Voice channel's status will automatically change to the name of the currently playing song
-  * Per-user likes: saves up to 100 songs with `/music likes` and play them back using bot's PostgreeSQL DB to store them
-  * Added Commands: `/music likes add`, `/music likes remove`, `/music likes play`, `/music likes list`
+* Added Commands: `fact`, `dogfact`, `catfact` and `react <emotion>` or just `<emotion>` for simplicity
+
+### 5. Music System tweaks
+
+* This bot will automatically leave the VC after **7s** when there's no user in the same VC as the bot
+* Voice channel's status will automatically change to the name of the currently playing song
+* Per-user likes: saves up to 100 songs with `/music likes` and play them back using bot's PostgreeSQL DB to store them
+* Added Commands: `/music likes add`, `/music likes remove`, `/music likes play`, `/music likes list`
+
+### 6. Commands Policy
+
+* Full structure covering all 20 categories with cascading resolution (Global Defaults --> Category Rules --> Individual Command Overrides)
+* Flexible properties: `isEnabled`, `isAdminOnly` (requires Manage Server permission), `isSlashEnabled`, and `isPrefixEnabled`
+* Commented properties (e.g. `#isEnabled: true`) inherit defaults, while uncommented lines force overrides
+* Category-level kill switch: setting `isEnabled: false` on a category forces all contained commands to disable regardless of individual overrides
+* Features a built-in reset switch (`restoreDefaults: true`) that restores the file to `DEFAULT_TEMPLATE` on startup and automatically reverts the switch back to `restoreDefaults: false`
+* *Note: Requires a bot restart for any yml changes to take effect*
 
 ---
 
