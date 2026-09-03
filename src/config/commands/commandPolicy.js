@@ -19,29 +19,40 @@ const DEFAULT_POLICY = Object.freeze({
 const PROTECTED_CATEGORIES = new Set(['core']);
 const PROTECTED_COMMANDS = new Set(['commands', 'configwizard']);
 
-const DEFAULT_TEMPLATE = `# MidNight Command Policy
+const DEFAULT_TEMPLATE = `# ============================================================
+# MidNight Command Policy
+# ============================================================
+# Controls every command in the bot from one file.
+# Settings cascade:  defaults  ->  category  ->  command
+# Only list what you want to change. Everything defaults to on.
 #
-# Controls every command in the bot from one file. Settings cascade:
-#   defaults -> categories -> commands
-# Only list what you want to change. Everything defaults to "on".
+# Key meanings:
+#   isEnabled      - Whether the command/category loads at all.
+#                    false removes it from slash, prefix, and the
+#                    /commands dashboard entirely.
+#   isSlashEnabled - Register as a slash command.
+#   isPrefixEnabled - Usable via the text prefix (e.g. $help).
+#   isAdminOnly    - Require the Manage Server permission.
 #
-# Restart the bot to apply changes. Slash-registration changes can take
-# up to an hour to show on Discord's side.
+# For commands that are structurally prefix-only (e.g. starboard,
+# dogfact, fact, react) the isSlashEnabled key is ignored.
+# For commands that are structurally slash-only (e.g. help,
+# configwizard, play, queue, greet, wipedata) the isPrefixEnabled
+# key is ignored.
 #
-# Use # to comment out values you want to keep at default.
-# Uncomment a line to override the default for that setting.
-#   isEnabled      - enable/disable the command or category
-#   isAdminOnly    - require Manage Server permission
-#   isSlashEnabled - register as a slash command
-#   isPrefixEnabled - usable via the text prefix
+# Restart the bot to apply changes. Slash-registration changes
+# can take up to an hour to show on Discord's side.
 #
-# Category keys match the command folder names (case-insensitive):
-#   birthday, community, core, economy, fun, giveaway, jointocreate,
-#   leveling, logging, moderation, music, reaction_roles, search,
-#   serverstats, starboard, ticket, tools, utility, verification, welcome
+# Set restoreDefaults to true to reset everything back to defaults.
+# It will automatically reset itself after.
+# ============================================================
 
-#restoreDefaults: false
+restoreDefaults: false
 
+# ============================================================
+# Default values for every command in the bot.
+# These apply unless overridden by a category or command entry.
+# ============================================================
 defaults:
   isEnabled: true
   isAdminOnly: false
@@ -49,229 +60,471 @@ defaults:
   isPrefixEnabled: true
 
 categories:
-  # \u2500\u2500 Birthday \u2500\u2500
-  birthday:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Birthday
+  # ------------------------------------------------
+  # birthday:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Community (Applications) \u2500\u2500
-  community:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Community
+  # ------------------------------------------------
+  # community:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Core \u2500\u2500
-  core:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Core  (protected - cannot be disabled)
+  # ------------------------------------------------
+  # core:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Economy \u2500\u2500
-  economy:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Economy
+  # ------------------------------------------------
+  # economy:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Fun \u2500\u2500
-  fun:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Fun
+  # ------------------------------------------------
+  # fun:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Giveaway \u2500\u2500
-  giveaway:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Giveaway
+  # ------------------------------------------------
+  # giveaway:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Join to Create \u2500\u2500
-  jointocreate:
-    #isEnabled: true
-    isAdminOnly: true
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # JoinToCreate
+  # ------------------------------------------------
+  # jointocreate:
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Leveling \u2500\u2500
-  leveling:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Leveling
+  # ------------------------------------------------
+  # leveling:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Logging \u2500\u2500
-  logging:
-    #isEnabled: true
-    isAdminOnly: true
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Logging
+  # ------------------------------------------------
+  # logging:
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Moderation \u2500\u2500
-  moderation:
-    #isEnabled: true
-    isAdminOnly: true
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Moderation
+  # ------------------------------------------------
+  # moderation:
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Music \u2500\u2500
-  music:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Music
+  # ------------------------------------------------
+  # music:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Reaction Roles \u2500\u2500
-  reaction_roles:
-    #isEnabled: true
-    isAdminOnly: true
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Reaction_roles
+  # ------------------------------------------------
+  # reaction_roles:
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Search \u2500\u2500
-  search:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Search
+  # ------------------------------------------------
+  # search:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Server Stats \u2500\u2500
-  serverstats:
-    #isEnabled: true
-    isAdminOnly: true
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # ServerStats
+  # ------------------------------------------------
+  # serverstats:
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Starboard \u2500\u2500
-  starboard:
-    #isEnabled: true
-    isAdminOnly: true
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Starboard  (prefix-only commands)
+  # ------------------------------------------------
+  # starboard:
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: false
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Ticket \u2500\u2500
-  ticket:
-    #isEnabled: true
-    isAdminOnly: true
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Ticket
+  # ------------------------------------------------
+  # ticket:
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Tools \u2500\u2500
-  tools:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Tools
+  # ------------------------------------------------
+  # tools:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Utility \u2500\u2500
-  utility:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Utility
+  # ------------------------------------------------
+  # utility:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Verification \u2500\u2500
-  verification:
-    #isEnabled: true
-    #isAdminOnly: false
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Verification
+  # ------------------------------------------------
+  # verification:
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # \u2500\u2500 Welcome \u2500\u2500
-  welcome:
-    #isEnabled: true
-    isAdminOnly: true
-    #isSlashEnabled: true
-    #isPrefixEnabled: true
+  # ------------------------------------------------
+  # Welcome
+  # ------------------------------------------------
+  # welcome:
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
 commands:
-  # \u2500\u2500 Community \u2500\u2500
-  #   app-admin (admin dashboard) | apply (user-facing)
+  # ========================
+  # Birthday
+  # ========================
+  birthday:
+    # subcommands: set, info, list, remove, next, setchannel
+
+  # ========================
+  # Community
+  # ========================
+  apply:
+    # subcommands: submit, status, list
   app-admin:
     isAdminOnly: true
-  apply:
-    isPrefixEnabled: false
+    # subcommands: setup, review, list, dashboard
 
-  # \u2500\u2500 Core \u2500\u2500
-  #   commands | configwizard | help | ping | stats | support | uptime
+  # ========================
+  # Core  (protected - cannot be disabled)
+  # ========================
+  help:
+    isSlashEnabled: true
+    isPrefixEnabled: false
   commands:
     isAdminOnly: true
+    # subcommands: dashboard, disable, enable
   configwizard:
     isAdminOnly: true
+    isSlashEnabled: true
     isPrefixEnabled: false
-  help:
-    isPrefixEnabled: false
+  ping:
+  stats:
+  uptime:
+  support:
 
-  # \u2500\u2500 Economy \u2500\u2500
-  #   balance | beg | buy | crime | daily | deposit | economy | eleaderboard
-  #   fish | gamble | inventory | mine | pay | rob | shop | shop-config
-  #   slut | withdraw | work
+  # ========================
+  # Economy
+  # ========================
+  balance:
+  beg:
+  buy:
+  crime:
+  daily:
+  deposit:
   economy:
     isAdminOnly: true
+    isSlashEnabled: true
     isPrefixEnabled: false
+    # subcommand: dashboard
+  eleaderboard:
+  fish:
+  gamble:
+  inventory:
+  mine:
+  pay:
+  rob:
   shop:
+    isSlashEnabled: true
     isPrefixEnabled: false
   shop-config:
-    isAdminOnly: true
+    isSlashEnabled: true
     isPrefixEnabled: false
+    isAdminOnly: true
+    # subcommand: setrole
+  slut:
+  withdraw:
+  work:
 
-  # \u2500\u2500 Fun (prefix-only commands) \u2500\u2500
-  #   catfact | count | dogfact | fact | fight | flip | react | roll
+  # ========================
+  # Fun
+  # ========================
   catfact:
     isSlashEnabled: false
+    isPrefixEnabled: true
+  count:
+    isAdminOnly: true
+    # subcommands: setup, disable, status, reset, leaderboard
   dogfact:
     isSlashEnabled: false
+    isPrefixEnabled: true
   fact:
     isSlashEnabled: false
+    isPrefixEnabled: true
+  fight:
+  flip:
   react:
     isSlashEnabled: false
+    isPrefixEnabled: true
+  roll:
 
-  # \u2500\u2500 Leveling (admin commands) \u2500\u2500
-  #   leaderboard | level | leveladd | levelremove | levelset | rank
+  # ========================
+  # Giveaway
+  # ========================
+  gcreate:
+  gdelete:
+    isAdminOnly: true
+  gend:
+    isAdminOnly: true
+  greroll:
+    isAdminOnly: true
+
+  # ========================
+  # JoinToCreate
+  # ========================
+  jointocreate:
+    isAdminOnly: true
+    # subcommands: setup, dashboard
+
+  # ========================
+  # Leveling
+  # ========================
+  level:
+    isAdminOnly: true
+    # subcommands: setup, dashboard
   leveladd:
     isAdminOnly: true
   levelremove:
     isAdminOnly: true
   levelset:
     isAdminOnly: true
+  leaderboard:
+  rank:
 
-  # \u2500\u2500 Music (slash-only commands) \u2500\u2500
-  #   join | music | nowplaying | play | queue
+  # ========================
+  # Logging
+  # ========================
+  logging:
+    isAdminOnly: true
+    # subcommands: dashboard, channel
+
+  # ========================
+  # Moderation
+  # ========================
+  ban:
+    isAdminOnly: true
+  cases:
+    isAdminOnly: true
+  dm:
+    isAdminOnly: true
+  kick:
+    isAdminOnly: true
+  lock:
+    isAdminOnly: true
+  massban:
+    isAdminOnly: true
+  masskick:
+    isAdminOnly: true
+  purge:
+    isAdminOnly: true
+  say:
+    isAdminOnly: true
+  timeout:
+    isAdminOnly: true
+  unban:
+    isAdminOnly: true
+  unlock:
+    isAdminOnly: true
+  untimeout:
+    isAdminOnly: true
+  usernotes:
+    isAdminOnly: true
+    # subcommands: add, view, remove, clear
+  warn:
+    isAdminOnly: true
+  warnings:
+    isAdminOnly: true
+
+  # ========================
+  # Music
+  # ========================
+  join:
+  music:
+    # subcommands: pause, resume, skip, stop, shuffle, loop,
+    #              volume, seek, remove, move, clear, leave, 247,
+    #              likes add, likes list, likes remove, likes play
+  nowplaying:
   play:
+    isSlashEnabled: true
     isPrefixEnabled: false
   queue:
+    isSlashEnabled: true
     isPrefixEnabled: false
 
-  # \u2500\u2500 Starboard (prefix-only commands) \u2500\u2500
-  #   setchannelstarboard | removestarboard
+  # ========================
+  # Reaction_roles
+  # ========================
+  reactroles:
+    isAdminOnly: true
+    # subcommands: setup, dashboard
+
+  # ========================
+  # Search
+  # ========================
+  search:
+    # subcommands: define, google, urban
+
+  # ========================
+  # ServerStats
+  # ========================
+  serverstats:
+    isAdminOnly: true
+    # subcommands: create, list, update, delete
+
+  # ========================
+  # Starboard  (prefix-only commands)
+  # ========================
   setchannelstarboard:
+    isAdminOnly: true
     isSlashEnabled: false
+    isPrefixEnabled: true
   removestarboard:
+    isAdminOnly: true
     isSlashEnabled: false
+    isPrefixEnabled: true
 
-  # \u2500\u2500 Tools (slash-only commands) \u2500\u2500
-  #   baseconvert | calculate | countdown | embedbuilder | generatepassword
-  #   hexcolor | poll | randomuser | shorten | time | unixtime
+  # ========================
+  # Ticket
+  # ========================
+  ticket:
+    isAdminOnly: true
+    # subcommands: setup, dashboard
+  claim:
+  close:
+  priority:
+
+  # ========================
+  # Tools
+  # ========================
+  baseconvert:
+  calculate:
+  countdown:
   embedbuilder:
-    isPrefixEnabled: false
+  generatepassword:
+  hexcolor:
+  poll:
+  randomuser:
+  shorten:
+  time:
+  unixtime:
 
-  # \u2500\u2500 Utility \u2500\u2500
-  #   avatar | firstmsg | report | serverinfo | todo | userinfo | weather
-  #   wipedata
+  # ========================
+  # Utility
+  # ========================
+  avatar:
+  firstmsg:
+  report:
+    # subcommands: file, setchannel
+  serverinfo:
+  todo:
+    # subcommands: add, list, complete, remove,
+    #              share create, share add, share view,
+    #              share addtask, share remove
+  userinfo:
+  weather:
   wipedata:
+    isSlashEnabled: true
     isPrefixEnabled: false
 
-  # \u2500\u2500 Verification (admin commands) \u2500\u2500
-  #   autoverify | verification | verify
+  # ========================
+  # Verification
+  # ========================
   autoverify:
     isAdminOnly: true
+    # subcommands: setup, dashboard
+  verify:
   verification:
     isAdminOnly: true
+    # subcommands: setup, remove, dashboard
+
+  # ========================
+  # Welcome
+  # ========================
+  autorole:
+    isAdminOnly: true
+    # subcommands: add, remove, list
+  goodbye:
+    isAdminOnly: true
+    # subcommand: setup
+  greet:
+    isAdminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
+    # subcommand: dashboard
+  welcome:
+    isAdminOnly: true
+    # subcommand: setup
 `;
 
 function normalizeKey(key) {

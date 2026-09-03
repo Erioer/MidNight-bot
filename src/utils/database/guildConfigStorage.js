@@ -23,15 +23,19 @@ export function unwrapReplitData(data) {
 export async function readGuildConfig(client, guildId, context = {}) {
     try {
         if (!client?.db || typeof client.db.get !== 'function') {
-            logger.warn(`Database unavailable for readGuildConfig in guild ${guildId}`);
+            if (client?.dbReady) {
+                logger.warn(`Database unavailable for readGuildConfig in guild ${guildId}`);
+            }
             return normalizeGuildConfig({}, GUILD_CONFIG_DEFAULTS);
         }
 
         if (typeof client.db.isAvailable === 'function' && !client.db.isAvailable()) {
-            logger.warn(`PostgreSQL unavailable for readGuildConfig in guild ${guildId}`, {
-                traceId: context.traceId,
-                guildId,
-            });
+            if (client?.dbReady) {
+                logger.warn(`PostgreSQL unavailable for readGuildConfig in guild ${guildId}`, {
+                    traceId: context.traceId,
+                    guildId,
+                });
+            }
             return normalizeGuildConfig({}, GUILD_CONFIG_DEFAULTS);
         }
 

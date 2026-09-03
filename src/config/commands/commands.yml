@@ -6,24 +6,24 @@
 # Only list what you want to change. Everything defaults to on.
 #
 # Key meanings:
-#   enabled   – Whether the command/category loads at all.
-#               false removes it from slash, prefix, and the
-#               /commands dashboard entirely.
-#   slash     – Register as a slash command.
-#   prefix    – Usable via the text prefix (e.g. $help).
-#   adminOnly – Require the Manage Server permission.
+#   isEnabled      – Whether the command/category loads at all.
+#                    false removes it from slash, prefix, and the
+#                    /commands dashboard entirely.
+#   isSlashEnabled – Register as a slash command.
+#   isPrefixEnabled – Usable via the text prefix (e.g. $help).
+#   isAdminOnly    – Require the Manage Server permission.
 #
 # For commands that are structurally prefix-only (e.g. starboard,
-# dogfact, fact, react) the slash key is ignored.
+# dogfact, fact, react) the isSlashEnabled key is ignored.
 # For commands that are structurally slash-only (e.g. help,
-# configwizard, play, queue, greet, wipedata) the prefix key is
-# ignored.
+# configwizard, play, queue, greet, wipedata) the isPrefixEnabled
+# key is ignored.
 #
 # Restart the bot to apply changes. Slash-registration changes
 # can take up to an hour to show on Discord's side.
 #
-# To restore all settings to their defaults, set the flag below
-# to true and restart. It will automatically reset itself after.
+# Set restoreDefaults to true to reset everything back to defaults.
+# It will automatically reset itself after.
 # ============================================================
 
 restoreDefaults: false
@@ -33,204 +33,205 @@ restoreDefaults: false
 # These apply unless overridden by a category or command entry.
 # ============================================================
 defaults:
-  enabled: true
-  slash: true
-  prefix: true
-  adminOnly: false
+  isEnabled: true
+  isAdminOnly: false
+  isSlashEnabled: true
+  isPrefixEnabled: true
 
 # ============================================================
 # Category-level overrides.
 # Category keys match the folder names under src/commands
 # (case-insensitive, spaces become underscores).
 #
-# enabled: false  → disables ALL commands in that category
-#                   regardless of individual command settings.
-# enabled: true   → allows individual commands to be toggled
-#                   independently (the default).
+# isEnabled: false  -> disables ALL commands in that category
+#                     regardless of individual command settings.
+# isEnabled: true   -> allows individual commands to be toggled
+#                     independently (the default).
 #
-# The other three keys (slash, prefix, adminOnly) act as the
-# per-category default and CAN be overridden per-command.
+# The other three keys (isSlashEnabled, isPrefixEnabled,
+# isAdminOnly) act as the per-category default and CAN be
+# overridden per-command.
 # ============================================================
 categories:
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Birthday
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # birthday:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Community
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # community:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
-  # Core  (protected – cannot be disabled)
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
+  # Core  (protected - cannot be disabled)
+  # ------------------------------------------------
   # core:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Economy
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # economy:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Fun
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # fun:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Giveaway
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # giveaway:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # JoinToCreate
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # jointocreate:
-  #   enabled: true
-  #   adminOnly: true
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Leveling
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # leveling:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Logging
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # logging:
-  #   enabled: true
-  #   adminOnly: true
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Moderation
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # moderation:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Music
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # music:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Reaction_roles
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # reaction_roles:
-  #   enabled: true
-  #   adminOnly: true
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Search
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # search:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # ServerStats
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # serverstats:
-  #   enabled: true
-  #   adminOnly: true
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Starboard  (prefix-only commands)
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # starboard:
-  #   enabled: true
-  #   adminOnly: true
-  #   slash: false
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: false
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Ticket
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # ticket:
-  #   enabled: true
-  #   adminOnly: true
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Tools
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # tools:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Utility
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # utility:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Verification
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # verification:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: false
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # Welcome
-  # ——————————————————————————————————————————
+  # ------------------------------------------------
   # welcome:
-  #   enabled: true
-  #   adminOnly: false
-  #   slash: true
-  #   prefix: true
+  #   isEnabled: true
+  #   isAdminOnly: true
+  #   isSlashEnabled: true
+  #   isPrefixEnabled: true
 
 # ============================================================
 # Individual command overrides.
@@ -238,16 +239,16 @@ categories:
 # Subcommands cannot be toggled individually; toggling the
 # parent command affects all its subcommands.
 #
-# Remove the # and set any key to override the category/default
-# value.  Only list keys you want to change.
+# Set any key to override the category/default value.
+# Only list keys you want to change.
 #
-# adminOnly    = require Manage Server permission
-# slash        = register as a slash command
-# prefix       = usable via text prefix
-# enabled      = load the command at all
+# isAdminOnly     = require Manage Server permission
+# isSlashEnabled  = register as a slash command
+# isPrefixEnabled = usable via text prefix
+# isEnabled       = load the command at all
 #
-# (Structurally prefix-only commands ignore slash.
-#  Structurally slash-only commands ignore prefix.)
+# (Structurally prefix-only commands ignore isSlashEnabled.
+#  Structurally slash-only commands ignore isPrefixEnabled.)
 # ============================================================
 commands:
 
@@ -256,7 +257,7 @@ commands:
   # ========================
   birthday:
     # subcommands: set, info, list, remove, next, setchannel
-    # adminOnly: true  # uncomment to make all birthday subcommands admin-only
+    # isAdminOnly: true
 
   # ========================
   # Community
@@ -264,339 +265,339 @@ commands:
   apply:
     # subcommands: submit, status, list
   app-admin:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: setup, review, list, dashboard
 
   # ========================
-  # Core  (protected – cannot be disabled)
+  # Core  (protected - cannot be disabled)
   # ========================
-  # help – slash-only by code; prefix is ignored
+  # help - slash-only by code; isPrefixEnabled is ignored
   help:
-    slash: true
-    prefix: false
-  # commands – protected; adminOnly by code
+    isSlashEnabled: true
+    isPrefixEnabled: false
+  # commands - protected; isAdminOnly by code
   commands:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: dashboard, disable, enable
-  # configwizard – slash-only by code; protected; adminOnly by code
+  # configwizard - slash-only by code; protected; isAdminOnly by code
   configwizard:
-    adminOnly: true
-    slash: true
-    prefix: false
+    isAdminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
   # ping, stats, uptime, support are normal commands
   ping:
-    # adminOnly: true
+    # isAdminOnly: true
   stats:
-    # adminOnly: true
+    # isAdminOnly: true
   uptime:
-    # adminOnly: true
+    # isAdminOnly: true
   support:
-    # adminOnly: true
+    # isAdminOnly: true
 
   # ========================
   # Economy
   # ========================
   balance:
-    # adminOnly: true
+    # isAdminOnly: true
   beg:
-    # adminOnly: true
+    # isAdminOnly: true
   buy:
-    # adminOnly: true
+    # isAdminOnly: true
   crime:
-    # adminOnly: true
+    # isAdminOnly: true
   daily:
-    # adminOnly: true
+    # isAdminOnly: true
   deposit:
-    # adminOnly: true
+    # isAdminOnly: true
   economy:
-    adminOnly: true
-    slash: true
-    prefix: false
+    isAdminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
     # subcommand: dashboard
   eleaderboard:
-    # adminOnly: true
+    # isAdminOnly: true
   fish:
-    # adminOnly: true
+    # isAdminOnly: true
   gamble:
-    # adminOnly: true
+    # isAdminOnly: true
   inventory:
-    # adminOnly: true
+    # isAdminOnly: true
   mine:
-    # adminOnly: true
+    # isAdminOnly: true
   pay:
-    # adminOnly: true
+    # isAdminOnly: true
   rob:
-    # adminOnly: true
+    # isAdminOnly: true
   shop:
-    slash: true
-    prefix: false
-    # adminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
+    # isAdminOnly: true
   shop-config:
-    slash: true
-    prefix: false
-    adminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
+    isAdminOnly: true
     # subcommand: setrole
   slut:
-    # adminOnly: true
+    # isAdminOnly: true
   withdraw:
-    # adminOnly: true
+    # isAdminOnly: true
   work:
-    # adminOnly: true
+    # isAdminOnly: true
 
   # ========================
   # Fun
   # ========================
-  # catfact – prefix-only by code; slash is ignored
+  # catfact - prefix-only by code; isSlashEnabled is ignored
   catfact:
-    slash: false
-    prefix: true
+    isSlashEnabled: false
+    isPrefixEnabled: true
   count:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: setup, disable, status, reset, leaderboard
-  # dogfact – prefix-only by code; slash is ignored
+  # dogfact - prefix-only by code; isSlashEnabled is ignored
   dogfact:
-    slash: false
-    prefix: true
-  # fact – prefix-only by code; slash is ignored
+    isSlashEnabled: false
+    isPrefixEnabled: true
+  # fact - prefix-only by code; isSlashEnabled is ignored
   fact:
-    slash: false
-    prefix: true
+    isSlashEnabled: false
+    isPrefixEnabled: true
   fight:
-    # adminOnly: true
+    # isAdminOnly: true
   flip:
-    # adminOnly: true
-  # react – prefix-only by code; slash is ignored
+    # isAdminOnly: true
+  # react - prefix-only by code; isSlashEnabled is ignored
   react:
-    slash: false
-    prefix: true
+    isSlashEnabled: false
+    isPrefixEnabled: true
   roll:
-    # adminOnly: true
+    # isAdminOnly: true
 
   # ========================
   # Giveaway
   # ========================
   gcreate:
-    # adminOnly: true
+    # isAdminOnly: true
   gdelete:
-    adminOnly: true
+    isAdminOnly: true
   gend:
-    adminOnly: true
+    isAdminOnly: true
   greroll:
-    adminOnly: true
+    isAdminOnly: true
 
   # ========================
   # JoinToCreate
   # ========================
   jointocreate:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: setup, dashboard
 
   # ========================
   # Leveling
   # ========================
   level:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: setup, dashboard
   leveladd:
-    adminOnly: true
+    isAdminOnly: true
   levelremove:
-    adminOnly: true
+    isAdminOnly: true
   levelset:
-    adminOnly: true
+    isAdminOnly: true
   leaderboard:
-    # adminOnly: true
+    # isAdminOnly: true
   rank:
-    # adminOnly: true
+    # isAdminOnly: true
 
   # ========================
   # Logging
   # ========================
   logging:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: dashboard, channel
 
   # ========================
   # Moderation
   # ========================
   ban:
-    adminOnly: true
+    isAdminOnly: true
   cases:
-    adminOnly: true
+    isAdminOnly: true
   dm:
-    adminOnly: true
+    isAdminOnly: true
   kick:
-    adminOnly: true
+    isAdminOnly: true
   lock:
-    adminOnly: true
+    isAdminOnly: true
   massban:
-    adminOnly: true
+    isAdminOnly: true
   masskick:
-    adminOnly: true
+    isAdminOnly: true
   purge:
-    adminOnly: true
+    isAdminOnly: true
   say:
-    adminOnly: true
+    isAdminOnly: true
   timeout:
-    adminOnly: true
+    isAdminOnly: true
   unban:
-    adminOnly: true
+    isAdminOnly: true
   unlock:
-    adminOnly: true
+    isAdminOnly: true
   untimeout:
-    adminOnly: true
+    isAdminOnly: true
   usernotes:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: add, view, remove, clear
   warn:
-    adminOnly: true
+    isAdminOnly: true
   warnings:
-    adminOnly: true
+    isAdminOnly: true
 
   # ========================
   # Music
   # ========================
   join:
-    # adminOnly: true
+    # isAdminOnly: true
   music:
     # subcommands: pause, resume, skip, stop, shuffle, loop,
     #              volume, seek, remove, move, clear, leave, 247,
     #              likes add, likes list, likes remove, likes play
-    # adminOnly: true
+    # isAdminOnly: true
   nowplaying:
-    # adminOnly: true
+    # isAdminOnly: true
   play:
-    slash: true
-    prefix: false
-    # adminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
+    # isAdminOnly: true
   queue:
-    slash: true
-    prefix: false
-    # adminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
+    # isAdminOnly: true
 
   # ========================
   # Reaction_roles
   # ========================
   reactroles:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: setup, dashboard
 
   # ========================
   # Search
   # ========================
   search:
-    # adminOnly: true
+    # isAdminOnly: true
     # subcommands: define, google, urban
 
   # ========================
   # ServerStats
   # ========================
   serverstats:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: create, list, update, delete
 
   # ========================
   # Starboard  (prefix-only commands)
   # ========================
   setchannelstarboard:
-    adminOnly: true
-    slash: false
-    prefix: true
+    isAdminOnly: true
+    isSlashEnabled: false
+    isPrefixEnabled: true
   removestarboard:
-    adminOnly: true
-    slash: false
-    prefix: true
+    isAdminOnly: true
+    isSlashEnabled: false
+    isPrefixEnabled: true
 
   # ========================
   # Ticket
   # ========================
   ticket:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: setup, dashboard
   claim:
-    # adminOnly: true
+    # isAdminOnly: true
   close:
-    # adminOnly: true
+    # isAdminOnly: true
   priority:
-    # adminOnly: true
+    # isAdminOnly: true
 
   # ========================
   # Tools
   # ========================
   baseconvert:
-    # adminOnly: true
+    # isAdminOnly: true
   calculate:
-    # adminOnly: true
+    # isAdminOnly: true
   countdown:
-    # adminOnly: true
+    # isAdminOnly: true
   embedbuilder:
-    # adminOnly: true
+    # isAdminOnly: true
   generatepassword:
-    # adminOnly: true
+    # isAdminOnly: true
   hexcolor:
-    # adminOnly: true
+    # isAdminOnly: true
   poll:
-    # adminOnly: true
+    # isAdminOnly: true
   randomuser:
-    # adminOnly: true
+    # isAdminOnly: true
   shorten:
-    # adminOnly: true
+    # isAdminOnly: true
   time:
-    # adminOnly: true
+    # isAdminOnly: true
   unixtime:
-    # adminOnly: true
+    # isAdminOnly: true
 
   # ========================
   # Utility
   # ========================
   avatar:
-    # adminOnly: true
+    # isAdminOnly: true
   firstmsg:
-    # adminOnly: true
+    # isAdminOnly: true
   report:
     # subcommands: file, setchannel
-    # adminOnly: true
+    # isAdminOnly: true
   serverinfo:
-    # adminOnly: true
+    # isAdminOnly: true
   todo:
     # subcommands: add, list, complete, remove,
     #              share create, share add, share view,
     #              share addtask, share remove
-    # adminOnly: true
+    # isAdminOnly: true
   userinfo:
-    # adminOnly: true
+    # isAdminOnly: true
   weather:
-    # adminOnly: true
+    # isAdminOnly: true
   wipedata:
-    slash: true
-    prefix: false
-    # adminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
+    # isAdminOnly: true
 
   # ========================
   # Verification
   # ========================
   autoverify:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: setup, dashboard
   verify:
-    # adminOnly: true
+    # isAdminOnly: true
   verification:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: setup, remove, dashboard
 
   # ========================
   # Welcome
   # ========================
   autorole:
-    adminOnly: true
+    isAdminOnly: true
     # subcommands: add, remove, list
   goodbye:
-    adminOnly: true
+    isAdminOnly: true
     # subcommand: setup
   greet:
-    adminOnly: true
-    slash: true
-    prefix: false
+    isAdminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
     # subcommand: dashboard
   welcome:
-    adminOnly: true
+    isAdminOnly: true
     # subcommand: setup

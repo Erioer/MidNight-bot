@@ -45,6 +45,7 @@ class MidNight extends Client {
     this.modals = new Collection();
     this.cooldowns = new Collection();
     this.db = null;
+    this.dbReady = false;
     this.rest = new REST({ version: '10' }).setToken(config.bot.token);
   }
 
@@ -56,6 +57,7 @@ class MidNight extends Client {
       startupLog('Initializing database...');
       const dbInstance = await initializeDatabase();
       this.db = dbInstance.db;
+      this.dbReady = true;
 
       // Check database status and report
       const dbStatus = this.db.getStatus();
