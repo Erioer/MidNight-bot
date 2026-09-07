@@ -30,7 +30,7 @@ export async function readGuildConfig(client, guildId, context = {}) {
         }
 
         if (typeof client.db.isAvailable === 'function' && !client.db.isAvailable()) {
-            if (client?.dbReady) {
+            if (client?.dbReady && !client.db.useFallback) {
                 logger.warn(`PostgreSQL unavailable for readGuildConfig in guild ${guildId}`, {
                     traceId: context.traceId,
                     guildId,
