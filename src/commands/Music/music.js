@@ -239,7 +239,7 @@ export default {
                 break;
             }
             case 'ping': {
-                const embed = getNodeStatusEmbed(client);
+                const embed = await getNodeStatusEmbed(client);
                 await replyMusicSuccess(interaction, embed);
                 break;
             }
