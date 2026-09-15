@@ -97,22 +97,27 @@ export function mapArgumentsToOptions(args, commandData) {
     };
   }
 
-  const subcommandGroup = cmdData.options.find((opt) => opt.type === 2);
+  const subcommandGroups = cmdData.options.filter((opt) => opt.type === 2);
   const subcommands = cmdData.options.filter((opt) => opt.type === 1);
-  const hasSubcommands = subcommands.length > 0 && !subcommandGroup;
+  const hasSubcommandGroups = subcommandGroups.length > 0;
+  const hasSubcommands = subcommands.length > 0;
 
   let currentArgs = args;
   let optionDefs = [];
 
   logger.debug(
-    `Parsing prefix command: commandName=${cmdData.name}, args=${JSON.stringify(args)}, hasSubcommands=${hasSubcommands}, hasSubcommandGroup=${!!subcommandGroup}, optionsCount=${cmdData.options.length}`,
+    `Parsing prefix command: commandName=${cmdData.name}, args=${JSON.stringify(args)}, hasSubcommands=${hasSubcommands}, hasSubcommandGroups=${hasSubcommandGroups}, optionsCount=${cmdData.options.length}`,
   );
 
-  if (subcommandGroup) {
-    if (args.length > 0) {
+  if (!hasSubcommands && !hasSubcommandGroups) {
+    optionDefs = cmdData.options.filter((opt) => opt.type !== 1 && opt.type !== 2);
+  } else if (args.length > 0) {
+    // Commands can have both plain subcommands and subcommand groups (e.g. music).
+    // Try a group match first, then fall back to a plain subcommand match.
+    const group = subcommandGroups.find((g) => g.name === args[0].toLowerCase());
+    if (group) {
       subcommandGroupName = args[0].toLowerCase();
-      const group = subcommandGroup.options?.find((g) => g.name === subcommandGroupName);
-      if (group && args.length > 1) {
+      if (args.length > 1) {
         subcommandName = resolveSubcommandAlias(args[1]);
         const sub = group.options?.find((s) => s.name === subcommandName);
         if (sub) {
@@ -121,12 +126,8 @@ export function mapArgumentsToOptions(args, commandData) {
         } else {
           logger.debug(`Subcommand ${subcommandName} not found in group ${subcommandGroupName}`);
         }
-      } else if (!group) {
-        logger.debug(`Subcommand group ${subcommandGroupName} not found`);
       }
-    }
-  } else if (hasSubcommands) {
-    if (args.length > 0) {
+    } else {
       const resolvedSubcommand = resolveSubcommandAlias(args[0]);
       logger.debug(
         `Looking for subcommand: ${resolvedSubcommand}, available: ${subcommands.map((s) => s.name).join(', ')}`,
@@ -141,8 +142,6 @@ export function mapArgumentsToOptions(args, commandData) {
         logger.debug(`Subcommand ${resolvedSubcommand} not found`);
       }
     }
-  } else {
-    optionDefs = cmdData.options.filter((opt) => opt.type !== 1 && opt.type !== 2);
   }
 
   for (let i = 0; i < Math.min(currentArgs.length, optionDefs.length); i++) {
@@ -153,7 +152,7 @@ export function mapArgumentsToOptions(args, commandData) {
   }
 
   const missing = [];
-  if (subcommandName || (!hasSubcommands && !subcommandGroup)) {
+  if (subcommandName || (!hasSubcommands && !hasSubcommandGroups)) {
     for (const opt of optionDefs) {
       if (opt.required && !options[opt.name]) {
         missing.push({
@@ -165,23 +164,25 @@ export function mapArgumentsToOptions(args, commandData) {
     }
   }
 
-  if ((hasSubcommands || subcommandGroup) && !subcommandName && !subcommandGroupName) {
-    const availableSubcommands = hasSubcommands
-      ? subcommands.map((s) => s.name).join(',') || 'none'
-      : subcommandGroup?.options?.map((g) => g.name).join(',') || 'none';
+  const availableNames = [
+    ...subcommands.map((s) => s.name),
+    ...subcommandGroups.map((g) => g.name),
+  ].join(',') || 'none';
+
+  if ((hasSubcommands || hasSubcommandGroups) && !subcommandName && !subcommandGroupName) {
     missing.push({
-      name: subcommandGroup ? 'subcommand group' : 'subcommand',
-      description: `Available: ${availableSubcommands}`,
+      name: hasSubcommandGroups && !hasSubcommands ? 'subcommand group' : 'subcommand',
+      description: `Available: ${availableNames}`,
       type: 1,
     });
-  } else if (hasSubcommands && args.length > 0 && !subcommandName) {
+  } else if (args.length > 0 && !subcommandName && !subcommandGroupName) {
     missing.push({
       name: 'subcommand',
-      description: `Available: ${subcommands.map((s) => s.name).join(', ')}`,
+      description: `Available: ${availableNames}`,
       type: 1,
     });
-  } else if (subcommandGroup && subcommandGroupName && !subcommandName) {
-    const group = subcommandGroup.options?.find((g) => g.name === subcommandGroupName);
+  } else if (subcommandGroupName && !subcommandName) {
+    const group = subcommandGroups.find((g) => g.name === subcommandGroupName);
     const availableSubcommands = group?.options?.map((s) => s.name).join(',') || 'none';
     missing.push({
       name: 'subcommand',

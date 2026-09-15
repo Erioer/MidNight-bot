@@ -40,17 +40,13 @@ export const COMMAND_BLOCKED_SUBCOMMANDS = {
 };
 
 function collectSubcommandNames(commandJson) {
-  const subcommandGroup = commandJson.options?.find((opt) => opt.type === 2);
+  const names = (commandJson.options?.filter((opt) => opt.type === 1) || []).map((sub) => sub.name);
 
-  if (subcommandGroup) {
-    const names = [];
-    for (const group of subcommandGroup.options || []) {
-      names.push(...(group.options?.map((opt) => opt.name) || []));
-    }
-    return names;
+  for (const group of commandJson.options?.filter((opt) => opt.type === 2) || []) {
+    names.push(...(group.options?.map((sub) => sub.name) || []));
   }
 
-  return (commandJson.options?.filter((opt) => opt.type === 1) || []).map((sub) => sub.name);
+  return names;
 }
 
 function isSubcommandBlocked(commandName, subcommandName) {
