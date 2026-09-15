@@ -23,6 +23,7 @@ import {
     removeLikedSong,
     playLikedSong,
 } from '../../services/music/likedSongsService.js';
+import { getNodeStatusEmbed } from '../../services/music/nodeStatus.js';
 
 export default {
     category: 'Music',
@@ -97,6 +98,9 @@ export default {
         )
         .addSubcommand((sub) =>
             sub.setName('clear').setDescription('Clear the queue'),
+        )
+        .addSubcommand((sub) =>
+            sub.setName('ping').setDescription('Show Lavalink node status and ping'),
         )
         .addSubcommand((sub) =>
             sub.setName('leave').setDescription('Disconnect the bot from the voice channel'),
@@ -231,6 +235,11 @@ export default {
             }
             case 'clear': {
                 const embed = await clearQueue(client, interaction);
+                await replyMusicSuccess(interaction, embed);
+                break;
+            }
+            case 'ping': {
+                const embed = getNodeStatusEmbed(client);
                 await replyMusicSuccess(interaction, embed);
                 break;
             }

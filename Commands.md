@@ -1,4 +1,4 @@
-## All 163 commands with description
+## All 164 commands with description
 
 ### — Applications —
 
@@ -140,64 +140,65 @@
 109. music loop — Set loop mode
 110. music move — Move a track in the queue
 111. music pause — Pause playback
-112. music remove — Remove a track from the queue
-113. music resume — Resume playback
-114. music seek — Seek to a position in the current track
-115. music shuffle — Shuffle the queue
-116. music skip — Skip the current track
-117. music stop — Stop playback and clear the queue
-118. music volume — Set playback volume
-119. nowplaying — Show the currently playing track
-120. play — Play a song or add it to the queue
-121. queue — Show the current music queue
+112. music ping — Show Lavalink node status and ping
+113. music remove — Remove a track from the queue
+114. music resume — Resume playback
+115. music seek — Seek to a position in the current track
+116. music shuffle — Shuffle the queue
+117. music skip — Skip the current track
+118. music stop — Stop playback and clear the queue
+119. music volume — Set playback volume
+120. nowplaying — Show the currently playing track
+121. play — Play a song or add it to the queue
+122. queue — Show the current music queue
 
 ### — Productivity & Notes —
 
-122. commands dashboard — Open the interactive command access dashboard
-123. commands disable — Disable a command or entire category
-124. commands enable — Enable a command or entire category
-125. configwizard — Open the server configuration dashboard and setup wizard
-126. todo add — Add a task to your to-do list
-127. todo complete — Mark a task as complete
-128. todo list — View your to-do list
-129. todo remove — Remove a task from your to-do list
-130. todo share add — Add a member to a shared list
-131. todo share addtask — Add a task to a shared to-do list
-132. todo share create — Create a new shared to-do list
-133. todo share remove — Remove a task from a shared to-do list
-134. todo share view — View a shared to-do list
-135. uptime — Check how long the bot has been online
-136. usernotes add — Add a note to a user
-137. usernotes clear — Clear all notes for a user
-138. usernotes remove — Remove a specific note from a user
-139. usernotes view — View notes for a user
-140. wipedata — Delete all your personal data from the bot (irreversible)
+123. commands dashboard — Open the interactive command access dashboard
+124. commands disable — Disable a command or entire category
+125. commands enable — Enable a command or entire category
+126. configwizard — Open the server configuration dashboard and setup wizard
+127. todo add — Add a task to your to-do list
+128. todo complete — Mark a task as complete
+129. todo list — View your to-do list
+130. todo remove — Remove a task from your to-do list
+131. todo share add — Add a member to a shared list
+132. todo share addtask — Add a task to a shared to-do list
+133. todo share create — Create a new shared to-do list
+134. todo share remove — Remove a task from a shared to-do list
+135. todo share view — View a shared to-do list
+136. uptime — Check how long the bot has been online
+137. usernotes add — Add a note to a user
+138. usernotes clear — Clear all notes for a user
+139. usernotes remove — Remove a specific note from a user
+140. usernotes view — View notes for a user
+141. wipedata — Delete all your personal data from the bot (irreversible)
 
 ### — Server Features —
 
-141. count disable — Disable the counting game for this server
-142. count leaderboard — Show the counting game leaderboard
-143. count reset — Reset the current counting sequence
-144. count setup — Start the count game in a text channel
-145. count status — View the current counting game status
-146. jointocreate dashboard — Configure an existing Join to Create system
-147. jointocreate setup — Set up a new Join to Create voice channel
-148. reactroles dashboard — Manage and configure your reaction role panels
-149. reactroles setup — Set up a new reaction role panel
-150. removestarboard — Remove the current starboard (a prefix only command)
-151. serverstats create — Create a new statistics tracker channel in a category
-152. serverstats delete — Delete an existing statistics tracker
-153. serverstats list — List all statistics trackers for this server
-154. serverstats update — Update an existing statistics tracker
-155. setchannelstarboard — Set a specified channel to starboard, set the emoji and threshold (can't create more than one) (a prefix only command)
+142. count disable — Disable the counting game for this server
+143. count leaderboard — Show the counting game leaderboard
+144. count reset — Reset the current counting sequence
+145. count setup — Start the count game in a text channel
+146. count status — View the current counting game status
+147. jointocreate dashboard — Configure an existing Join to Create system
+148. jointocreate setup — Set up a new Join to Create voice channel
+149. reactroles dashboard — Manage and configure your reaction role panels
+150. reactroles setup — Set up a new reaction role panel
+151. removestarboard — Remove the current starboard (a prefix only command)
+152. serverstats create — Create a new statistics tracker channel in a category
+153. serverstats delete — Delete an existing statistics tracker
+154. serverstats list — List all statistics trackers for this server
+155. serverstats update — Update an existing statistics tracker
+156. setchannelstarboard — Set a specified channel to starboard, set the emoji and threshold (can't create more than one) (a prefix only command)
 
 ### — Support & Tickets —
 
-156. claim — Claim an open ticket, assigning it to you
-157. close — Close the current ticket
-158. priority — Set the priority level for the current support ticket
-159. report file — Report a user to the server moderation team
-160. report setchannel — Set the channel where user reports are sent (Manage server required)
-161. support — Get a link to the support server
-162. ticket dashboard — Open the interactive ticket system dashboard
-163. ticket setup — Set up the ticket creation panel in a specified channel
+157. claim — Claim an open ticket, assigning it to you
+158. close — Close the current ticket
+159. priority — Set the priority level for the current support ticket
+160. report file — Report a user to the server moderation team
+161. report setchannel — Set the channel where user reports are sent (Manage server required)
+162. support — Get a link to the support server
+163. ticket dashboard — Open the interactive ticket system dashboard
+164. ticket setup — Set up the ticket creation panel in a specified channel

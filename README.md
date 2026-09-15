@@ -44,7 +44,8 @@ Note: All of the above features related to leveling just now were Arcane's premi
 * This bot will automatically leave the VC after **7s** when there's no user in the same VC as the bot
 * Voice channel's status will automatically change to the name of the currently playing song
 * Per-user likes: saves up to 100 songs with `/music likes` and play them back using bot's PostgreeSQL DB to store them
-* Added Commands: `/music likes add`, `/music likes remove`, `/music likes play`, `/music likes list`
+* A dedicated command to check available lavalink node's pings & status (automactically scales when new nodes are added or removed)
+* Added Commands: `/music likes add`, `/music likes remove`, `/music likes play`, `/music likes list`,`/music ping`
 
 ### 6. Commands Policy
 
