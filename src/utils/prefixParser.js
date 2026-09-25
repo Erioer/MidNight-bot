@@ -175,7 +175,7 @@ export function mapArgumentsToOptions(args, commandData) {
       description: `Available: ${availableNames}`,
       type: 1,
     });
-  } else if (args.length > 0 && !subcommandName && !subcommandGroupName) {
+  } else if ((hasSubcommands || hasSubcommandGroups) && args.length > 0 && !subcommandName && !subcommandGroupName) {
     missing.push({
       name: 'subcommand',
       description: `Available: ${availableNames}`,
