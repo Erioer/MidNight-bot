@@ -4,7 +4,11 @@
 // starboard posts, restore votes, and essential-event logging.
 
 import { logger } from '../../utils/logger.js';
-import { COUNTING_TIMERS, COUNTING_EMOJI } from '../../config/countingGameConfig.js';
+import {
+  COUNTING_TIMERS,
+  COUNTING_EMOJI,
+  COUNTING_COMMENT_PREFIX,
+} from '../../config/countingGameConfig.js';
 import { splitComment } from './countingNumberParser.js';
 import {
   buildMultiNumberNotice,
@@ -41,6 +45,15 @@ import {
   logShieldConsumed,
   logMilestoneReached,
 } from './countingLogging.js';
+
+/**
+ * Shortens a user's raw message for storage in the ruin embed so a wall of
+ * text cannot bloat the field.
+ */
+function truncateForLog(value, max = 100) {
+  const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
 
 /**
  * Sends `embed` and removes it after the configured notice lifespan.
@@ -94,7 +107,7 @@ export async function handleCountingGame(message, client) {
   const raw = message.content ?? '';
   const { body, isChatterOnly } = splitComment(raw);
 
-  // Pure `//` chatter is normal chat: no reactions, no count checks, no resets,
+  // Pure `\` chatter is normal chat: no reactions, no count checks, no resets,
   // and it falls through to prefix-command and XP handling.
   if (isChatterOnly) {
     return false;
@@ -109,7 +122,6 @@ export async function handleCountingGame(message, client) {
       buildCooldownNotice({
         remainingSeconds: Math.max(1, Math.ceil((cooldown.startedAt + COUNTING_TIMERS.ruinCooldownMs - Date.now()) / 1000)),
         requiredCounts: COUNTING_TIMERS.cooldownValidCounts,
-        completedCounts: cooldown.validCounts || 0,
       }),
       buildMention(message.author.id, 'You are on a counting cooldown.'),
     );
@@ -119,16 +131,7 @@ export async function handleCountingGame(message, client) {
   const classification = classifyCountingBody(body, raw, config.system);
 
   if (classification.kind === 'invalid') {
-    await deleteUserMessage(message);
-    await sendTemporaryNotice(
-      message.channel,
-      buildRemovedNotice({
-        content: raw,
-        reason: REMOVED_REASON_CHAT,
-      }),
-      buildMention(message.author.id, 'Your message was removed.'),
-    );
-    return true;
+    return await handleTextOnlyOffence({ message, client, config, raw });
   }
 
   if (classification.kind === 'multi_number') {
@@ -181,12 +184,51 @@ async function handleMultiNumberOffence({ message, client, config, raw, numbers 
     return true;
   }
 
-  const reason = 'Repeatedly posting messages with multiple numbers without `//` comment prefix.';
+  const reason = `Repeatedly posting messages with multiple numbers without the \`${COUNTING_COMMENT_PREFIX}\` comment prefix.`;
   await postRuin({
     message,
     client,
     config: struckConfig,
     sentValue: numbers.join(', '),
+    reason,
+    isRuinEvent: true,
+  });
+
+  return true;
+}
+
+/**
+ * Progressive penalty for messages that contain no countable number (plain
+ * chatter typed without the `\` comment prefix). This shares the same strike
+ * meter as the multi-number penalty, so mixing the two still escalates:
+ * offences 1 and 2 only remove the message, the 3rd is a Ruin Event that puts
+ * the offender on cooldown.
+ */
+async function handleTextOnlyOffence({ message, client, config, raw }) {
+  const { config: struckConfig, strikes } = registerMultiNumberStrike(config, message.author.id);
+  await saveCountingGameConfig(client, message.guild.id, struckConfig);
+  await deleteUserMessage(message);
+
+  if (strikes < COUNTING_TIMERS.multiNumberStrikeLimit) {
+    await sendTemporaryNotice(
+      message.channel,
+      buildRemovedNotice({
+        content: raw,
+        reason: REMOVED_REASON_CHAT,
+        attempt: strikes,
+        strikeLimit: COUNTING_TIMERS.multiNumberStrikeLimit,
+      }),
+      buildMention(message.author.id, 'Your message was removed.'),
+    );
+    return true;
+  }
+
+  const reason = `Repeatedly posting unformatted text without the \`${COUNTING_COMMENT_PREFIX}\` comment prefix.`;
+  await postRuin({
+    message,
+    client,
+    config: struckConfig,
+    sentValue: truncateForLog(raw),
     reason,
     isRuinEvent: true,
   });
@@ -272,7 +314,7 @@ async function postRuin({ message, client, config, sentValue, reason, isRuinEven
   // the community vote always lives on a fully detailed embed. No `<@id>` may
   // appear inside the embed itself — the mention goes out as message content.
   const leadingText = isRuinEvent
-    ? `${COUNTING_EMOJI.warning} You have repeatedly posted messages with multiple numbers.`
+    ? `${COUNTING_EMOJI.warning} You have repeatedly posted invalid messages without the \`${COUNTING_COMMENT_PREFIX}\` comment prefix.`
     : null;
 
   const embed = buildRuinEmbed({

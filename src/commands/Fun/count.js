@@ -125,8 +125,8 @@ export default {
                 '',
                 '**Accepted input**',
                 '- Numbers, math (`4*4`, `32/2`, `4^2`), and words (`one`, `first`, `twenty-four`, `one hundred`)',
-                '- Chatter after a count needs `//` — e.g. `55 // we got this to hundred`',
-                '- `// chat only` is treated as normal conversation',
+                '- Chatter after a count needs `\\` — e.g. `55 \\ we got this to hundred`',
+                '- `\\ chat only` is treated as normal conversation',
                 '',
                 `**Restore votes needed:** ${activated.restoreVotesRequired} (react 🔄 on the ruin embed)`,
               ].join('\n'),
@@ -165,7 +165,7 @@ export default {
           { name: 'Restore votes needed', value: `${config.restoreVotesRequired || 3}`, inline: true },
           {
             name: 'Your shields',
-            value: `${COUNTING_SHIELD.emoji} ${myShields}/${COUNTING_SHIELD.max}`,
+            value: `${myShields}/${COUNTING_SHIELD.max}`,
             inline: true,
           },
           {

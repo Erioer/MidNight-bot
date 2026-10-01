@@ -1,3 +1,5 @@
+import { COUNTING_SHIELD } from '../countingGameConfig.js';
+
 export const shopItems = [
     {
         id: 'extra_work',
@@ -133,6 +135,18 @@ roleId: null,
         effect: {
             type: 'robbery_protection',
             protection: true
+        }
+    },
+    {
+        id: COUNTING_SHIELD.shopItemId,
+        name: '🛡️ Counting Shield',
+        price: COUNTING_SHIELD.price,
+        description: `Protects the counting game. If you post a wrong number while holding a shield, it is consumed automatically and the count is preserved. Hold up to ${COUNTING_SHIELD.max}.`,
+        type: 'consumable',
+        maxQuantity: COUNTING_SHIELD.max,
+        effect: {
+            type: 'counting_shield',
+            uses: 1
         }
     }
 ];

@@ -56,7 +56,15 @@ export const COUNTING_REWARDS = {
   cashMinimum: 1000,
 };
 
-export const COUNTING_COMMENT_PREFIX = '//';
+// Comment marker that separates a count from chatter in a counting message.
+// NOTE: this is a single literal backslash (`\`). Discord reserves `/` for its
+// built-in command entry and `//` still opens the slash-command menu, so a
+// backslash is used instead. Written in a JS string as '\\' and shown to users
+// inside a `code span`.
+export const COUNTING_COMMENT_PREFIX = '\\';
+
+// Example usage shown in notices and the setup reply.
+export const COUNTING_COMMENT_EXAMPLE = '[number] \\ [text]';
 
 export const COUNTING_EMOJI = {
   restoreVote: '🔄',

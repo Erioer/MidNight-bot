@@ -38,22 +38,25 @@ The counting game was completely rewritten around smart parsing, transparent rui
 * **Smart parsing & chat support**:
   * Plain digits, number words (`one`, `first`, `twenty-four`, `one hundred`), and arithmetic (`4*4`, `32/2`, `10+6`, `4^2`, `4**2`, parentheses) are all accepted
   * `expression=result` form is validated (`4*4=16` counts, `4*4=15` does not)
-  * `//` comment prefix splits a count from chatter: `55 // we got this to hundred` counts **55** and ignores the rest
-  * Messages starting with `//` are treated as pure chatter and never touch the sequence
-  * Non-comment messages containing text or multiple numbers without `//` are auto-deleted with a temporary 6-second notice quoting the original text
+  * The bot reacts directly on your own message: ✅ for a correct count, ❌ for a wrong one
+  * A backslash (`\`) splits a count from chatter: `55 \ we got this to hundred` counts **55** and ignores the rest. A backslash is used instead of `//` because Discord opens its slash-command menu on a leading slash
+  * Messages starting with `\` are treated as pure chatter and never touch the sequence
+  * Non-comment messages containing text or multiple numbers without `\` are auto-deleted with a temporary notice quoting the original text, which stays up for **30s** so it can actually be read
+  * Discord does not ping user mentions placed inside an embed, so the offender is always mentioned in the message text *outside* the embed; the embed itself speaks in the second person
   * Every other number system (hex, binary, base36, base64, Roman, alphabet) uses its own strict alphabet, preventing smart decimal parsing from interfering with other modes
 
 * **Ruin & restore mechanics**:
   * Wrong numbers and double-counting post a **permanent** ruin embed displaying the sent value, expected value, next expected number, high score, exact failure reason, and live vote tally
   * **Community Vote Restore**: Members restore a ruined count by reacting with 🔄 on the ruin embed. The vote threshold is configurable via `/count setup` (default: `3`) and stored in PostgreSQL to survive bot restarts
+  * The tally shown on the embed is read from Discord's **live reaction count**, so it can never drift from the real number of 🔄 reactions
   * Vote safety controls: One vote per member, the user who broke the count cannot vote, and removing the 🔄 reaction decrements the tally
-  * **Admin Instant Restore**: `/count restore` (requires *Manage Server* or *Manage Channels*) instantly reverts the sequence to the pre-ruin value and clears pending votes
+  * **Admin Instant Restore**: `/count restore` (requires *Manage Server* or *Manage Channels*) instantly reverts the sequence to the last number that counted and clears pending votes
   * **Ruin Cooldown**: The user who broke the count is temporarily penalized—their counting attempts are auto-deleted until **3 valid counts** are completed by other users or **60s** elapse
 
 * **Progressive anti-spam penalties**:
-  * Posting multiple numbers or unformatted text without `//` triggers progressive warnings
+  * Posting multiple numbers **or plain text without a `\`** triggers progressive warnings
   * Offences 1 and 2 auto-delete the message and preserve the active count sequence
-  * The 3rd consecutive offence triggers an official **Ruin Event** that resets the count
+  * The 3rd consecutive offence (in either form, they share one strike meter) triggers an official **Ruin Event**, which resets the count and places the offender on cooldown
   * A single correct count clears the user's active strike counter
 
 * **Counting Shields (Economy Integration)**:

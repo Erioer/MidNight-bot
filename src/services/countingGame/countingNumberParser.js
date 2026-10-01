@@ -2,12 +2,15 @@
 // Natural-language aware number extraction for the counting game.
 //
 // Responsibilities:
-//   1. Split a raw message into the "countable" part and its `//` comment.
+//   1. Split a raw message into the "countable" part and its comment (the
+//      prefix is a single literal backslash, defined in countingGameConfig.js).
 //   2. Parse the countable part as a literal number, a word-to-number phrase
 //      ("one hundred", "twenty-four", "first"), or a safe math expression
 //      ("4*4", "32/2", "10+6", "4^2").
 //   3. Report how many distinct numbers appear in the whole message so the
 //      caller can apply the multi-number penalty without re-scanning text.
+
+import { COUNTING_COMMENT_PREFIX } from '../../config/countingGameConfig.js';
 
 const SMALL_WORDS = {
   zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5,
@@ -299,24 +302,24 @@ export function findNumbersInText(value) {
 }
 
 /**
- * Splits a raw message on the `//` comment prefix.
+ * Splits a raw message on the comment prefix.
  *
  * Returns `{ body, comment, isChatterOnly }`:
- *  - `body` is everything before the first `//` (trimmed).
+ *  - `body` is everything before the first comment prefix (trimmed).
  *  - `comment` is everything after it (trimmed), or '' when absent.
  *  - `isChatterOnly` is true when the body is empty, i.e. the message was
- *    pure chat such as `// how is everyone today?`.
+ *    pure chat such as `\ how is everyone today?`.
  */
 export function splitComment(rawContent) {
   const raw = typeof rawContent === 'string' ? rawContent : '';
-  const separatorIndex = raw.indexOf('//');
+  const separatorIndex = raw.indexOf(COUNTING_COMMENT_PREFIX);
 
   if (separatorIndex === -1) {
     return { body: raw.trim(), comment: '', isChatterOnly: false };
   }
 
   const body = raw.slice(0, separatorIndex).trim();
-  const comment = raw.slice(separatorIndex + 2).trim();
+  const comment = raw.slice(separatorIndex + COUNTING_COMMENT_PREFIX.length).trim();
   return { body, comment, isChatterOnly: !hasMeaningfulBody(body) };
 }
 

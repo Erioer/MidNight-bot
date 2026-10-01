@@ -6,7 +6,7 @@
 // voters, createdAt }`, so an in-progress vote survives bot restarts.
 
 import { logger } from '../../utils/logger.js';
-import { COUNTING_EMOJI } from '../../config/countingGameConfig.js';
+import { COUNTING_EMOJI, COUNTING_COMMENT_PREFIX } from '../../config/countingGameConfig.js';
 import { buildRuinEmbed } from './countingMessages.js';
 import {
   applyRestoreVote,
@@ -30,7 +30,7 @@ async function refreshVoteEmbed(reaction, config, vote, votes) {
       reason: vote.reason || 'Sequence was broken and is awaiting a restore vote.',
       ...(vote.isRuinEvent
         ? {
-          leadingText: `${COUNTING_EMOJI.warning} You have repeatedly posted messages with multiple numbers.`,
+          leadingText: `${COUNTING_EMOJI.warning} You have repeatedly posted invalid messages without the \`${COUNTING_COMMENT_PREFIX}\` comment prefix.`,
         }
         : {}),
       votes,
@@ -53,6 +53,35 @@ async function resolveReaction(reaction) {
     return null;
   }
   return reaction;
+}
+
+/**
+ * Reads the *live* 🔄 reaction count straight from Discord rather than trusting
+ * the locally tracked voter list. This keeps the embed tally honest even if a
+ * reaction is added or removed outside our event handlers (bulk actions, mobile
+ * sync, race conditions), so the displayed number can never drift from reality.
+ */
+export async function fetchLiveVoteCount(message) {
+  try {
+    // A partial message's cache is empty until the reactions are fetched.
+    if (message.reactions?.cache?.size === 0 && typeof message.reactions?.fetch === 'function') {
+      await message.reactions.fetch().catch(() => null);
+    }
+    const reaction = message.reactions?.cache?.get(COUNTING_EMOJI.restoreVote);
+    return reaction?.count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Resolves the number to display on the ruin embed: the live Discord reaction
+ * count when it is readable, otherwise the locally tracked tally.
+ */
+async function resolveDisplayVoteCount(message, trackedVotes) {
+  const live = await fetchLiveVoteCount(message);
+  if (live > 0) return live;
+  return trackedVotes;
 }
 
 /**
@@ -82,11 +111,13 @@ export async function processCountingRestoreVote(reactionRaw, user) {
   const { config: votedConfig, reached, votes } = applyRestoreVote(config, user.id);
   await saveCountingGameConfig(reaction.client, guildId, votedConfig);
 
-  // Reflect progress on the embed without disturbing other reactions. The
-  // original sent value and reason are replayed from the persisted vote so the
-  // message always explains exactly what broke the count.
+  // Reflect progress on the embed without disturbing other reactions. The tally
+  // comes from Discord itself, and the original sent value and reason are
+  // replayed from the persisted vote so the message always explains exactly
+  // what broke the count.
   const ruinMessage = reaction.message;
-  await refreshVoteEmbed(reaction, config, vote, votes);
+  const displayVotes = await resolveDisplayVoteCount(ruinMessage, votes);
+  await refreshVoteEmbed(reaction, config, vote, displayVotes);
 
   if (!reached) return;
 
@@ -130,7 +161,8 @@ export async function withdrawCountingRestoreVote(reactionRaw, user) {
   if (!removed) return;
 
   await saveCountingGameConfig(reaction.client, guildId, updated);
-  await refreshVoteEmbed(reaction, config, vote, votes);
+  const displayVotes = await resolveDisplayVoteCount(reaction.message, votes);
+  await refreshVoteEmbed(reaction, config, vote, displayVotes);
 }
 
 /**

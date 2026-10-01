@@ -16,6 +16,8 @@
 import { EmbedBuilder } from 'discord.js';
 import { getColor } from '../../config/bot.js';
 import {
+  COUNTING_COMMENT_EXAMPLE,
+  COUNTING_COMMENT_PREFIX,
   COUNTING_EMOJI,
   COUNTING_SHIELD,
   COUNTING_TIMERS,
@@ -55,14 +57,16 @@ export function buildMention(userId, text = '') {
 export function buildMultiNumberNotice({ content, numbers, attempt, strikeLimit }) {
   const listed = numbers.slice(0, 4).map((number) => `\`${number}\``).join(' and ');
   const remaining = numbers.length > 4 ? ` (+${numbers.length - 4} more)` : '';
-  const attemptLine = strikeLimit ? `This is offence **${attempt}** of ${strikeLimit}.` : '';
+  const attemptLine = strikeLimit
+    ? `This is offence **${attempt}** of ${strikeLimit}.`
+    : `Next offence will break the count.`;
 
   return buildRawEmbed({
     color: NOTICE_COLOR,
     title: `${COUNTING_EMOJI.warning} Multiple numbers detected!`,
     description: [
       `Your message contained both ${listed}${remaining}.`,
-      'To include chat text alongside numbers, use `//` for comments (e.g., `55 // we got this to hundred`).',
+      `To add chat text next to a number, write \`[count number] ${COUNTING_COMMENT_PREFIX} [text]\` — e.g. \`${COUNTING_COMMENT_EXAMPLE}\`.`,
       attemptLine,
     ].filter(Boolean).join('\n'),
     fields: [{ name: 'Your message', value: `\`${truncate(content, 180)}\``, inline: false }],
@@ -70,17 +74,22 @@ export function buildMultiNumberNotice({ content, numbers, attempt, strikeLimit 
 }
 
 export const REMOVED_REASON_CHAT =
-  'Message contained text without a `//` comment prefix. Use `55 // text` or `// text` to chat.';
+  `Your message had no number, or mixed text with a number without the comment prefix. Write \`[count number] ${COUNTING_COMMENT_PREFIX} [text]\`, or \`${COUNTING_COMMENT_PREFIX} text\` to just chat.`;
 
-/** Generic "message removed" notice for text without a `//` prefix (auto-deletes). */
-export function buildRemovedNotice({ content, reason = REMOVED_REASON_CHAT }) {
+/** Generic "message removed" notice for text without a comment prefix (auto-deletes). */
+export function buildRemovedNotice({ content, reason = REMOVED_REASON_CHAT, attempt = null, strikeLimit = null }) {
+  const attemptLine = attempt && strikeLimit
+    ? `This is offence **${attempt}** of ${strikeLimit}.`
+    : '';
+
   return buildRawEmbed({
     color: RUIN_COLOR,
     title: `${COUNTING_EMOJI.removed} Message Removed`,
     description: [
       `Your message: \`${truncate(content, 180)}\``,
       `**Reason:** ${reason}`,
-    ].join('\n'),
+      attemptLine,
+    ].filter(Boolean).join('\n'),
   });
 }
 
@@ -106,7 +115,10 @@ export function buildRuinEmbed({
 }) {
   const voteBlock = restored
     ? `${COUNTING_EMOJI.restoreVote} **Count restored.** The sequence is back to **${countAtBreak}**.`
-    : `${COUNTING_EMOJI.restoreVote} **Vote to Restore:** React with ${COUNTING_EMOJI.restoreVote} below to restore the count back to **${countAtBreak}**! (${votes}/${requiredVotes} votes)`;
+    : `${COUNTING_EMOJI.restoreVote} **Vote to Restore:** React with ${COUNTING_EMOJI.restoreVote} to restore the count back to **${countAtBreak}**! `
+      + (votes > 0
+        ? `(**${votes}** of ${requiredVotes} votes)`
+        : `**Needs ${requiredVotes} votes.**`);
 
   return buildRawEmbed({
     color: restored ? SUCCESS_COLOR : RUIN_COLOR,
@@ -139,14 +151,19 @@ export function buildShieldSavedEmbed({ mistakeValue, safeValue, nextExpected, s
   });
 }
 
-/** Notice shown when a penalised user tries to count during their cooldown. */
-export function buildCooldownNotice({ remainingSeconds, requiredCounts, completedCounts }) {
+/**
+ * Notice shown when a penalised user tries to count during their cooldown. The
+ * notice is a one-shot message that is never edited, so it states the unlock
+ * requirement plainly instead of showing a progress fraction that would go
+ * stale the moment anyone else counts.
+ */
+export function buildCooldownNotice({ remainingSeconds, requiredCounts }) {
   return buildRawEmbed({
     color: NOTICE_COLOR,
     title: 'Counting Cooldown Active',
     description: [
       'You are on a counting cooldown for breaking the sequence.',
-      `It unlocks after **${requiredCounts}** valid counts by other members (${completedCounts}/${requiredCounts}) or in **${remainingSeconds}s**.`,
+      `It unlocks after **${requiredCounts}** valid counts by other members, or in **${remainingSeconds}s**.`,
       'Your message was removed and was not counted.',
     ].join('\n'),
   });

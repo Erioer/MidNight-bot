@@ -8,6 +8,9 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 
 const SHOP_ITEMS = shopItems;
 
+// Convenience aliases so common short names resolve to the canonical item id.
+const ITEM_ALIASES = { shield: 'counting_shield' };
+
 export default {
     data: new SlashCommandBuilder()
         .setName('buy')
@@ -33,7 +36,8 @@ export default {
 
             const userId = interaction.user.id;
             const guildId = interaction.guildId;
-            const itemId = interaction.options.getString("item_id").toLowerCase();
+            const requestedId = interaction.options.getString("item_id").toLowerCase().trim();
+            const itemId = ITEM_ALIASES[requestedId] || requestedId;
             const quantity = interaction.options.getInteger("quantity") || 1;
 
             const item = SHOP_ITEMS.find(i => i.id === itemId);
