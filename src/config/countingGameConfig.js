@@ -35,8 +35,9 @@ export const COUNTING_SHIELD = {
 
 export const COUNTING_TIMERS = {
   // Temporary notices (multi-number warning, message-removed notice,
-  // shield-saved notice) auto-delete after this many ms.
-  noticeLifespanMs: 6000,
+  // shield-saved notice) auto-delete after this many ms. Kept at 30s so the
+  // message is readable before it disappears.
+  noticeLifespanMs: 30000,
   // A user who breaks the count is locked out of counting until either
   // `cooldownValidCounts` other people count correctly, or this elapses.
   ruinCooldownMs: 60000,
@@ -63,6 +64,9 @@ export const COUNTING_EMOJI = {
   removed: '🗑️',
   restore: '🔄',
   shield: '🛡️',
+  // Reactions placed on the counter's own message.
+  correct: '✅',
+  incorrect: '❌',
 };
 
 /** Returns the milestone thresholds for a category, always as a sorted number array. */

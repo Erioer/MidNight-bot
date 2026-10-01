@@ -12,6 +12,7 @@ import {
   buildRuinEmbed,
   buildShieldSavedEmbed,
   buildCooldownNotice,
+  buildMention,
   REMOVED_REASON_CHAT,
 } from './countingMessages.js';
 import {
@@ -41,10 +42,14 @@ import {
   logMilestoneReached,
 } from './countingLogging.js';
 
-/** Sends `embed` and removes it after the configured notice lifespan. */
-async function sendTemporaryNotice(channel, embed) {
+/**
+ * Sends `embed` and removes it after the configured notice lifespan.
+ * `content` carries the user mention, because Discord does not ping mentions
+ * placed inside an embed.
+ */
+async function sendTemporaryNotice(channel, embed, content = '') {
   try {
-    const notice = await channel.send({ embeds: [embed] });
+    const notice = await channel.send({ ...(content ? { content } : {}), embeds: [embed] });
     setTimeout(() => {
       notice.delete().catch(() => {});
     }, COUNTING_TIMERS.noticeLifespanMs).unref?.();
@@ -60,6 +65,19 @@ async function deleteUserMessage(message) {
     await message.delete();
   } catch {
     // Missing Manage Messages, or the message was already removed.
+  }
+}
+
+/**
+ * Reacts to the counter's own message so the verdict is visible in-channel:
+ * ✅ for a correct count, ❌ for a wrong one. Only ever called while the
+ * message still exists, so deleted messages simply never get a reaction.
+ */
+async function reactVerdict(message, emoji) {
+  try {
+    await message.react(emoji);
+  } catch {
+    // Missing Add Reactions, or the message was removed in the meantime.
   }
 }
 
@@ -89,11 +107,11 @@ export async function handleCountingGame(message, client) {
     await sendTemporaryNotice(
       message.channel,
       buildCooldownNotice({
-        userId: message.author.id,
         remainingSeconds: Math.max(1, Math.ceil((cooldown.startedAt + COUNTING_TIMERS.ruinCooldownMs - Date.now()) / 1000)),
         requiredCounts: COUNTING_TIMERS.cooldownValidCounts,
         completedCounts: cooldown.validCounts || 0,
       }),
+      buildMention(message.author.id, 'You are on a counting cooldown.'),
     );
     return true;
   }
@@ -102,11 +120,14 @@ export async function handleCountingGame(message, client) {
 
   if (classification.kind === 'invalid') {
     await deleteUserMessage(message);
-    await sendTemporaryNotice(message.channel, buildRemovedNotice({
-      userId: message.author.id,
-      content: raw,
-      reason: REMOVED_REASON_CHAT,
-    }));
+    await sendTemporaryNotice(
+      message.channel,
+      buildRemovedNotice({
+        content: raw,
+        reason: REMOVED_REASON_CHAT,
+      }),
+      buildMention(message.author.id, 'Your message was removed.'),
+    );
     return true;
   }
 
@@ -147,13 +168,16 @@ async function handleMultiNumberOffence({ message, client, config, raw, numbers 
   await deleteUserMessage(message);
 
   if (strikes < COUNTING_TIMERS.multiNumberStrikeLimit) {
-    await sendTemporaryNotice(message.channel, buildMultiNumberNotice({
-      userId: message.author.id,
-      content: raw,
-      numbers,
-      attempt: strikes,
-      strikeLimit: COUNTING_TIMERS.multiNumberStrikeLimit,
-    }));
+    await sendTemporaryNotice(
+      message.channel,
+      buildMultiNumberNotice({
+        content: raw,
+        numbers,
+        attempt: strikes,
+        strikeLimit: COUNTING_TIMERS.multiNumberStrikeLimit,
+      }),
+      buildMention(message.author.id, 'Multiple numbers detected.'),
+    );
     return true;
   }
 
@@ -172,6 +196,9 @@ async function handleMultiNumberOffence({ message, client, config, raw, numbers 
 
 /** A wrong number or a double count. Shields absorb the mistake when available. */
 async function handleMistake({ message, client, config, sentValue, reason }) {
+  // The message is kept, so the ❌ verdict can be shown on it directly.
+  await reactVerdict(message, COUNTING_EMOJI.incorrect);
+
   const shieldResult = await consumeShield(client, message.guild.id, message.author.id);
 
   if (shieldResult.consumed) {
@@ -179,8 +206,8 @@ async function handleMistake({ message, client, config, sentValue, reason }) {
     const safeValue = (config.nextNumber || 1) - 1;
 
     await message.channel.send({
+      content: buildMention(message.author.id, 'A shield absorbed your mistake.'),
       embeds: [buildShieldSavedEmbed({
-        userId: message.author.id,
         mistakeValue: sentValue,
         safeValue,
         nextExpected: config.nextNumber,
@@ -241,18 +268,14 @@ async function postRuin({ message, client, config, sentValue, reason, isRuinEven
 
   const requiredVotes = config.restoreVotesRequired || COUNTING_TIMERS.cooldownValidCounts;
 
-  // The Ruin Event notice and the permanent ruin embed are the same message, so
-  // the community vote always lives on a fully detailed embed.
-  const description = isRuinEvent
-    ? [
-      `${COUNTING_EMOJI.warning} <@${message.author.id}> has repeatedly posted messages with multiple numbers.`,
-      `*Reason: ${reason}*`,
-      '',
-    ].join('\n')
+  // The Ruin Event framing and the permanent ruin embed are the same message, so
+  // the community vote always lives on a fully detailed embed. No `<@id>` may
+  // appear inside the embed itself — the mention goes out as message content.
+  const leadingText = isRuinEvent
+    ? `${COUNTING_EMOJI.warning} You have repeatedly posted messages with multiple numbers.`
     : null;
 
   const embed = buildRuinEmbed({
-    userId: message.author.id,
     sentValue,
     countAtBreak,
     expectedValue,
@@ -261,10 +284,15 @@ async function postRuin({ message, client, config, sentValue, reason, isRuinEven
     reason,
     votes: 0,
     requiredVotes,
-    ...(description ? { leadingText: description } : {}),
+    ...(leadingText ? { leadingText } : {}),
   });
 
-  const ruinMessage = await message.channel.send({ embeds: [embed] }).catch(() => null);
+  const content = buildMention(
+    message.author.id,
+    isRuinEvent ? 'Ruin Event — you broke the count.' : 'broke the count.',
+  );
+
+  const ruinMessage = await message.channel.send({ content, embeds: [embed] }).catch(() => null);
 
   if (ruinMessage) {
     await ruinMessage.react(COUNTING_EMOJI.restoreVote).catch(() => {});
@@ -300,6 +328,10 @@ async function handleValidCount({ message, client, config }) {
   const previousValue = Math.max(0, (config.nextNumber || 1) - 1);
   const previousCounts = getUserStats(config, message.author.id).counts;
   const previousStreak = getUserStats(config, message.author.id).streak;
+
+  // Acknowledge the count on the message itself before anything else, so the
+  // ✅ shows up even if a later step throws.
+  await reactVerdict(message, COUNTING_EMOJI.correct);
 
   const result = await recordCorrectCount(client, message.guild.id, message.author.id);
 
@@ -403,17 +435,20 @@ export async function restoreCount({ client, guild, messageId, method, actor }) 
   });
 
   if (ruinMessage) {
+    // `content` is updated too, because the actor mention has to live outside
+    // the embed to actually ping.
     await ruinMessage.edit({
+      content: actor
+        ? buildMention(actor, 'restored the count.')
+        : 'The count was restored.',
       embeds: [buildRuinEmbed({
-        userId: vote?.brokenBy || 'unknown',
         sentValue: vote?.sentValue ?? '—',
         countAtBreak,
         expectedValue: vote?.expectedValue ?? nextExpected,
         nextExpected,
         highestRecord,
-        reason: 'Sequence was manually restored.',
+        reason: 'Sequence was restored.',
         restored: true,
-        restoredBy: actor ? `Restored by <@${actor}>.` : null,
       })],
     }).catch(() => {});
 

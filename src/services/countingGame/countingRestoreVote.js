@@ -22,7 +22,6 @@ async function refreshVoteEmbed(reaction, config, vote, votes) {
   const countAtBreak = vote.preRuinCount || 0;
   await reaction.message.edit({
     embeds: [buildRuinEmbed({
-      userId: vote.brokenBy,
       sentValue: vote.sentValue ?? '—',
       countAtBreak,
       expectedValue: vote.expectedValue ?? countAtBreak + 1,
@@ -31,7 +30,7 @@ async function refreshVoteEmbed(reaction, config, vote, votes) {
       reason: vote.reason || 'Sequence was broken and is awaiting a restore vote.',
       ...(vote.isRuinEvent
         ? {
-          leadingText: `${COUNTING_EMOJI.warning} <@${vote.brokenBy}> has repeatedly posted messages with multiple numbers.\n`,
+          leadingText: `${COUNTING_EMOJI.warning} You have repeatedly posted messages with multiple numbers.`,
         }
         : {}),
       votes,

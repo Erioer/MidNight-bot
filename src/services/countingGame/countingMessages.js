@@ -7,6 +7,11 @@
 // setFooter / setTimestamp become near no-ops. The counting notices are
 // specified WITH emoji, so this file writes the embed `data` fields directly
 // instead of going through the patched setters.
+//
+// NOTE on mentions: Discord does not render or ping user mentions inside an
+// embed, so no `<@id>` ever appears in embed copy. The mention is returned by
+// `buildMention` and sent as the message `content` alongside the embed, and the
+// embed itself refers to the offender in the second person.
 
 import { EmbedBuilder } from 'discord.js';
 import { getColor } from '../../config/bot.js';
@@ -37,8 +42,17 @@ function buildRawEmbed({ color, title, description, fields = [] }) {
   return embed;
 }
 
+/**
+ * Builds the message `content` that accompanies an embed. Discord only pings a
+ * user from message content, never from embed fields, so the offender is always
+ * mentioned here rather than inside the embed.
+ */
+export function buildMention(userId, text = '') {
+  return `<@${userId}>${text ? ` ${text}` : ''}`;
+}
+
 /** Multi-number offence notice (auto-deletes). */
-export function buildMultiNumberNotice({ userId, content, numbers, attempt, strikeLimit }) {
+export function buildMultiNumberNotice({ content, numbers, attempt, strikeLimit }) {
   const listed = numbers.slice(0, 4).map((number) => `\`${number}\``).join(' and ');
   const remaining = numbers.length > 4 ? ` (+${numbers.length - 4} more)` : '';
   const attemptLine = strikeLimit ? `This is offence **${attempt}** of ${strikeLimit}.` : '';
@@ -47,7 +61,7 @@ export function buildMultiNumberNotice({ userId, content, numbers, attempt, stri
     color: NOTICE_COLOR,
     title: `${COUNTING_EMOJI.warning} Multiple numbers detected!`,
     description: [
-      `<@${userId}>, your message contained both ${listed}${remaining}.`,
+      `Your message contained both ${listed}${remaining}.`,
       'To include chat text alongside numbers, use `//` for comments (e.g., `55 // we got this to hundred`).',
       attemptLine,
     ].filter(Boolean).join('\n'),
@@ -59,12 +73,12 @@ export const REMOVED_REASON_CHAT =
   'Message contained text without a `//` comment prefix. Use `55 // text` or `// text` to chat.';
 
 /** Generic "message removed" notice for text without a `//` prefix (auto-deletes). */
-export function buildRemovedNotice({ userId, content, reason = REMOVED_REASON_CHAT }) {
+export function buildRemovedNotice({ content, reason = REMOVED_REASON_CHAT }) {
   return buildRawEmbed({
     color: RUIN_COLOR,
     title: `${COUNTING_EMOJI.removed} Message Removed`,
     description: [
-      `<@${userId}>: \`${truncate(content, 180)}\``,
+      `Your message: \`${truncate(content, 180)}\``,
       `**Reason:** ${reason}`,
     ].join('\n'),
   });
@@ -79,7 +93,6 @@ export function buildRemovedNotice({ userId, content, reason = REMOVED_REASON_CH
  * breaker should have sent.
  */
 export function buildRuinEmbed({
-  userId,
   sentValue,
   countAtBreak,
   expectedValue,
@@ -89,21 +102,17 @@ export function buildRuinEmbed({
   votes = 0,
   requiredVotes = COUNTING_TIMERS.cooldownValidCounts,
   restored = false,
-  restoredBy = null,
   leadingText = null,
 }) {
   const voteBlock = restored
-    ? [
-      `${COUNTING_EMOJI.restoreVote} **Count restored.**${restoredBy ? ` ${restoredBy}` : ''}`,
-      `The sequence is back to **${countAtBreak}**.`,
-    ].join('\n')
+    ? `${COUNTING_EMOJI.restoreVote} **Count restored.** The sequence is back to **${countAtBreak}**.`
     : `${COUNTING_EMOJI.restoreVote} **Vote to Restore:** React with ${COUNTING_EMOJI.restoreVote} below to restore the count back to **${countAtBreak}**! (${votes}/${requiredVotes} votes)`;
 
   return buildRawEmbed({
     color: restored ? SUCCESS_COLOR : RUIN_COLOR,
     title: restored
       ? `${COUNTING_EMOJI.restore} Count Restored!`
-      : `Count broken by <@${userId}> at ${countAtBreak}!`,
+      : `Count broken at ${countAtBreak}!`,
     description: [
       ...(leadingText ? [leadingText.trimEnd()] : []),
       `Sent: \`${truncate(String(sentValue), 60)}\` (Expected: ${expectedValue})`,
@@ -118,12 +127,12 @@ export function buildRuinEmbed({
 }
 
 /** Permanent notice shown when a shield absorbs a mistake. */
-export function buildShieldSavedEmbed({ userId, mistakeValue, safeValue, nextExpected, shieldsRemaining }) {
+export function buildShieldSavedEmbed({ mistakeValue, safeValue, nextExpected, shieldsRemaining }) {
   return buildRawEmbed({
     color: SHIELD_COLOR,
     title: `${COUNTING_EMOJI.shield} Count Saved!`,
     description: [
-      `<@${userId}> made a mistake at ${mistakeValue}, but consumed 1 ${COUNTING_EMOJI.shield} Shield!`,
+      `You made a mistake at ${mistakeValue}, but consumed 1 ${COUNTING_EMOJI.shield} Shield!`,
       `The count remains safe at ${safeValue}. Next expected number is ${nextExpected}.`,
       `Shields remaining: ${shieldsRemaining}/${COUNTING_SHIELD.max}.`,
     ].join('\n'),
@@ -131,12 +140,12 @@ export function buildShieldSavedEmbed({ userId, mistakeValue, safeValue, nextExp
 }
 
 /** Notice shown when a penalised user tries to count during their cooldown. */
-export function buildCooldownNotice({ userId, remainingSeconds, requiredCounts, completedCounts }) {
+export function buildCooldownNotice({ remainingSeconds, requiredCounts, completedCounts }) {
   return buildRawEmbed({
     color: NOTICE_COLOR,
     title: 'Counting Cooldown Active',
     description: [
-      `<@${userId}>, you are on a counting cooldown for breaking the sequence.`,
+      'You are on a counting cooldown for breaking the sequence.',
       `It unlocks after **${requiredCounts}** valid counts by other members (${completedCounts}/${requiredCounts}) or in **${remainingSeconds}s**.`,
       'Your message was removed and was not counted.',
     ].join('\n'),

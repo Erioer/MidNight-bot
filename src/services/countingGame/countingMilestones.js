@@ -100,7 +100,6 @@ export async function handleServerMilestones({ client, guild, channel, config, p
       fields: [
         { name: 'Milestone', value: `${threshold}`, inline: true },
         { name: 'Channel', value: channel ? `<#${channel.id}>` : 'Unknown', inline: true },
-        { name: 'Triggered by', value: `<@${config.lastUserId}>`, inline: true },
       ],
       footer: true,
     });
@@ -231,7 +230,7 @@ export async function handleUserMilestones({
   for (const threshold of countMilestones) {
     const embed = buildMilestoneEmbed({
       title: 'Counting Milestone',
-      description: `<@${userId}> has contributed **${threshold}** valid counts!`,
+      description: `A member has contributed **${threshold}** valid counts!`,
       color: 'economy',
       fields: rewards
         ? [
@@ -250,7 +249,7 @@ export async function handleUserMilestones({
   for (const threshold of streakMilestones) {
     const embed = buildMilestoneEmbed({
       title: 'Daily Streak Milestone',
-      description: `<@${userId}> has counted for **${threshold}** consecutive days!`,
+      description: `A member has counted for **${threshold}** consecutive days!`,
       color: 'warning',
       fields: rewards
         ? [
@@ -306,7 +305,7 @@ export async function handleMistakeMilestones({ guild, config, userId, currentRu
   for (const threshold of crossed) {
     const embed = buildMilestoneEmbed({
       title: 'Counting Blunder Milestone',
-      description: `<@${userId}> has broken the count **${threshold}** time${threshold === 1 ? '' : 's'}.`,
+      description: `A member has broken the count **${threshold}** time${threshold === 1 ? '' : 's'}.`,
       color: 'error',
       fields: [
         { name: 'Total ruins', value: `${currentRuins}`, inline: true },
