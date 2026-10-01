@@ -31,9 +31,49 @@ Note: All of the above features related to leveling just now were Arcane's premi
 * Edit level up messages
 * Also `/level setup` does nothing in this fork and I'm too lazy to remove it
 
-### 3. Counting System (a tiny little change)
+### 3. Counting System rework
 
-* Bot will react with ✅, why? because its kinda annoying to not know that the bot even registered the message
+The counting game was completely rewritten around smart parsing, transparent ruin mechanics, community safety nets, scalable rewards, and full economy integration:
+
+* **Smart parsing & chat support**:
+  * Plain digits, number words (`one`, `first`, `twenty-four`, `one hundred`), and arithmetic (`4*4`, `32/2`, `10+6`, `4^2`, `4**2`, parentheses) are all accepted
+  * `expression=result` form is validated (`4*4=16` counts, `4*4=15` does not)
+  * `//` comment prefix splits a count from chatter: `55 // we got this to hundred` counts **55** and ignores the rest
+  * Messages starting with `//` are treated as pure chatter and never touch the sequence
+  * Non-comment messages containing text or multiple numbers without `//` are auto-deleted with a temporary 6-second notice quoting the original text
+  * Every other number system (hex, binary, base36, base64, Roman, alphabet) uses its own strict alphabet, preventing smart decimal parsing from interfering with other modes
+
+* **Ruin & restore mechanics**:
+  * Wrong numbers and double-counting post a **permanent** ruin embed displaying the sent value, expected value, next expected number, high score, exact failure reason, and live vote tally
+  * **Community Vote Restore**: Members restore a ruined count by reacting with 🔄 on the ruin embed. The vote threshold is configurable via `/count setup` (default: `3`) and stored in PostgreSQL to survive bot restarts
+  * Vote safety controls: One vote per member, the user who broke the count cannot vote, and removing the 🔄 reaction decrements the tally
+  * **Admin Instant Restore**: `/count restore` (requires *Manage Server* or *Manage Channels*) instantly reverts the sequence to the pre-ruin value and clears pending votes
+  * **Ruin Cooldown**: The user who broke the count is temporarily penalized—their counting attempts are auto-deleted until **3 valid counts** are completed by other users or **60s** elapse
+
+* **Progressive anti-spam penalties**:
+  * Posting multiple numbers or unformatted text without `//` triggers progressive warnings
+  * Offences 1 and 2 auto-delete the message and preserve the active count sequence
+  * The 3rd consecutive offence triggers an official **Ruin Event** that resets the count
+  * A single correct count clears the user's active strike counter
+
+* **Counting Shields (Economy Integration)**:
+  * Users can hold a maximum of **2 Shields** in their inventory
+  * Purchased directly from the economy shop for **$500** (`buy counting_shield`) or automatically awarded upon reaching valid count thresholds
+  * When a user with a shield makes a mistake, 1 Shield is consumed automatically—saving the sequence, preserving the next expected number, and retaining the last counter
+  * Fully integrated into the economy inventory system, so bought and earned shields share the same item object
+
+* **Scalable Milestones, Starboard & Rewards**:
+  * Server count, user count, mistake/blunder, and daily active streak milestones are array-driven in `src/config/countingGameConfig.js` for easy expansion without code rewrites
+  * **Leveling Rewards**: Reaching user milestones or daily streak targets awards **30% of the total XP required** for the user's current level (e.g., 300 XP awarded if Level 5 requires 1,000 total XP)
+  * **Economy Rewards**: Awards **30% of total net worth** (wallet + bank) deposited directly into the bank account (guaranteed minimum payout of **$1,000**)
+  * Milestone events are automatically posted to the configured starboard channel
+
+* **Essential Event Logging**:
+  * Clean, non-spammy logging capturing only high-value events: count broken, count restored, shield consumed, game config changes, and major milestones reached
+
+* **Commands & Leaderboard Metrics**:
+  * Commands: `/count setup`, `/count disable`, `/count reset`, `/count restore`, `/count status`, `/count leaderboard`
+  * Overhauled leaderboard tracking valid counts alongside **Daily Active Streak**, **Total Ruins/Mistakes**, **Accuracy Ratio**, and active **Shield Balances**
 
 ### 4. Fun commands
 
@@ -86,7 +126,7 @@ Note: All of the above features related to leveling just now were Arcane's premi
 
 * 4 image types (husbando, kitsune, neko, waifu) displaying the `artist_name` beneath the image.
 
-* Counting system that automatically verifies and reacts with a ✅ to correct numbers.
+* Counting system with smart number parsing, counting shields, community restore votes, and milestone rewards that automatically verifies and reacts with a ✅ to correct numbers.
 
 * Additional tools like text reversal, wanted posters, and random facts.
 
