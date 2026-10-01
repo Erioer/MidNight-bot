@@ -13,12 +13,7 @@ import { getCommandPrefix, getBotMessage, isBotOwner, isCommandCategoryEnabled, 
 import { enforceAbuseProtection, formatCooldownDuration } from '../utils/abuseProtection.js';
 import { createEmbed } from '../utils/embeds.js';
 import { isCommandEnabled } from '../services/commandAccessService.js';
-import {
-  getCountingGameConfig,
-  saveCountingGameConfig,
-  isValidCountingMessage,
-  recordCorrectCount,
-} from '../services/countingGameService.js';
+import { handleCountingGame } from '../services/countingGame/countingHandler.js';
 
 const MESSAGE_XP_RATE_LIMIT_ATTEMPTS = 12;
 const MESSAGE_XP_RATE_LIMIT_WINDOW_MS = 10000;
@@ -149,39 +144,6 @@ async function handlePrefixCommand(message, client) {
     await executePrefixCommand(command, message, args, client, prefix, guildConfig);
   } catch (error) {
     logger.error('Error handling prefix command:', error);
-  }
-}
-
-async function handleCountingGame(message, client) {
-  try {
-    const config = await getCountingGameConfig(client, message.guild.id);
-    if (!config.enabled || !config.channelId || message.channel.id !== config.channelId) {
-      return false;
-    }
-
-    const content = message.content.trim();
-    const validCount = isValidCountingMessage(content, config);
-    const invalidAttempt = !validCount || message.author.id === config.lastUserId;
-
-    if (invalidAttempt) {
-      await saveCountingGameConfig(client, message.guild.id, {
-        ...config,
-        nextNumber: 1,
-        lastUserId: null,
-        currentStreak: 0,
-      });
-
-      await message.channel.send(`❌ Count broken by <@${message.author.id}>. The sequence has been reset to **1**.`);
-
-      return true;
-    }
-
-    await message.react('✅').catch(() => {});
-    await recordCorrectCount(client, message.guild.id, message.author.id);
-    return true;
-  } catch (error) {
-    logger.error('Error handling counting game:', error);
-    return false;
   }
 }
 

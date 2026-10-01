@@ -99,6 +99,26 @@ export default {
                 }
             }
 
+            if (item.maxQuantity) {
+                const owned = userData.inventory[itemId] || 0;
+                if (owned >= item.maxQuantity) {
+                    throw createError(
+                        "Item limit reached",
+                        ErrorTypes.VALIDATION,
+                        `You already hold the maximum of **${item.maxQuantity}x ${item.name}**. Use them before buying more.`,
+                        { itemId, owned, maxQuantity: item.maxQuantity }
+                    );
+                }
+                if (owned + quantity > item.maxQuantity) {
+                    throw createError(
+                        "Quantity exceeds limit",
+                        ErrorTypes.VALIDATION,
+                        `You can only hold **${item.maxQuantity}x ${item.name}** and already own **${owned}**. Lower the quantity to **${item.maxQuantity - owned}** or fewer.`,
+                        { itemId, owned, quantity, maxQuantity: item.maxQuantity }
+                    );
+                }
+            }
+
             userData.wallet -= totalCost;
 
             let successDescription = `You successfully purchased ${quantity}x **${item.name}** for **$${totalCost.toLocaleString()}**!`;

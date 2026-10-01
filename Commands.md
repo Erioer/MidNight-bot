@@ -1,4 +1,4 @@
-## All 164 commands with description
+## All 165 commands with description
 
 ### — Applications —
 
@@ -179,26 +179,27 @@
 142. count disable — Disable the counting game for this server
 143. count leaderboard — Show the counting game leaderboard
 144. count reset — Reset the current counting sequence
-145. count setup — Start the count game in a text channel
-146. count status — View the current counting game status
-147. jointocreate dashboard — Configure an existing Join to Create system
-148. jointocreate setup — Set up a new Join to Create voice channel
-149. reactroles dashboard — Manage and configure your reaction role panels
-150. reactroles setup — Set up a new reaction role panel
-151. removestarboard — Remove the current starboard (a prefix only command)
-152. serverstats create — Create a new statistics tracker channel in a category
-153. serverstats delete — Delete an existing statistics tracker
-154. serverstats list — List all statistics trackers for this server
-155. serverstats update — Update an existing statistics tracker
-156. setchannelstarboard — Set a specified channel to starboard, set the emoji and threshold (can't create more than one) (a prefix only command)
+145. count restore — Instantly revert a broken count to its pre-ruin valuel
+146. count setup — Start the count game in a text channal
+147. count status — View the current counting game status
+148. jointocreate dashboard — Configure an existing Join to Create system
+149. jointocreate setup — Set up a new Join to Create voice channel
+150. reactroles dashboard — Manage and configure your reaction role panels
+151. reactroles setup — Set up a new reaction role panel
+152. removestarboard — Remove the current starboard (a prefix only command)
+153. serverstats create — Create a new statistics tracker channel in a category
+154. serverstats delete — Delete an existing statistics tracker
+155. serverstats list — List all statistics trackers for this server
+156. serverstats update — Update an existing statistics tracker
+157. setchannelstarboard — Set a specified channel to starboard, set the emoji and threshold (can't create more than one) (a prefix only command)
 
 ### — Support & Tickets —
 
-157. claim — Claim an open ticket, assigning it to you
-158. close — Close the current ticket
-159. priority — Set the priority level for the current support ticket
-160. report file — Report a user to the server moderation team
-161. report setchannel — Set the channel where user reports are sent (Manage server required)
-162. support — Get a link to the support server
-163. ticket dashboard — Open the interactive ticket system dashboard
-164. ticket setup — Set up the ticket creation panel in a specified channel
+158. claim — Claim an open ticket, assigning it to you
+159. close — Close the current ticket
+160. priority — Set the priority level for the current support ticket
+161. report file — Report a user to the server moderation team
+162. report setchannel — Set the channel where user reports are sent (Manage server required)
+163. support — Get a link to the support server
+164. ticket dashboard — Open the interactive ticket system dashboard
+165. ticket setup — Set up the ticket creation panel in a specified channel
