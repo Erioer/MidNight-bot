@@ -563,6 +563,27 @@ export async function recordCorrectCount(client, guildId, userId) {
     cooldown = { ...cooldown, validCounts: (cooldown.validCounts || 0) + 1 };
   }
 
+  // Rule 1 safeguard: a restore vote only stays open until the rebuilt
+  // sequence has `restoreVoteMaxCounts` valid counts. Once the run is that
+  // long, wiping it back to the pre-ruin number is no longer allowed.
+  let restoreVote = config.restoreVote;
+  let closedVote = null;
+  if (restoreVote && (restoreVote.status ?? 'ACTIVE') === 'ACTIVE') {
+    const validCounts = (restoreVote.validCounts || 0) + 1;
+    if (validCounts >= COUNTING_TIMERS.restoreVoteMaxCounts) {
+      closedVote = {
+        vote: {
+          ...restoreVote,
+          voters: Array.isArray(restoreVote.voters) ? restoreVote.voters : [],
+        },
+        state: 'resumed',
+      };
+      restoreVote = null;
+    } else {
+      restoreVote = { ...restoreVote, validCounts };
+    }
+  }
+
   const nextStreak = (config.currentStreak || 0) + 1;
 
   let updatedConfig = {
@@ -570,6 +591,7 @@ export async function recordCorrectCount(client, guildId, userId) {
     leaderboard,
     users,
     cooldown,
+    restoreVote,
     lastUserId: userId,
     currentStreak: nextStreak,
     bestStreak: Math.max(config.bestStreak || 0, nextStreak),
@@ -603,6 +625,7 @@ export async function recordCorrectCount(client, guildId, userId) {
     counts: saved.users[userId]?.counts ?? counts,
     shieldAwarded,
     shields,
+    closedVote,
   };
 }
 
@@ -657,6 +680,7 @@ export async function startRestoreVote(client, guildId, {
     ? Math.floor(requiredVotes)
     : config.restoreVotesRequired;
 
+  const now = Date.now();
   const restoreVote = {
     messageId,
     channelId: channelId || config.channelId || null,
@@ -668,7 +692,13 @@ export async function startRestoreVote(client, guildId, {
     brokenBy: brokenBy || null,
     requiredVotes: votesRequired,
     voters: [],
-    createdAt: Date.now(),
+    createdAt: now,
+    // Safeguards: the vote self-closes after the window, and valid counts on
+    // the new sequence are tallied so Rule 1 can close it early (see
+    // countingVoteLifecycle.js and recordCorrectCount).
+    expiresAt: now + COUNTING_TIMERS.restoreVoteWindowMs,
+    status: 'ACTIVE',
+    validCounts: 0,
   };
 
   return saveCountingGameConfig(client, guildId, { ...config, restoreVote });
@@ -681,6 +711,18 @@ export function getRestoreVote(config) {
     ...vote,
     voters: Array.isArray(vote.voters) ? vote.voters : [],
   };
+}
+
+/**
+ * Returns the restore vote only while it is still actionable. Votes written
+ * before the status field existed are treated as active. Closed votes are
+ * normally removed from storage, so this is a safety net for stale state.
+ */
+export function getActiveRestoreVote(config) {
+  const vote = getRestoreVote(config);
+  if (!vote) return null;
+  if (vote.status && vote.status !== 'ACTIVE') return null;
+  return vote;
 }
 
 /**

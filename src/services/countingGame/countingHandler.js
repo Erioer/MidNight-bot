@@ -25,9 +25,15 @@ import {
   handleMistakeMilestones,
 } from './countingMilestones.js';
 import {
+  clearRestoreVoteExpiry,
+  closeRestoreVoteMessage,
+  scheduleRestoreVoteExpiry,
+} from './countingVoteLifecycle.js';
+import {
   classifyCountingBody,
   clearMultiNumberStrikes,
   getActiveCooldown,
+  getActiveRestoreVote,
   getCountingGameConfig,
   getExpectedCountValue,
   getUserStats,
@@ -308,6 +314,10 @@ async function postRuin({ message, client, config, sentValue, reason, isRuinEven
     });
   }
 
+  // Rule 2: only one restore vote may exist at a time. A newer ruin supersedes
+  // the previous one, so its embed is closed and it can never be voted on again.
+  const previousVote = getActiveRestoreVote(afterConfig);
+
   const requiredVotes = config.restoreVotesRequired || COUNTING_TIMERS.cooldownValidCounts;
 
   // The Ruin Event framing and the permanent ruin embed are the same message, so
@@ -349,6 +359,16 @@ async function postRuin({ message, client, config, sentValue, reason, isRuinEven
       brokenBy: message.author.id,
       requiredVotes,
     });
+    scheduleRestoreVoteExpiry(client, message.guild.id);
+  } else if (previousVote) {
+    // The new embed could not be posted, but the stale vote must still go so it
+    // cannot be used to restore an even older break.
+    await saveCountingGameConfig(client, message.guild.id, { ...afterConfig, restoreVote: null });
+  }
+
+  if (previousVote) {
+    await closeRestoreVoteMessage(client, previousVote, 'voided');
+    if (!ruinMessage) clearRestoreVoteExpiry(message.guild.id);
   }
 
   await logCountBroken({
@@ -376,6 +396,13 @@ async function handleValidCount({ message, client, config }) {
   await reactVerdict(message, COUNTING_EMOJI.correct);
 
   const result = await recordCorrectCount(client, message.guild.id, message.author.id);
+
+  // Rule 1: the vote may have just self-closed because the rebuilt sequence
+  // reached the valid-count limit. Close its embed so it stops inviting votes.
+  if (result.closedVote) {
+    await closeRestoreVoteMessage(client, result.closedVote.vote, result.closedVote.state);
+    clearRestoreVoteExpiry(message.guild.id);
+  }
 
   // A correct count clears any lingering multi-number strikes for this user.
   let currentConfig = clearMultiNumberStrikes(result.config, message.author.id);
@@ -476,6 +503,9 @@ export async function restoreCount({ client, guild, messageId, method, actor }) 
     cooldown: null,
   });
 
+  // The vote is resolved, so its expiry timer must not fire later.
+  clearRestoreVoteExpiry(guild.id);
+
   if (ruinMessage) {
     // `content` is updated too, because the actor mention has to live outside
     // the embed to actually ping.
@@ -490,7 +520,7 @@ export async function restoreCount({ client, guild, messageId, method, actor }) 
         nextExpected,
         highestRecord,
         reason: 'Sequence was restored.',
-        restored: true,
+        voteState: 'restored',
       })],
     }).catch(() => {});
 

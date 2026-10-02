@@ -3,39 +3,50 @@
 //
 // Votes are stored in the counting config (key `countingGame:<guildId>`) as
 // `restoreVote = { messageId, channelId, preRuinCount, brokenBy, requiredVotes,
-// voters, createdAt }`, so an in-progress vote survives bot restarts.
+// voters, createdAt, expiresAt, status, validCounts }`, so an in-progress vote
+// survives bot restarts. Only one vote may be active at a time (single slot).
+//
+// The exploit safeguards live in three places:
+//   - Rule 1 (5 valid counts) is enforced in countingGameService.recordCorrectCount.
+//   - Rule 2 (new ruin voids the old vote) is enforced by the handler.
+//   - Rule 3 (high-water mark), the 30-minute expiry, and the per-guild lock
+//     are enforced here, alongside the reaction handling.
 
 import { logger } from '../../utils/logger.js';
-import { COUNTING_EMOJI, COUNTING_COMMENT_PREFIX } from '../../config/countingGameConfig.js';
-import { buildRuinEmbed } from './countingMessages.js';
+import { COUNTING_EMOJI } from '../../config/countingGameConfig.js';
 import {
-  applyRestoreVote,
+  buildVoteEmbed,
+  clearRestoreVoteExpiry,
+  isRestoreVoteExpired,
+  performVoidRestoreVote,
+  shouldVoidByHighWaterMark,
+} from './countingVoteLifecycle.js';
+import {
   getActiveCooldown,
+  getActiveRestoreVote,
   getCountingGameConfig,
-  removeRestoreVote,
   saveCountingGameConfig,
 } from '../countingGameService.js';
 import { restoreCount } from './countingHandler.js';
 
+// Per-guild lock so two reaction events (or a reaction racing the expiry timer)
+// can never process and commit the same vote twice.
+const voteLocks = new Set();
+
+function acquireVoteLock(guildId) {
+  if (voteLocks.has(guildId)) return false;
+  voteLocks.add(guildId);
+  return true;
+}
+
+function releaseVoteLock(guildId) {
+  voteLocks.delete(guildId);
+}
+
 /** Renders the current tally onto the ruin embed, replaying the stored details. */
 async function refreshVoteEmbed(reaction, config, vote, votes) {
-  const countAtBreak = vote.preRuinCount || 0;
   await reaction.message.edit({
-    embeds: [buildRuinEmbed({
-      sentValue: vote.sentValue ?? '—',
-      countAtBreak,
-      expectedValue: vote.expectedValue ?? countAtBreak + 1,
-      nextExpected: 1,
-      highestRecord: Math.max(config.highestRecord || 0, countAtBreak),
-      reason: vote.reason || 'Sequence was broken and is awaiting a restore vote.',
-      ...(vote.isRuinEvent
-        ? {
-          leadingText: `${COUNTING_EMOJI.warning} You have repeatedly posted invalid messages without the \`${COUNTING_COMMENT_PREFIX}\` comment prefix.`,
-        }
-        : {}),
-      votes,
-      requiredVotes: vote.requiredVotes,
-    })],
+    embeds: [buildVoteEmbed(vote, { votes, voteState: 'active', highestRecord: config.highestRecord })],
   }).catch(() => {});
 }
 
@@ -56,10 +67,10 @@ async function resolveReaction(reaction) {
 }
 
 /**
- * Reads the *live* 🔄 reaction count straight from Discord rather than trusting
- * the locally tracked voter list. This keeps the embed tally honest even if a
- * reaction is added or removed outside our event handlers (bulk actions, mobile
- * sync, race conditions), so the displayed number can never drift from reality.
+ * Reads the live 🔄 reaction count, excluding the bot's own reaction. The bot
+ * always reacts to the ruin embed so members have a button to click, so that
+ * one reaction must never count as a vote. This same number drives both the
+ * embed tally and the restore threshold, so the two can never disagree.
  */
 export async function fetchLiveVoteCount(message) {
   try {
@@ -68,20 +79,16 @@ export async function fetchLiveVoteCount(message) {
       await message.reactions.fetch().catch(() => null);
     }
     const reaction = message.reactions?.cache?.get(COUNTING_EMOJI.restoreVote);
-    return reaction?.count ?? 0;
+    const raw = reaction?.count ?? 0;
+    return Math.max(0, raw - 1);
   } catch {
     return 0;
   }
 }
 
-/**
- * Resolves the number to display on the ruin embed: the live Discord reaction
- * count when it is readable, otherwise the locally tracked tally.
- */
-async function resolveDisplayVoteCount(message, trackedVotes) {
-  const live = await fetchLiveVoteCount(message);
-  if (live > 0) return live;
-  return trackedVotes;
+/** The current counted number on the active sequence (nextNumber - 1). */
+function currentSequenceCount(config) {
+  return Math.max(0, (config.nextNumber || 1) - 1);
 }
 
 /**
@@ -97,43 +104,80 @@ export async function processCountingRestoreVote(reactionRaw, user) {
   const reaction = await resolveReaction(reactionRaw);
   if (!reaction) return;
 
+  // The bot reacts with 🔄 itself; never treat that as a member vote even if the
+  // event arrives before the user object is fully fetched.
+  if (reaction.client?.user?.id === user.id) return;
+
   const guildId = reaction.message.guild.id;
-  const config = await getCountingGameConfig(reaction.client, guildId);
+  if (!acquireVoteLock(guildId)) return;
 
-  if (!config.enabled) return;
+  try {
+    const config = await getCountingGameConfig(reaction.client, guildId);
+    if (!config.enabled) return;
 
-  const vote = config.restoreVote;
-  if (!vote || vote.messageId !== reaction.message.id) return;
+    const vote = getActiveRestoreVote(config);
+    if (!vote || vote.messageId !== reaction.message.id) return;
 
-  // Ignore extra votes from members who already voted.
-  if (vote.brokenBy === user.id || vote.voters.includes(user.id)) return;
+    // Expiry: the window may have lapsed while the bot slept, or while this
+    // event sat in the queue. Close it before accepting any vote.
+    if (isRestoreVoteExpired(vote)) {
+      await performVoidRestoreVote(reaction.client, guildId, 'expired');
+      return;
+    }
 
-  const { config: votedConfig, reached, votes } = applyRestoreVote(config, user.id);
-  await saveCountingGameConfig(reaction.client, guildId, votedConfig);
+    // Rule 3: once the rebuilt sequence reaches the restore target the vote is
+    // meaningless — restoring would move the count backwards or stand still.
+    if (shouldVoidByHighWaterMark(currentSequenceCount(config), vote.preRuinCount)) {
+      await performVoidRestoreVote(reaction.client, guildId, 'cancelled');
+      return;
+    }
 
-  // Reflect progress on the embed without disturbing other reactions. The tally
-  // comes from Discord itself, and the original sent value and reason are
-  // replayed from the persisted vote so the message always explains exactly
-  // what broke the count.
-  const ruinMessage = reaction.message;
-  const displayVotes = await resolveDisplayVoteCount(ruinMessage, votes);
-  await refreshVoteEmbed(reaction, config, vote, displayVotes);
+    // The member who broke the count can never vote.
+    if (vote.brokenBy === user.id) return;
 
-  if (!reached) return;
+    // Tally = live reactions minus the bot's own reaction. The tracked voter
+    // list is kept in sync for the audit trail and as a floor, so a momentary
+    // unreadable reaction cache can never make the count fall behind.
+    const liveVotes = await fetchLiveVoteCount(reaction.message);
+    const voters = vote.voters.includes(user.id) ? vote.voters : [...vote.voters, user.id];
+    const voteCount = Math.max(liveVotes, voters.length);
 
-  const outcome = await restoreCount({
-    client: reaction.client,
-    guild: reaction.message.guild,
-    messageId: ruinMessage.id,
-    method: 'community_vote',
-    actor: user.id,
-  });
+    const resolvedVote = { ...vote, voters };
+    const reached = voteCount >= vote.requiredVotes;
+    const votedConfig = { ...config, restoreVote: resolvedVote };
+    await saveCountingGameConfig(reaction.client, guildId, votedConfig);
 
-  logger.info('Counting game restored by community vote', {
-    guildId,
-    restoredTo: outcome.restoredTo,
-    votes,
-  });
+    const ruinMessage = reaction.message;
+    await refreshVoteEmbed(reaction, votedConfig, resolvedVote, voteCount);
+
+    if (!reached) return;
+
+    // Re-check the high-water mark immediately before committing: a valid count
+    // may have landed while the votes were being tallied.
+    const fresh = await getCountingGameConfig(reaction.client, guildId);
+    if (shouldVoidByHighWaterMark(currentSequenceCount(fresh), vote.preRuinCount)) {
+      await performVoidRestoreVote(reaction.client, guildId, 'cancelled');
+      return;
+    }
+
+    const outcome = await restoreCount({
+      client: reaction.client,
+      guild: reaction.message.guild,
+      messageId: ruinMessage.id,
+      method: 'community_vote',
+      actor: user.id,
+    });
+
+    clearRestoreVoteExpiry(guildId);
+
+    logger.info('Counting game restored by community vote', {
+      guildId,
+      restoredTo: outcome.restoredTo,
+      votes: voters.length,
+    });
+  } finally {
+    releaseVoteLock(guildId);
+  }
 }
 
 export { isRestoreEmoji, resolveReaction, refreshVoteEmbed };
@@ -150,19 +194,36 @@ export async function withdrawCountingRestoreVote(reactionRaw, user) {
   const reaction = await resolveReaction(reactionRaw);
   if (!reaction) return;
 
+  // Ignore the bot removing its own reaction.
+  if (reaction.client?.user?.id === user.id) return;
+
   const guildId = reaction.message.guild.id;
-  const config = await getCountingGameConfig(reaction.client, guildId);
-  if (!config.enabled) return;
+  if (!acquireVoteLock(guildId)) return;
 
-  const vote = config.restoreVote;
-  if (!vote || vote.messageId !== reaction.message.id) return;
+  try {
+    const config = await getCountingGameConfig(reaction.client, guildId);
+    if (!config.enabled) return;
 
-  const { config: updated, removed, votes } = removeRestoreVote(config, user.id);
-  if (!removed) return;
+    const vote = getActiveRestoreVote(config);
+    if (!vote || vote.messageId !== reaction.message.id) return;
 
-  await saveCountingGameConfig(reaction.client, guildId, updated);
-  const displayVotes = await resolveDisplayVoteCount(reaction.message, votes);
-  await refreshVoteEmbed(reaction, config, vote, displayVotes);
+    if (isRestoreVoteExpired(vote)) {
+      await performVoidRestoreVote(reaction.client, guildId, 'expired');
+      return;
+    }
+
+    if (!vote.voters.includes(user.id)) return;
+
+    const voters = vote.voters.filter((id) => id !== user.id);
+    const liveVotes = await fetchLiveVoteCount(reaction.message);
+    const voteCount = Math.max(liveVotes, voters.length);
+    const resolvedVote = { ...vote, voters };
+    const updated = { ...config, restoreVote: resolvedVote };
+    await saveCountingGameConfig(reaction.client, guildId, updated);
+    await refreshVoteEmbed(reaction, updated, resolvedVote, voteCount);
+  } finally {
+    releaseVoteLock(guildId);
+  }
 }
 
 /**

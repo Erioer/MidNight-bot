@@ -46,6 +46,11 @@ export const COUNTING_TIMERS = {
   multiNumberStrikeLimit: 3,
   // How long a multi-number strike stays on the record.
   multiNumberStrikeWindowMs: 300000,
+  // A ruin restore vote stays open for this long (30 minutes)...
+  restoreVoteWindowMs: 1800000,
+  // ...or until this many valid counts have been made on the new sequence,
+  // whichever comes first. This stops a vote from wiping a long rebuilt run.
+  restoreVoteMaxCounts: 5,
 };
 
 export const COUNTING_REWARDS = {

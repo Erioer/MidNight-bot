@@ -50,6 +50,7 @@ The counting game was completely rewritten around smart parsing, transparent rui
   * **Community Vote Restore**: Members restore a ruined count by reacting with 🔄 on the ruin embed. The vote threshold is configurable via `/count setup` (default: `3`) and stored in PostgreSQL to survive bot restarts
   * The tally shown on the embed is read from Discord's **live reaction count**, so it can never drift from the real number of 🔄 reactions
   * Vote safety controls: One vote per member, the user who broke the count cannot vote, and removing the 🔄 reaction decrements the tally
+  * **Vote safeguards**: A vote stays open for **30 minutes** *or* until **5 valid counts** have rebuilt the sequence, whichever comes first, and is voided the moment the rebuilt count reaches the restore target. Only one vote can exist at a time—a newer ruin voids the previous embed (*"Overwritten by a newer ruin event"*). Every closed vote is rewritten with its end state (Voided / Expired / Restore Cancelled / Closed) and has its 🔄 reactions removed. Timers are re-armed and stale votes closed automatically on bot startup
   * **Admin Instant Restore**: `/count restore` (requires *Manage Server* or *Manage Channels*) instantly reverts the sequence to the last number that counted and clears pending votes
   * **Ruin Cooldown**: The user who broke the count is temporarily penalized—their counting attempts are auto-deleted until **3 valid counts** are completed by other users or **60s** elapse
 

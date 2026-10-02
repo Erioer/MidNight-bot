@@ -110,15 +110,28 @@ export function buildRuinEmbed({
   reason,
   votes = 0,
   requiredVotes = COUNTING_TIMERS.cooldownValidCounts,
-  restored = false,
+  voteState = 'active',
   leadingText = null,
 }) {
-  const voteBlock = restored
-    ? `${COUNTING_EMOJI.restoreVote} **Count restored.** The sequence is back to **${countAtBreak}**.`
-    : `${COUNTING_EMOJI.restoreVote} **Vote to Restore:** React with ${COUNTING_EMOJI.restoreVote} to restore the count back to **${countAtBreak}**! `
+  // Closing states replace the vote prompt so the message can never keep
+  // inviting reactions after the window has been superseded, expired, or is
+  // no longer meaningful (see countingVoteLifecycle.js).
+  const closedCopy = {
+    restored: `${COUNTING_EMOJI.restoreVote} **Count restored.** The sequence is back to **${countAtBreak}**.`,
+    voided: '❌ **Voided:** Overwritten by a newer ruin event.',
+    expired: '⏱️ **Expired:** The voting window has closed.',
+    cancelled: '⚠️ **Restore Cancelled:** The current sequence has already reached the restore target.',
+    resumed: '🔒 **Closed:** A new counting sequence has already begun.',
+  };
+
+  const voteBlock = voteState === 'active'
+    ? `${COUNTING_EMOJI.restoreVote} **Vote to Restore:** React with ${COUNTING_EMOJI.restoreVote} to restore the count back to **${countAtBreak}**! `
       + (votes > 0
         ? `(**${votes}** of ${requiredVotes} votes)`
-        : `**Needs ${requiredVotes} votes.**`);
+        : `**Needs ${requiredVotes} votes.**`)
+    : (closedCopy[voteState] || closedCopy.voided);
+
+  const restored = voteState === 'restored';
 
   return buildRawEmbed({
     color: restored ? SUCCESS_COLOR : RUIN_COLOR,
