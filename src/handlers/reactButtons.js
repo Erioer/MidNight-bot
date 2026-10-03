@@ -1,5 +1,6 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
+import { ButtonStyle, MessageFlags } from 'discord.js';
 import { logger } from '../utils/logger.js';
+import { InteractionHelper } from '../utils/interactionHelper.js';
 import { replyUserError, ErrorTypes } from '../utils/errorHandler.js';
 import { fetchJson } from '../services/fun/funApi.js';
 import { addActionCount } from '../services/fun/reactionStore.js';
@@ -33,6 +34,13 @@ export const reactBackHandler = {
         });
       }
 
+// Claim the interaction before any DB or network work. The nekos.best
+      // lookup can stall, and an unacknowledged token dies the moment Discord
+      // decides it waited too long -- which is what left the button greyed out
+      // with no GIF. Deferring first means the worst case is a text-only
+      // reply instead of nothing at all.
+      await InteractionHelper.safeDefer(interaction, { flags: v2Flags() });
+
       if (!db.initialized) {
         await db.initialize();
       }
@@ -47,7 +55,11 @@ export const reactBackHandler = {
       }
 
       const amount = Math.random() < 0.5 ? 1 : 2;
-      const total = await addActionCount(guildId, action, receiverId, giverId, amount);
+      // Argument order must match react.js and the addActionCount signature
+// (guildId, action, giverId, receiverId). Passing receiverId/giverId swapped
+// here incremented the mirrored key, so a returned reaction never counted
+// towards the pair it belonged to.
+const total = await addActionCount(guildId, action, giverId, receiverId, amount);
 
       let gifUrl = null;
       let animeName = null;
@@ -83,23 +95,9 @@ export const reactBackHandler = {
         isSelf: false,
       });
 
-      const disabledRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId(interaction.customId)
-          .setLabel(`${emotion.emoji} ${emotion.noun.charAt(0).toUpperCase() + emotion.noun.slice(1)} back`)
-          .setStyle(ButtonStyle.Secondary)
-          .setDisabled(true),
-      );
-
-      await db.set(backKey, Date.now());
-      // The source message is Components V2, so the edit has to carry the V2
-      // flag as well; Discord refuses to convert a message between V1 and V2.
-      await interaction.message.edit({
-        components: [disabledRow],
-        flags: MessageFlags.IsComponentsV2,
-      }).catch(() => {});
-
-      return interaction.reply({
+      // Responds through the deferred message when the defer above succeeded,
+      // or as a fresh reply when it did not.
+      await interaction.reply({
         components: [
           container({
             parts: [
@@ -112,6 +110,49 @@ export const reactBackHandler = {
         flags: v2Flags(),
         allowedMentions: NO_PINGS,
       });
+
+      // Only burn the one-shot and disable the button once the reaction has
+      // actually been delivered, so a failed response stays retryable.
+      await db.set(backKey, Date.now()).catch((error) => {
+        logger.error('Failed to record react back usage:', error);
+      });
+
+      // Flip the existing button to disabled instead of sending a fresh
+      // components array. On a Components V2 message `components` IS the whole
+      // message, so replacing it with just the button wiped the Text Display
+      // and the Media Gallery and left a bare grey button on the original.
+      const updatedComponents = interaction.message.components.map((component) =>
+        structuredClone(component.toJSON()),
+      );
+
+      let buttonFound = false;
+      const disableMatchingButton = (components) => {
+        for (const component of components) {
+          if (Array.isArray(component.components)) {
+            disableMatchingButton(component.components);
+          }
+
+          if (component.custom_id === interaction.customId) {
+            component.disabled = true;
+            component.style = ButtonStyle.Secondary;
+            buttonFound = true;
+          }
+        }
+      };
+      disableMatchingButton(updatedComponents);
+
+      if (buttonFound && updatedComponents.length > 0) {
+        // The source message is Components V2, so the edit has to carry the V2
+        // flag as well; Discord refuses to convert a message between V1 and V2.
+        await interaction.message.edit({
+          components: updatedComponents,
+          flags: MessageFlags.IsComponentsV2,
+        }).catch((error) => {
+          logger.warn('Could not disable react back button:', error?.message);
+        });
+      } else {
+        logger.warn('react back button not found in message components, leaving it untouched');
+      }
     } catch (error) {
       logger.error('Error handling react back button:', error);
       throw error;
