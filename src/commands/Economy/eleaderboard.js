@@ -1,9 +1,22 @@
-import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, ButtonStyle } from 'discord.js';
 import { withErrorHandling, createError, ErrorTypes } from '../../utils/errorHandler.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getEconomyPrefix } from '../../utils/database.js';
+import {
+  button,
+  code,
+  container,
+  divider,
+  NO_PINGS,
+  rankLabel,
+  row,
+  text,
+  v2Flags,
+} from '../../utils/componentsV2.js';
+
+/** Custom ID prefix for the "Your Balance" button under this board. */
+export const ECONOMY_BALANCE_BUTTON = 'economy_balance';
 
 export default {
     data: new SlashCommandBuilder()
@@ -55,35 +68,49 @@ export default {
             const userRank =
                 allUserData.findIndex((u) => u.userId === interaction.user.id) +
                 1;
-            const rankEmoji = ["🥇", "🥈", "🥉"];
-            const leaderboardEntries = [];
 
-            for (let i = 0; i < topUsers.length; i++) {
-                const user = topUsers[i];
-                const rank = i + 1;
-                const emoji = rankEmoji[i] || `**#${rank}**`;
-
-                leaderboardEntries.push(
-                    `${emoji} <@${user.userId}> - 🏦 ${user.net_worth.toLocaleString()}`,
-                );
-            }
-
-            logger.info(`[ECONOMY] Leaderboard generated`, { 
-                guildId, 
+            logger.info(`[ECONOMY] Leaderboard generated`, {
+                guildId,
                 userCount: allUserData.length,
-                userRank 
+                userRank
             });
 
-            const description = leaderboardEntries.length > 0
-                ? leaderboardEntries.join("\n")
-                : "No economy data is available for this server yet.";
+            // Currency is wrapped in inline code so the column keeps a fixed
+            // width; Discord's markdown font is proportional and would drift.
+            const rows = topUsers.map((user, index) =>
+                `${rankLabel(index)}  **<@${user.userId}>**  —  ${code(`$${user.net_worth.toLocaleString()}`)}`,
+            );
 
-            const embed = createEmbed({
-                title: `Economy Leaderboard`,
-                description,
-                footer: `Your Rank: ${userRank > 0 ?`#${userRank}`: "No ranking data available"}`,
+            const footer = userRank > 0
+                ? `Your rank is ${code(`#${userRank}`)} of ${code(allUserData.length)} members`
+                : 'You have no economy account on this server yet';
+
+            const components = [
+                container({
+                    parts: [
+                        text([
+                            '## 💹 Economy Leaderboard',
+                            'Top 10 most wealthiest members',
+                            '',
+                            ...rows,
+                        ].join('\n')),
+                        divider(),
+                        text(footer),
+                        row(button({
+                            label: 'Your Balance',
+                            customId: `${ECONOMY_BALANCE_BUTTON}:${interaction.user.id}`,
+                            style: ButtonStyle.Success,
+                        })),
+                    ],
+                }),
+            ];
+
+            // `flags` carries IsComponentsV2 only: `content` and `embeds` are
+            // rejected on a V2 message, so all text lives in the containers.
+            await InteractionHelper.safeEditReply(interaction, {
+                components,
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
-
-            await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
     }, { command: 'eleaderboard' })
 };

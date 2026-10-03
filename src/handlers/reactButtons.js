@@ -1,12 +1,12 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { logger } from '../utils/logger.js';
-import { createEmbed } from '../utils/embeds.js';
 import { replyUserError, ErrorTypes } from '../utils/errorHandler.js';
 import { fetchJson } from '../services/fun/funApi.js';
 import { addActionCount } from '../services/fun/reactionStore.js';
 import { EMOTIONS, buildReactionMessage } from '../config/commands/reactionEmotions.js';
 import { db } from '../utils/database/wrapper.js';
 import { getReactionBackKey } from '../utils/database/keys.js';
+import { container, gallery, NO_PINGS, text, v2Flags } from '../utils/componentsV2.js';
 
 const NEKOS_BASE_URL = 'https://nekos.best/api/v2';
 const NEKOS_USER_AGENT = 'MidNight (https://github.com/codebymitch/MidNight)';
@@ -92,20 +92,25 @@ export const reactBackHandler = {
       );
 
       await db.set(backKey, Date.now());
-      await interaction.message.edit({ components: [disabledRow] }).catch(() => {});
+      // The source message is Components V2, so the edit has to carry the V2
+      // flag as well; Discord refuses to convert a message between V1 and V2.
+      await interaction.message.edit({
+        components: [disabledRow],
+        flags: MessageFlags.IsComponentsV2,
+      }).catch(() => {});
 
       return interaction.reply({
-        content,
-        embeds: gifUrl
-          ? [
-              createEmbed({
-                title: emotion.noun.charAt(0).toUpperCase() + emotion.noun.slice(1),
-                image: gifUrl,
-                color: 'primary',
-                footer: animeName ? `From: ${animeName}` : null,
-              }),
-            ]
-          : [],
+        components: [
+          container({
+            parts: [
+              text(`### ${emotion.noun.charAt(0).toUpperCase() + emotion.noun.slice(1)}\n${content}`),
+              ...(gifUrl ? [gallery(gifUrl)] : []),
+              ...(animeName ? [text(`-# From: ${animeName}`)] : []),
+            ],
+          }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     } catch (error) {
       logger.error('Error handling react back button:', error);

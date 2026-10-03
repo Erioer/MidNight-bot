@@ -1,10 +1,10 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { logger } from '../../utils/logger.js';
 import { fetchJson } from '../../services/fun/funApi.js';
 import { addActionCount } from '../../services/fun/reactionStore.js';
 import { EMOTIONS, IMAGE_EMOTIONS, buildReactionMessage } from '../../config/commands/reactionEmotions.js';
+import { container, gallery, NO_PINGS, row, text, v2Flags } from '../../utils/componentsV2.js';
 
 const NEKOS_BASE_URL = 'https://nekos.best/api/v2';
 const NEKOS_USER_AGENT = 'MidNight (https://github.com/codebymitch/MidNight)';
@@ -25,6 +25,10 @@ export default {
   category: 'Fun',
   prefixOnly: true,
 
+  /**
+   * Components V2: everything visible lives in Text Display components. An
+   * embed has no V2 equivalent, so the GIF/image becomes a Media Gallery item.
+   */
   async execute(interaction) {
     const emotionName = (interaction.options.getString('emotion') || '').toLowerCase().trim();
     const emotion = EMOTIONS[emotionName];
@@ -62,17 +66,19 @@ export default {
       const content = `**${giverName}** ${imageEmotion.actionSelf(giverName)} ${imageEmotion.emoji}`;
 
       return interaction.reply({
-        content,
-        embeds: imageUrl
-          ? [
-              createEmbed({
-                title: capitalize(emotionName),
-                image: imageUrl,
-                color: 'primary',
-                footer: artistName ? `Artist: ${artistName}` : null,
-              }),
-            ]
-          : [],
+        components: [
+          container({
+            parts: [
+              text(`### ${capitalize(emotionName)}\n${content}`),
+              // The gallery simply disappears when the API had no image, which
+              // is why it is optional rather than an empty item.
+              ...(imageUrl ? [gallery(imageUrl)] : []),
+              ...(artistName ? [text(`-# Artist: ${artistName}`)] : []),
+            ],
+          }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
@@ -122,22 +128,22 @@ export default {
         .setCustomId(`react_back:${interaction.guild.id}:${emotionName}:${giver.id}:${receiverId}`)
         .setLabel(buttonLabel)
         .setStyle(ButtonStyle.Primary);
-      components.push(new ActionRowBuilder().addComponents(returnButton));
+      components.push(row(returnButton));
     }
 
     return interaction.reply({
-      content,
-      embeds: gifUrl
-        ? [
-            createEmbed({
-              title: capitalize(emotionName),
-              image: gifUrl,
-              color: 'primary',
-              footer: animeName ? `From: ${animeName}` : null,
-            }),
-          ]
-        : [],
-      components,
+      components: [
+        container({
+          parts: [
+            text(`### ${capitalize(emotionName)}\n${content}`),
+            ...(gifUrl ? [gallery(gifUrl)] : []),
+            ...(animeName ? [text(`-# From: ${animeName}`)] : []),
+            ...components,
+          ],
+        }),
+      ],
+      flags: v2Flags(),
+      allowedMentions: NO_PINGS,
     });
   },
 };

@@ -66,6 +66,7 @@ export function createMockInteraction(message, commandData, args) {
     channel: message.channel,
     guild: message.guild,
     guildId: message.guild?.id,
+    inGuild: () => Boolean(message.guild?.id),
 
     commandName: commandData?.name || null,
     commandId: message.id,

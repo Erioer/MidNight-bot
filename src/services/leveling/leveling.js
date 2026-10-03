@@ -104,7 +104,7 @@ export async function getLeaderboard(client, guildId, limit = 10) {
     leaderboard.forEach((entry, index) => {
       entry.rank = index + 1;
     });
-    
+
     return leaderboard.slice(0, limit);
     
   } catch (error) {
@@ -116,6 +116,19 @@ export async function getLeaderboard(client, guildId, limit = 10) {
       'Could not fetch the leaderboard at this time.'
     );
   }
+}
+
+/**
+ * Same ranking as `getLeaderboard`, but also reports how many members are on the
+ * board in total. The full ranking is already built in memory before it is
+ * sliced, so this costs no extra database reads.
+ */
+export async function getLeaderboardSnapshot(client, guildId, limit = 10) {
+  const leaderboard = await getLeaderboard(client, guildId, 100);
+  return {
+    entries: leaderboard.slice(0, Math.min(Math.max(limit, 1), 100)),
+    total: leaderboard.length,
+  };
 }
 
 export function createLeaderboardEmbed(leaderboard, guild) {

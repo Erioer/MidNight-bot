@@ -1,9 +1,17 @@
-import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getUserLevelData, getLevelingConfig, getXpForLevel } from '../../services/leveling/leveling.js';
+import { buildLevelRankContainer } from '../../services/leveling/levelRankView.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import {
+  container,
+  NO_PINGS,
+  text,
+  v2Flags,
+} from '../../utils/componentsV2.js';
+
 export default {
   data: new SlashCommandBuilder()
     .setName('rank')
@@ -23,12 +31,15 @@ export default {
     const levelingConfig = await getLevelingConfig(client, interaction.guildId);
     if (!levelingConfig?.enabled) {
       await InteractionHelper.safeEditReply(interaction, {
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#f1c40f')
-            .setDescription('The leveling system is currently disabled on this server.')
+        components: [
+          container({
+            parts: [text('### Leveling Disabled\nThe leveling system is currently disabled on this server.')],
+          }),
         ],
-        flags: MessageFlags.Ephemeral
+        // Ephemeral was already claimed by the defer; `v2Flags()` keeps only the
+        // V2 bit, which is the only flag an edit can still change.
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
       return;
     }
@@ -48,52 +59,23 @@ export default {
 
     const userData = await getUserLevelData(client, interaction.guildId, targetUser.id);
 
-    const safeUserData = {
+    const components = buildLevelRankContainer({
+      displayName: member.displayName || targetUser.username,
+      avatarUrl: member.displayAvatarURL({ dynamic: true, size: 256 }),
       level: userData?.level ?? 0,
       xp: userData?.xp ?? 0,
-      totalXp: userData?.totalXp ?? 0
-    };
+      totalXp: userData?.totalXp ?? 0,
+      xpNeeded: getXpForLevel((userData?.level ?? 0) + 1),
+      isSelf: targetUser.id === interaction.user.id,
+    });
 
-    const xpNeeded = getXpForLevel(safeUserData.level + 1);
-    const progress = xpNeeded > 0 ? Math.floor((safeUserData.xp / xpNeeded) * 100) : 0;
-    const progressBar = createProgressBar(progress, 20);
-
-    const embed = new EmbedBuilder()
-      .setTitle(`${member.displayName}'s Rank`)
-      .setThumbnail(member.displayAvatarURL({ dynamic: true }))
-      .addFields(
-        {
-          name: 'Level',
-          value: safeUserData.level.toString(),
-          inline: true
-        },
-        {
-          name: 'XP',
-          value: `${safeUserData.xp}/${xpNeeded}`,
-          inline: true
-        },
-        {
-          name: 'Total XP',
-          value: safeUserData.totalXp.toString(),
-          inline: true
-        },
-        {
-          name: `Progress to Level ${safeUserData.level + 1}`,
-          value: `${progressBar} ${progress}%`
-        }
-      )
-      .setColor('#2ecc71')
-      .setTimestamp();
-
-    await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+    // `components` must be an array: MessagePayload calls `.map()` on it, so
+    // handing over the bare ContainerBuilder throws inside discord.js.
+    await InteractionHelper.safeEditReply(interaction, {
+      components: [components],
+      flags: v2Flags(),
+      allowedMentions: NO_PINGS,
+    });
     logger.debug(`Rank checked for user ${targetUser.id} in guild ${interaction.guildId}`);
   }
 };
-
-function createProgressBar(percentage, length = 10) {
-  if (percentage < 0 || percentage > 100) {
-    percentage = Math.max(0, Math.min(100, percentage));
-  }
-  const filled = Math.round((percentage / 100) * length);
-  return '█'.repeat(filled) + '░'.repeat(length - filled);
-}

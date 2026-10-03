@@ -815,48 +815,91 @@ function pluralize(count, singular, plural = `${singular}s`) {
 }
 
 /**
+ * Collects the counting leaderboard as structured rows so the view layer can
+ * lay them out however it likes. Ranking is by total valid counts, which is
+ * what `config.leaderboard` tracks.
+ *
+ * `total` is every ranked member, not just the top slice, so the "your rank is
+ * #N of M members" footer can report the real size of the board.
+ */
+export async function collectCountingLeaderboard(config, context, limit = LEADERBOARD_LIMIT) {
+  const entries = Object.entries(config.leaderboard || {});
+  if (entries.length === 0) {
+    return { rows: [], total: 0 };
+  }
+
+  const ranked = entries
+    .sort((a, b) => b[1] - a[1])
+    .map(([userId, count]) => ({ userId, count }));
+
+  const guild = context?.guild;
+  const client = context?.client;
+  const rows = [];
+
+  for (const [index, { userId, count }] of ranked.slice(0, limit).entries()) {
+    const stats = getUserStats(config, userId);
+    const member = guild?.members?.cache?.get(userId);
+
+    const shields = client
+      ? await getShieldBalance(client, guild?.id ?? context?.guildId, userId).catch(() => 0)
+      : 0;
+
+    rows.push({
+      rank: index + 1,
+      userId,
+      counts: stats.counts,
+      ruins: stats.ruins,
+      streak: stats.streak,
+      shields,
+      total: stats.counts + stats.ruins,
+      accuracy: Number(getAccuracy(stats).toFixed(1)),
+      displayName: member?.displayName || member?.user?.username || null,
+      inGuild: Boolean(member),
+    });
+  }
+
+  return { rows, total: ranked.length };
+}
+
+/**
+ * Where a single member sits on the counting board, without building the whole
+ * table or reading shield balances. Returns rank 0 when they have no counts.
+ */
+export function getCountingLeaderboardPosition(config, userId) {
+  const entries = Object.entries(config.leaderboard || {})
+    .filter(([, count]) => Number(count) > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  const index = entries.findIndex(([id]) => id === userId);
+  return {
+    rank: index >= 0 ? index + 1 : 0,
+    total: entries.length,
+  };
+}
+
+/**
  * Builds the rich leaderboard lines: counts, daily streak, ruins, accuracy, and
  * shield balance. Shield balances are read from the economy inventory, so this
  * accepts an interaction (or anything with `client`) rather than a guild.
  */
 export async function buildCountingLeaderboard(config, context) {
-  const entries = Object.entries(config.leaderboard || {});
-  if (entries.length === 0) {
-    return [];
-  }
+  const { rows } = await collectCountingLeaderboard(config, context);
+  if (rows.length === 0) return [];
 
-  const ranked = entries
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, LEADERBOARD_LIMIT);
+  return rows.map((row) => {
+    // Legacy text leaderboard keeps the original `name#0000` tag format.
+    // The V2 leaderboard does not use this; it renders real mentions instead.
+    const member = row.inGuild ? context?.guild?.members?.cache?.get(row.userId) : null;
+    const user = member?.user;
+    const legacyName = user ? `${user.username}#${user.discriminator ?? '0'}` : `<@${row.userId}>`;
+    const displayName = legacyName.length > NAME_MAX_LENGTH
+      ? `${legacyName.slice(0, NAME_MAX_LENGTH - 1)}…`
+      : legacyName;
 
-  const guild = context?.guild;
-  const client = context?.client;
+    const rank = row.rank <= MEDALS.length ? MEDALS[row.rank - 1] : `${row.rank}.`;
 
-  const lines = [];
-
-  for (const [index, [userId, count]] of ranked.entries()) {
-    const stats = getUserStats(config, userId);
-    const member = guild?.members?.cache?.get(userId);
-    const rawName = member?.user?.username || `<@${userId}>`;
-    const truncated = rawName.length > NAME_MAX_LENGTH
-      ? `${rawName.slice(0, NAME_MAX_LENGTH - 1)}…`
-      : rawName;
-    const displayName = member ? `${truncated}#${member.user.discriminator}` : truncated;
-
-    const shields = client
-      ? await getShieldBalance(client, guild?.id, userId).catch(() => 0)
-      : 0;
-
-    const accuracy = getAccuracy(stats).toFixed(1);
-    const ruinLabel = `${stats.ruins} ${pluralize(stats.ruins, 'ruin')}`;
-    const rank = index < MEDALS.length ? MEDALS[index] : `${index + 1}.`;
-
-    lines.push(
-      `${rank} **${displayName}** • ${padTo(count, 3)} ${pluralize(count, 'count')} | ${stats.streak}🔥 | 💥 ${ruinLabel} | 🎯 ${accuracy}% | 🛡️ Shield (${shields}/${COUNTING_SHIELD.max})`,
-    );
-  }
-
-  return lines;
+    return `${rank} **${displayName}** • ${padTo(row.counts, 3)} ${pluralize(row.counts, 'count')} | ${row.streak}🔥 | 💥 ${row.ruins} ${pluralize(row.ruins, 'ruin')} | 🎯 ${row.accuracy}% | 🛡️ Shield (${row.shields}/${COUNTING_SHIELD.max})`;
+  });
 }
 
 export { COUNTING_SYSTEMS, COUNTING_MILESTONES, COUNTING_COMMENT_PREFIX };

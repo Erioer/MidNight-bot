@@ -1,29 +1,47 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed } from '../../utils/embeds.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import {
   getCountingGameConfig,
   activateCountingGame,
   disableCountingGame,
   resetCountingGame,
-  buildCountingLeaderboard,
+  collectCountingLeaderboard,
+  getCountingLeaderboardPosition,
   getCountingSystemChoices,
   getCountingSystemLabel,
-  getExpectedCountValue,
   getUserStats,
-  getAccuracy,
 } from '../../services/countingGameService.js';
 import { restoreCount } from '../../services/countingGame/countingHandler.js';
 import { getShieldBalance } from '../../services/countingGame/countingShields.js';
-import { COUNTING_SHIELD, COUNTING_TIMERS } from '../../config/countingGameConfig.js';
+import {
+  buildCountingLeaderboardContainers,
+  buildCountingNoticeContainer,
+  buildCountingStatsContainer,
+  buildCountingStatusContainer,
+} from '../../services/countingGame/countingStatsView.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
 import { logger } from '../../utils/logger.js';
 
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
+
+/**
+ * Subcommands whose reply is visible to the whole server. Everything else is
+ * ephemeral, because it is either personal or an admin-only confirmation.
+ */
+const PUBLIC_SUBCOMMANDS = new Set(['leaderboard', 'status']);
+
+/** Subcommands that require Manage Server / Manage Channels. */
+const MANAGEMENT_SUBCOMMANDS = new Set(['setup', 'disable', 'reset', 'restore']);
+
+/**
+ * Discord rule this command depends on: a message can never be converted
+ * between V1 and V2. So `IsComponentsV2` is only ever set on the *final*
+ * response, and every error path returns before that point.
+ */
 export default {
   data: new SlashCommandBuilder()
     .setName('count')
     .setDescription('Manage the server counting game')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild | PermissionFlagsBits.ManageChannels)
     .setDMPermission(false)
     .addSubcommand((subcommand) =>
       subcommand
@@ -52,10 +70,14 @@ export default {
         ),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName('disable').setDescription('Disable the counting game for this server'),
+      subcommand
+        .setName('disable')
+        .setDescription('Disable the counting game for this server'),
     )
     .addSubcommand((subcommand) =>
-      subcommand.setName('status').setDescription('View current counting game status'),
+      subcommand
+        .setName('status')
+        .setDescription('View current counting game status'),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -72,6 +94,24 @@ export default {
       subcommand.setName('leaderboard').setDescription('Show the counting game leaderboard'),
     )
     .addSubcommand((subcommand) =>
+      subcommand.setName('stats').setDescription('Show your counting statistics')
+        .addUserOption((option) =>
+          option
+            .setName('user')
+            .setDescription('Whose statistics to show')
+            .setRequired(false),
+        ),
+    )
+    .addSubcommand((subcommand) =>
+      subcommand.setName('rank').setDescription('Show your position on the counting leaderboard')
+        .addUserOption((option) =>
+          option
+            .setName('user')
+            .setDescription('Whose rank to show')
+            .setRequired(false),
+        ),
+    )
+    .addSubcommand((subcommand) =>
       subcommand
         .setName('restore')
         .setDescription('Instantly revert a broken count to its pre-ruin value'),
@@ -80,23 +120,35 @@ export default {
 
   async execute(interaction) {
     try {
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+      const subcommand = interaction.options.getSubcommand();
+      const isPublic = PUBLIC_SUBCOMMANDS.has(subcommand);
+
+      // Ephemeral is fixed by the defer, so it has to be requested here. The
+      // edit that follows carries `IsComponentsV2` only.
+      const deferSuccess = await InteractionHelper.safeDefer(
+        interaction,
+        isPublic ? {} : { flags: MessageFlags.Ephemeral },
+      );
       if (!deferSuccess) {
         logger.warn('Count command defer failed', { userId: interaction.user.id, guildId: interaction.guildId });
         return;
       }
 
+      const isAdmin = Boolean(interaction.memberPermissions?.has(PermissionFlagsBits.Administrator));
       const canManage = Boolean(
         interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)
         || interaction.memberPermissions?.has(PermissionFlagsBits.ManageChannels),
       );
 
-      if (!canManage) {
+      if (subcommand === 'status' && !isAdmin) {
+        return await replyUserError(interaction, { type: ErrorTypes.PERMISSION, message: 'You need the **Administrator** permission to view the counting game status panel.' });
+      }
+
+      if (MANAGEMENT_SUBCOMMANDS.has(subcommand) && !canManage) {
         return await replyUserError(interaction, { type: ErrorTypes.PERMISSION, message: 'You need the **Manage Server** or **Manage Channels** permission to use this command.' });
       }
 
       const guildId = interaction.guildId;
-      const subcommand = interaction.options.getSubcommand();
       const config = await getCountingGameConfig(interaction.client, guildId);
 
       if (subcommand === 'setup') {
@@ -116,10 +168,10 @@ export default {
         });
 
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [
-            successEmbed(
-              'Counting Game Enabled',
-              [
+          components: [
+            buildCountingNoticeContainer({
+              title: '✅ Counting Game Enabled',
+              lines: [
                 `The counting game is now active in ${channel} using the **${getCountingSystemLabel(system)}** system.`,
                 'Players count up from **1** and may not post two numbers in a row.',
                 '',
@@ -129,84 +181,50 @@ export default {
                 '- `\\ chat only` is treated as normal conversation',
                 '',
                 `**Restore votes needed:** ${activated.restoreVotesRequired} (react 🔄 on the ruin embed)`,
-              ].join('\n'),
-            ),
+              ],
+            }),
           ],
+          flags: v2Flags(),
+          allowedMentions: NO_PINGS,
         });
       }
 
       if (subcommand === 'disable') {
         if (!config.enabled) {
           return await InteractionHelper.safeEditReply(interaction, {
-            embeds: [infoEmbed('Counting Game Disabled', 'The counting game is already disabled for this server.')],
+            components: [
+              buildCountingNoticeContainer({
+                title: 'Counting Game Disabled',
+                lines: ['The counting game is already disabled for this server.'],
+              }),
+            ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
           });
         }
 
         await disableCountingGame(interaction.client, guildId);
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [successEmbed('Counting Game Disabled', 'The counting game has been disabled.')],
+          components: [
+            buildCountingNoticeContainer({
+              title: 'Counting Game Disabled',
+              lines: ['The counting game has been disabled.'],
+            }),
+          ],
+          flags: v2Flags(),
+          allowedMentions: NO_PINGS,
         });
       }
 
       if (subcommand === 'status') {
-        const cooldown = config.cooldown;
-        const myShields = await getShieldBalance(interaction.client, guildId, interaction.user.id);
-        const myStats = getUserStats(config, interaction.user.id);
-
-        const fields = [
-          { name: 'Enabled', value: config.enabled ? 'Yes' : 'No', inline: true },
-          { name: 'Channel', value: config.channelId ? `<#${config.channelId}>` : 'Not configured', inline: true },
-          { name: 'System', value: getCountingSystemLabel(config.system), inline: true },
-          { name: 'Next count', value: getExpectedCountValue(config), inline: true },
-          { name: 'Highest record', value: `${config.highestRecord || 0}`, inline: true },
-          { name: 'Current streak', value: `${config.currentStreak || 0}`, inline: true },
-          { name: 'Best streak', value: `${config.bestStreak || 0}`, inline: true },
-          { name: 'Last counter', value: config.lastUserId ? `<@${config.lastUserId}>` : 'None', inline: true },
-          { name: 'Restore votes needed', value: `${config.restoreVotesRequired || 3}`, inline: true },
-          {
-            name: 'Your shields',
-            value: `${myShields}/${COUNTING_SHIELD.max}`,
-            inline: true,
-          },
-          {
-            name: 'Your counting',
-            value: [
-              `${myStats.counts} valid count${myStats.counts === 1 ? '' : 's'}`,
-              `💥 ${myStats.ruins} ruin${myStats.ruins === 1 ? '' : 's'}`,
-              `🔥 ${myStats.streak}🔥 day streak`,
-              `🎯 ${getAccuracy(myStats).toFixed(1)}% accuracy`,
-            ].join('\n'),
-            inline: true,
-          },
+        const components = [
+          buildCountingStatusContainer({ config, cooldown: config.cooldown }),
         ];
 
-        if (cooldown?.userId) {
-          const elapsed = Date.now() - (cooldown.startedAt || 0);
-          const remainingSeconds = Math.max(0, Math.ceil((COUNTING_TIMERS.ruinCooldownMs - elapsed) / 1000));
-          fields.push({
-            name: 'Active cooldown',
-            value: `<@${cooldown.userId}> — ${cooldown.validCounts || 0}/${COUNTING_TIMERS.cooldownValidCounts} valid counts or ${remainingSeconds}s`,
-            inline: false,
-          });
-        }
-
-        if (config.restoreVote) {
-          fields.push({
-            name: 'Pending restore vote',
-            value: `Restoring to **${(config.restoreVote.preRuinCount || 0) + 1}** — ${config.restoreVote.voters.length}/${config.restoreVote.requiredVotes} votes`,
-            inline: false,
-          });
-        }
-
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [
-            createEmbed({
-              title: 'Counting Game Status',
-              description: 'Overview of the currently configured counting game.',
-              fields,
-              color: 'primary',
-            }),
-          ],
+          components,
+          flags: v2Flags(),
+          allowedMentions: NO_PINGS,
         });
       }
 
@@ -224,12 +242,16 @@ export default {
         });
 
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [
-            successEmbed(
-              'Count Restored',
-              `The sequence was reverted to **${result.restoredTo}** by <@${interaction.user.id}>. Start again with **${result.restoredTo}** in <#${config.channelId}>.`,
-            ),
+          components: [
+            buildCountingNoticeContainer({
+              title: 'Count Restored',
+              lines: [
+                `The sequence was reverted to **${result.restoredTo}** by <@${interaction.user.id}>. Start again with **${result.restoredTo}** in <#${config.channelId}>.`,
+              ],
+            }),
           ],
+          flags: v2Flags(),
+          allowedMentions: NO_PINGS,
         });
       }
 
@@ -242,33 +264,58 @@ export default {
         await resetCountingGame(interaction.client, guildId, startNumber);
 
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [
-            successEmbed(
-              'Counting Game Reset',
-              `The counting sequence has been reset. Start again with **${startNumber}** in <#${config.channelId}>.`,
-            ),
+          components: [
+            buildCountingNoticeContainer({
+              title: 'Counting Game Reset',
+              lines: [`The counting sequence has been reset. Start again with **${startNumber}** in <#${config.channelId}>.`],
+            }),
           ],
+          flags: v2Flags(),
+          allowedMentions: NO_PINGS,
         });
       }
 
       if (subcommand === 'leaderboard') {
-        const lines = await buildCountingLeaderboard(config, interaction);
+        const { rows, total } = await collectCountingLeaderboard(config, interaction);
+        const { rank: viewerRank } = getCountingLeaderboardPosition(config, interaction.user.id);
+
+        const components = buildCountingLeaderboardContainers({
+          rows,
+          total,
+          viewerId: interaction.user.id,
+          viewerRank,
+        });
 
         return await InteractionHelper.safeEditReply(interaction, {
-          embeds: [
-            createEmbed({
-              title: 'Counting Game Leaderboard',
-              description: lines.length > 0 ? lines.join('\n') : 'No counts have been recorded yet.',
-              color: 'primary',
-              fields: [
-                { name: 'Counts', value: 'Total valid counts', inline: true },
-                { name: 'Streak', value: 'Consecutive days active', inline: true },
-                { name: 'Ruins', value: 'Times the count was broken', inline: true },
-                { name: 'Accuracy', value: 'Valid / (valid + ruins)', inline: true },
-                { name: 'Shield', value: 'Active shields held', inline: true },
-              ],
-            }),
-          ],
+          components,
+          flags: v2Flags(),
+          allowedMentions: NO_PINGS,
+        });
+      }
+
+      if (subcommand === 'stats' || subcommand === 'rank') {
+        const target = interaction.options.getUser('user') || interaction.user;
+        const member = await interaction.guild.members.fetch(target.id).catch(() => null);
+
+        const stats = getUserStats(config, target.id);
+        // The shield ledger lives in the economy inventory, not the counting doc.
+        const shields = await getShieldBalance(interaction.client, guildId, target.id).catch(() => 0);
+
+        const components = [
+          buildCountingStatsContainer({
+            userId: target.id,
+            displayName: member?.displayName || target.username,
+            avatarUrl: member?.displayAvatarURL?.({ dynamic: true, size: 256 }) || target.displayAvatarURL?.({ dynamic: true, size: 256 }),
+            stats: { ...stats, shields },
+            position: getCountingLeaderboardPosition(config, target.id),
+            isSelf: target.id === interaction.user.id,
+          }),
+        ];
+
+        return await InteractionHelper.safeEditReply(interaction, {
+          components,
+          flags: v2Flags(),
+          allowedMentions: NO_PINGS,
         });
       }
 

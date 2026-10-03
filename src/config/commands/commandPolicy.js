@@ -315,7 +315,8 @@ commands:
     isPrefixEnabled: true
   count:
     isAdminOnly: true
-    # subcommands: setup, disable, status, reset, leaderboard
+    # subcommands: setup, disable, status, reset, leaderboard,
+    #              stats, rank, restore
   dogfact:
     isSlashEnabled: false
     isPrefixEnabled: true
@@ -413,7 +414,8 @@ commands:
   music:
     # subcommands: pause, resume, skip, stop, shuffle, loop,
     #              volume, seek, remove, move, clear, leave, 247,
-    #              likes add, likes list, likes remove, likes play
+    #              ping, likes add, likes list, likes remove,
+    #              likes play
   nowplaying:
   play:
     isSlashEnabled: true
