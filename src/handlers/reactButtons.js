@@ -10,7 +10,7 @@ import { getReactionBackKey } from '../utils/database/keys.js';
 import { container, gallery, NO_PINGS, text, v2Flags } from '../utils/componentsV2.js';
 
 const NEKOS_BASE_URL = 'https://nekos.best/api/v2';
-const NEKOS_USER_AGENT = 'MidNight (https://github.com/codebymitch/MidNight)';
+const NEKOS_USER_AGENT = 'MidNight (https://github.com/Erioer/MidNight-bot)';
 
 export const reactBackHandler = {
   customId: 'react_back',

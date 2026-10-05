@@ -28,7 +28,7 @@ import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
  * Subcommands whose reply is visible to the whole server. Everything else is
  * ephemeral, because it is either personal or an admin-only confirmation.
  */
-const PUBLIC_SUBCOMMANDS = new Set(['leaderboard', 'status']);
+const PUBLIC_SUBCOMMANDS = new Set(['leaderboard', 'status', 'stats', 'rank']);
 
 /** Subcommands that require Manage Server / Manage Channels. */
 const MANAGEMENT_SUBCOMMANDS = new Set(['setup', 'disable', 'reset', 'restore']);

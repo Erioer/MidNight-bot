@@ -15,6 +15,7 @@ const ErrorCodes = Object.freeze({
   INTERACTION_UNHANDLED: 'INTERACTION_UNHANDLED',
   TASK_ERROR: 'TASK_ERROR',
   UNHANDLED_REJECTION: 'UNHANDLED_REJECTION',
+  LAVALINK_ERROR: 'LAVALINK_ERROR',
   UNKNOWN_ERROR: 'UNKNOWN_ERROR'
 });
 
@@ -89,6 +90,11 @@ const ErrorCodeRegistry = Object.freeze({
     retryable: false,
     remediation: 'Find the promise that rejected without a catch handler and route it through runSafeTask or an explicit catch.'
   },
+  [ErrorCodes.LAVALINK_ERROR]: {
+    severity: 'medium',
+    retryable: true,
+    remediation: 'Check the Lavalink node host/port/password, firewall rules, and Lavalink server status. Nodes flap and reconnect on their own; persistent errors mean the node itself is down.'
+  },
   [ErrorCodes.UNKNOWN_ERROR]: {
     severity: 'high',
     retryable: false,
@@ -105,6 +111,7 @@ const TypeToErrorCode = Object.freeze({
   discord_api: ErrorCodes.DISCORD_API_ERROR,
   user_input: ErrorCodes.USER_INPUT_ERROR,
   rate_limit: ErrorCodes.RATE_LIMITED,
+  lavalink: ErrorCodes.LAVALINK_ERROR,
   unknown: ErrorCodes.UNKNOWN_ERROR
 });
 

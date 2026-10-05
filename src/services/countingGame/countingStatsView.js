@@ -19,6 +19,7 @@ import {
   container,
   divider,
   rankLabel,
+  ratioBar,
   row,
   section,
   text,
@@ -50,7 +51,8 @@ export function buildCountingStatsContainer({
   const header = `### ${heading}\n-# Total counts: ${code(total)}`;
   const body = [
     `${code(stats.counts)} Valid ${stats.counts === 1 ? 'count' : 'counts'}  •  ${code(stats.ruins)} ${stats.ruins === 1 ? 'Ruin' : 'Ruins'}  •  ${code(`${accuracy}%`)} Accuracy`,
-    `🔥 ${code(stats.streak)} Day Streak  •  🛡️ ${code(`${stats.shields}/${COUNTING_SHIELD.max}`)} Shields`,
+    `${code(stats.streak)} Day Streak  •  ${code(`${stats.shields}/${COUNTING_SHIELD.max}`)} Shields`,
+    ratioBar(stats.counts, total),
   ].join('\n');
 
   const card = avatarUrl
@@ -58,7 +60,7 @@ export function buildCountingStatsContainer({
     : [text(header), text(body)];
 
   const rankLine = position && position.rank > 0
-    ? `You are ranked ${code(`#${position.rank}`)} of ${code(position.total)} members on this server.`
+    ? `-# You are ranked #${position.rank} of ${position.total} members on this server.`
     : 'You have no valid counts on the board yet — be the first to count.';
 
   return container({
@@ -66,7 +68,6 @@ export function buildCountingStatsContainer({
       card,
       divider(),
       text(rankLine),
-      text('-# Accuracy is valid counts ÷ (valid counts + ruins). Ruins are recorded when you break the sequence.'),
     ],
   });
 }

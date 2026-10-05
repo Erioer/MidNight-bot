@@ -43,7 +43,7 @@ export const helpBugReportButton = {
         const githubButton = new ButtonBuilder()
             .setLabel('🐛 Report Bug on GitHub')
             .setStyle(ButtonStyle.Link)
-            .setURL('https://github.com/codebymitch/MidNight/issues');
+            .setURL('https://github.com/Erioer/MidNight/issues');
 
         const bugRow = new ActionRowBuilder().addComponents(githubButton);
 

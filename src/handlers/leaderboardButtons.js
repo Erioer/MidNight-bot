@@ -18,6 +18,11 @@ import {
 } from '../services/countingGameService.js';
 import { getShieldBalance } from '../services/countingGame/countingShields.js';
 import { buildCountingStatsContainer } from '../services/countingGame/countingStatsView.js';
+import {
+  balanceContainer,
+  dataErrorContainer,
+  getEconomyRank,
+} from '../services/economy/economyViews.js';
 
 /** Resolves who a leaderboard button is about, defaulting to the clicker. */
 function resolveTargetId(interaction, args) {
@@ -54,35 +59,41 @@ function errorContainer(message) {
   return container({ parts: [text(message)] });
 }
 
-/** "Your Balance" under /eleaderboard. */
+/** "Your Balance" under /eleaderboard. Renders exactly like `/balance`. */
 export const economyBalanceHandler = {
   customId: 'economy_balance',
 
   async execute(interaction, client, args) {
     try {
       const userId = resolveTargetId(interaction, args);
-      const { member, displayName } = await resolveMember(interaction, userId);
+      const { displayName, avatarUrl } = await resolveMember(interaction, userId);
 
       const userData = await getEconomyData(client, interaction.guildId, userId);
-      const maxBank = await getMaxBankCapacity(client, interaction.guildId, userId);
+      if (!userData) {
+        await interaction.reply({
+          components: [dataErrorContainer({ command: 'balance' })],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+          allowedMentions: NO_PINGS,
+        });
+        return;
+      }
 
+      const maxBank = getMaxBankCapacity(userData);
       const wallet = typeof userData?.wallet === 'number' ? userData.wallet : 0;
       const bank = typeof userData?.bank === 'number' ? userData.bank : 0;
-
-      const isSelf = userId === interaction.user.id;
-      const lines = [
-        `- Wallet: \`$${wallet.toLocaleString()}\``,
-        `- Bank: \`$${bank.toLocaleString()}\` of \`$${(maxBank || 0).toLocaleString()}\``,
-        `- Net worth: \`$${(wallet + bank).toLocaleString()}\``,
-      ];
+      const { rank, total } = await getEconomyRank(client, interaction.guildId, userId);
 
       await interaction.reply({
         components: [
-          container({
-            parts: [
-              text(`### ${isSelf ? 'Your Balance' : `${displayName}'s Balance`}\n-# ${member ? `<@${userId}>` : `User \`${userId}\``}`),
-              text(lines.join('\n')),
-            ],
+          balanceContainer({
+            displayName: displayName || `User ${userId}`,
+            avatarUrl: avatarUrl || null,
+            wallet,
+            bank,
+            maxBank,
+            rank,
+            totalMembers: total,
+            isSelf: userId === interaction.user.id,
           }),
         ],
         // Both flags must be set on the first response: ephemerality cannot be

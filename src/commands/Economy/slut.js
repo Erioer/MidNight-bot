@@ -1,43 +1,57 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
 import { getEconomyData, setEconomyData } from '../../utils/economy.js';
-import { withErrorHandling, createError, ErrorTypes } from '../../utils/errorHandler.js';
+import { withErrorHandling } from '../../utils/errorHandler.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { code } from '../../utils/componentsV2.js';
+import {
+    applyPremiumCash,
+    applyPremiumChance,
+    cooldownContainer,
+    cooldownFooter,
+    dataErrorContainer,
+    failureContainer,
+    hasPremiumRole,
+    jailContainer,
+    jailRemainingMs,
+    premiumBonusLine,
+    sendEconomy,
+    successContainer,
+} from '../../services/economy/economyViews.js';
 
 const SLUT_COOLDOWN = 45 * 60 * 1000;
 
 const SLUT_ACTIVITIES = [
-    { name: "Cam Stream", min: 120, max: 450, risk: 0.2 },
-    { name: "Private Dance Session", min: 220, max: 700, risk: 0.25 },
-    { name: "After-Hours Club Host", min: 320, max: 900, risk: 0.3 },
-    { name: "VIP Companion Booking", min: 550, max: 1400, risk: 0.35 },
-    { name: "Exclusive Livestream", min: 850, max: 2200, risk: 0.4 },
+    { name: 'Cam Stream', min: 120, max: 450, risk: 0.2 },
+    { name: 'Private Dance Session', min: 220, max: 700, risk: 0.25 },
+    { name: 'After-Hours Club Host', min: 320, max: 900, risk: 0.3 },
+    { name: 'VIP Companion Booking', min: 550, max: 1400, risk: 0.35 },
+    { name: 'Exclusive Livestream', min: 850, max: 2200, risk: 0.4 },
 ];
 
 const POSITIVE_OUTCOMES = [
-    "Your stream blew up and tips poured in.",
-    "A VIP booking paid far above average.",
-    "Your after-hours shift was packed and profitable.",
-    "Premium requests came through and your payout jumped.",
+    'Your stream blew up and tips poured in.',
+    'A VIP booking paid far above average.',
+    'Your after-hours shift was packed and profitable.',
+    'Premium requests came through and your payout jumped.',
 ];
 
 const FINE_OUTCOMES = [
-    "Venue security issued a compliance fine.",
-    "A moderation strike triggered a platform fee.",
-    "You were flagged and had to pay a penalty.",
+    'Venue security issued a compliance fine.',
+    'A moderation strike triggered a platform fee.',
+    'You were flagged and had to pay a penalty.',
 ];
 
 const ROBBED_OUTCOMES = [
-    "A fake buyer chargeback wiped part of your earnings.",
-    "A scam booking cleaned out a chunk of your cash.",
-    "You got baited by a fraud account and lost money.",
+    'A fake buyer chargeback wiped part of your earnings.',
+    'A scam booking cleaned out a chunk of your cash.',
+    'You got baited by a fraud account and lost money.',
 ];
 
 const LOSS_OUTCOMES = [
-    "The set flopped and you had to cover operating costs.",
-    "You burned budget on prep and made no return.",
-    "The shift went sideways and left you in the red.",
+    'The set flopped and you had to cover operating costs.',
+    'You burned budget on prep and made no return.',
+    'The shift went sideways and left you in the red.',
 ];
 
 function randomInt(min, max) {
@@ -48,19 +62,21 @@ function randomChoice(items) {
     return items[Math.floor(Math.random() * items.length)];
 }
 
-function resolveOutcome(activity, wallet) {
-    const successChance = Math.max(0.35, 0.55 - activity.risk * 0.2);
+function resolveOutcome(activity, wallet, isPremium) {
+    const successChance = applyPremiumChance(Math.max(0.35, 0.55 - activity.risk * 0.2), isPremium);
     const fineChance = 0.22;
     const robbedChance = 0.2;
     const roll = Math.random();
 
     if (roll < successChance) {
-        const amount = randomInt(activity.min, activity.max);
+        const base = randomInt(activity.min, activity.max);
+        const delta = applyPremiumCash(base, isPremium);
         return {
             type: 'payout',
-            delta: amount,
+            delta,
+            bonus: isPremium ? Math.floor(base * 0.1) : 0,
             message: randomChoice(POSITIVE_OUTCOMES),
-            title: `${activity.name} - Payout`
+            title: `${activity.name} - Payout`,
         };
     }
 
@@ -73,8 +89,9 @@ function resolveOutcome(activity, wallet) {
         return {
             type: 'fine',
             delta: -amount,
+            bonus: 0,
             message: randomChoice(FINE_OUTCOMES),
-            title: `${activity.name} - Fined`
+            title: `${activity.name} - Fined`,
         };
     }
 
@@ -85,8 +102,9 @@ function resolveOutcome(activity, wallet) {
         return {
             type: 'robbed',
             delta: -amount,
-            message: randomChoice(ROBBED_OUTCOMES),
-            title: `${activity.name} - Robbed`
+            bonus: 0,
+            message: randomChoice(ROBED_OUTCOMES),
+            title: `${activity.name} - Robbed`,
         };
     }
 
@@ -96,8 +114,9 @@ function resolveOutcome(activity, wallet) {
     return {
         type: 'loss',
         delta: -amount,
+        bonus: 0,
         message: randomChoice(LOSS_OUTCOMES),
-        title: `${activity.name} - Loss`
+        title: `${activity.name} - Loss`,
     };
 }
 
@@ -110,79 +129,88 @@ export default {
         const deferred = await InteractionHelper.safeDefer(interaction);
         if (!deferred) return;
 
-            const userId = interaction.user.id;
-            const guildId = interaction.guildId;
-            const now = Date.now();
+        const userId = interaction.user.id;
+        const guildId = interaction.guildId;
+        const now = Date.now();
 
-            logger.debug(`[ECONOMY] Slut command started for ${userId}`, { userId, guildId });
+        logger.debug(`[ECONOMY] Slut command started for ${userId}`, { userId, guildId });
 
-            const userData = await getEconomyData(client, guildId, userId);
+        const userData = await getEconomyData(client, guildId, userId);
 
-            if (!userData) {
-                throw createError(
-                    "Failed to load economy data for slut command",
-                    ErrorTypes.DATABASE,
-                    "Failed to load your economy data. Please try again later.",
-                    { userId, guildId }
-                );
-            }
+        if (!userData) {
+            logger.error('[ECONOMY] Failed to load economy data for slut', { userId, guildId });
+            return sendEconomy(interaction, dataErrorContainer({ command: 'slut' }));
+        }
 
-            const lastSlut = userData.lastSlut || 0;
+        const jailed = jailRemainingMs(userData, now);
+        if (jailed > 0) {
+            return sendEconomy(interaction, jailContainer({ command: 'slut', msRemaining: jailed }));
+        }
 
-            if (now - lastSlut < SLUT_COOLDOWN) {
-                const remainingTime = lastSlut + SLUT_COOLDOWN - now;
-                throw createError(
-                    "Slut cooldown active",
-                    ErrorTypes.RATE_LIMIT,
-                    `You need to wait before you can work again! Try again in **${Math.ceil(remainingTime / 60000)}** minutes.`,
-                    { timeRemaining: remainingTime, cooldownType: 'slut' }
-                );
-            }
+        const lastSlut = userData.lastSlut || 0;
+        const remainingTime = lastSlut + SLUT_COOLDOWN - now;
+        if (remainingTime > 0) {
+            return sendEconomy(
+                interaction,
+                cooldownContainer({
+                    body: 'You need to wait before you can work again!',
+                    footer: cooldownFooter('start another session', remainingTime),
+                }),
+            );
+        }
 
-            const activity = randomChoice(SLUT_ACTIVITIES);
+        const isPremium = await hasPremiumRole(interaction, client, guildId);
+        const activity = randomChoice(SLUT_ACTIVITIES);
+        const outcome = resolveOutcome(activity, userData.wallet || 0, isPremium);
 
-            const outcome = resolveOutcome(activity, userData.wallet || 0);
+        userData.lastSlut = now;
+        userData.totalSluts = (userData.totalSluts || 0) + 1;
+        userData.totalSlutEarnings = (userData.totalSlutEarnings || 0) + Math.max(0, outcome.delta);
+        userData.totalSlutLosses = (userData.totalSlutLosses || 0) + Math.max(0, -outcome.delta);
 
-            userData.lastSlut = now;
-            userData.totalSluts = (userData.totalSluts || 0) + 1;
-            userData.totalSlutEarnings = (userData.totalSlutEarnings || 0) + Math.max(0, outcome.delta);
-            userData.totalSlutLosses = (userData.totalSlutLosses || 0) + Math.max(0, -outcome.delta);
+        if (outcome.type !== 'payout') {
+            userData.failedSluts = (userData.failedSluts || 0) + 1;
+        }
 
-            if (outcome.type !== 'payout') {
-                userData.failedSluts = (userData.failedSluts || 0) + 1;
-            }
+        userData.wallet = Math.max(0, (userData.wallet || 0) + outcome.delta);
+        await setEconomyData(client, guildId, userId, userData);
 
-            userData.wallet = Math.max(0, (userData.wallet || 0) + outcome.delta);
+        logger.info('[ECONOMY_TRANSACTION] Slut activity resolved', {
+            userId,
+            guildId,
+            activity: activity.name,
+            outcomeType: outcome.type,
+            amountDelta: outcome.delta,
+            hasPremium: isPremium,
+            newWallet: userData.wallet,
+            timestamp: new Date().toISOString(),
+        });
 
-            await setEconomyData(client, guildId, userId, userData);
+        const amountLabel = `${outcome.delta >= 0 ? '+' : '-'}$${Math.abs(outcome.delta).toLocaleString()}`;
+        const lines = [
+            outcome.message,
+            `💸 **Net Result:** ${amountLabel}`,
+            `💳 **Current Balance:** \`$${userData.wallet.toLocaleString()}\``,
+            `📊 **Total Sessions:** ${code(userData.totalSluts)}`,
+            `💵 **Total Earned:** \`$${(userData.totalSlutEarnings || 0).toLocaleString()}\``,
+            `🧾 **Total Lost:** \`$${(userData.totalSlutLosses || 0).toLocaleString()}\``,
+        ];
 
-            logger.info(`[ECONOMY_TRANSACTION] Slut activity resolved`, {
-                userId,
-                guildId,
-                activity: activity.name,
-                outcomeType: outcome.type,
-                amountDelta: outcome.delta,
-                newWallet: userData.wallet,
-                timestamp: new Date().toISOString()
-            });
+        const isPayout = outcome.delta >= 0;
+        const footer = cooldownFooter('start another session', SLUT_COOLDOWN);
 
-            const amountLabel = `${outcome.delta >= 0 ? '+' : '-'}$${Math.abs(outcome.delta).toLocaleString()}`;
-            const summaryLines = [
-                `${outcome.message}`,
-                `💸 **Net Result:** ${amountLabel}`,
-                `💳 **Current Balance:** $${userData.wallet.toLocaleString()}`,
-                `📊 **Total Sessions:** ${userData.totalSluts}`,
-                `💵 **Total Earned:** $${(userData.totalSlutEarnings || 0).toLocaleString()}`,
-                `🧾 **Total Lost:** $${(userData.totalSlutLosses || 0).toLocaleString()}`
-            ];
+        if (isPayout && isPremium) lines.push(premiumBonusLine(outcome.bonus));
 
-            const embed = createEmbed({
-                title: outcome.title,
-                description: summaryLines.join('\n'),
-                color: outcome.delta >= 0 ? 'success' : 'error',
-                timestamp: true
-            });
+        if (isPayout) {
+            return sendEconomy(
+                interaction,
+                successContainer({ title: outcome.title, body: lines.join('\n'), footer, premium: isPremium }),
+            );
+        }
 
-            await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-    }, { command: 'slut' })
+        return sendEconomy(
+            interaction,
+            failureContainer({ title: outcome.title, body: lines.join('\n'), footer }),
+        );
+    }, { command: 'slut' }),
 };

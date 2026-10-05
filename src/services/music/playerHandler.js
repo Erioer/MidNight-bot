@@ -111,7 +111,12 @@ export function setupPlayerHandler(client) {
         if (!shouldLogNodeEvent(node.name)) {
             return;
         }
-        logger.warn(`Lavalink node "${node.name}" error: ${error?.message || error}`);
+        // Tagged with the registry code: an AggregateError here means every
+        // connection attempt to the node failed (node unreachable), not a bug.
+        logger.warn(`Lavalink node "${node.name}" error: ${error?.message || error}`, {
+            errorCode: 'LAVALINK_ERROR',
+            node: node.name,
+        });
     });
 
     client.riffy.on('nodeDisconnect', (node) => {

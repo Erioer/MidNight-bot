@@ -35,6 +35,7 @@ export const ErrorTypes = {
     DISCORD_API: 'discord_api',
     USER_INPUT: 'user_input',
     RATE_LIMIT: 'rate_limit',
+    LAVALINK: 'lavalink',
     UNKNOWN: 'unknown'
 };
 
@@ -74,6 +75,13 @@ export function categorizeError(error) {
 
     const message = error?.message?.toLowerCase() || '';
     const code = error?.code;
+
+    // Lavalink first: node connection failures surface as AggregateError whose
+    // sub-errors (ECONNREFUSED and friends) would otherwise be claimed by the
+    // Postgres bucket below. A dead music node is not a database fault.
+    if (message.includes('lavalink') || error?.errorCode === 'LAVALINK_ERROR') {
+        return ErrorTypes.LAVALINK;
+    }
 
     if (typeof code === 'string' && DATABASE_ERROR_CODES.has(code)) {
         return ErrorTypes.DATABASE;
@@ -155,6 +163,9 @@ const UserMessages = {
         default: "You're doing that too quickly. Wait a moment and try again.",
         command_cooldown: 'This command is on cooldown. Wait before using it again.',
         global_rate_limit: 'Discord is rate limiting requests. Wait a moment and try again.'
+    },
+    [ErrorTypes.LAVALINK]: {
+        default: 'The music server is unreachable right now. Try again in a moment.'
     },
     [ErrorTypes.UNKNOWN]: {
         default: 'Something went wrong. Please try again in a moment.',

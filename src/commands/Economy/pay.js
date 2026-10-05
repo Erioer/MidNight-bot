@@ -1,10 +1,17 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
-import { getEconomyData, addMoney, removeMoney, setEconomyData } from '../../utils/economy.js';
-import { withErrorHandling, createError, ErrorTypes } from '../../utils/errorHandler.js';
+import { getEconomyData } from '../../utils/economy.js';
+import { withErrorHandling } from '../../utils/errorHandler.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import EconomyService from '../../services/economyService.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import {
+    dataErrorContainer,
+    failureContainer,
+    resolveDisplayName,
+    sendEconomy,
+    successContainer,
+} from '../../services/economy/economyViews.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -40,30 +47,29 @@ export default {
                 guildId
             });
 
+            // `/pay` stays open while jailed: a jailed member must still be able
+            // to settle a fine, so only the earning commands are locked.
             if (receiver.bot) {
-                throw createError(
-                    "Cannot pay bot",
-                    ErrorTypes.VALIDATION,
-                    "You cannot pay a bot.",
-                    { receiverId: receiver.id, isBot: true }
+                return sendEconomy(
+                    interaction,
+                    failureContainer({ title: 'Payment Failed', body: 'You cannot pay a bot.' }),
                 );
             }
-            
+
             if (receiver.id === senderId) {
-                throw createError(
-                    "Cannot pay self",
-                    ErrorTypes.VALIDATION,
-                    "You cannot pay yourself.",
-                    { senderId, receiverId: receiver.id }
+                return sendEconomy(
+                    interaction,
+                    failureContainer({ title: 'Payment Failed', body: 'You cannot pay yourself.' }),
                 );
             }
-            
+
             if (amount <= 0) {
-                throw createError(
-                    "Invalid payment amount",
-                    ErrorTypes.VALIDATION,
-                    "Amount must be greater than zero.",
-                    { amount, senderId }
+                return sendEconomy(
+                    interaction,
+                    failureContainer({
+                        title: 'Payment Failed',
+                        body: 'Amount must be greater than zero.',
+                    }),
                 );
             }
 
@@ -72,78 +78,58 @@ export default {
                 getEconomyData(client, guildId, receiver.id)
             ]);
 
-            if (!senderData) {
-                throw createError(
-                    "Failed to load sender economy data",
-                    ErrorTypes.DATABASE,
-                    "Failed to load your economy data. Please try again later.",
-                    { userId: senderId, guildId }
-                );
-            }
-            
-            if (!receiverData) {
-                throw createError(
-                    "Failed to load receiver economy data",
-                    ErrorTypes.DATABASE,
-                    "Failed to load the receiver's economy data. Please try again later.",
-                    { userId: receiver.id, guildId }
-                );
+            if (!senderData || !receiverData) {
+                logger.error('[ECONOMY] Failed to load economy data for pay', {
+                    senderId,
+                    hasSenderData: !!senderData,
+                    receiverId: receiver.id,
+                    hasReceiverData: !!receiverData,
+                    guildId,
+                });
+                return sendEconomy(interaction, dataErrorContainer({ command: 'pay' }));
             }
 
-            const result = await EconomyService.transferMoney(
-                client, 
-                guildId, 
-                senderId, 
-                receiver.id, 
-                amount
-            );
+await EconomyService.transferMoney(client, guildId, senderId, receiver.id, amount);
 
             const updatedSenderData = await getEconomyData(client, guildId, senderId);
             const updatedReceiverData = await getEconomyData(client, guildId, receiver.id);
 
-            const embed = successEmbed(
-                'Payment Successful',
-                `You successfully paid **${receiver.username}** the amount of **$${amount.toLocaleString()}**!`
-            )
-                .addFields(
-                    {
-                        name: "Payment Amount",
-                        value: `$${amount.toLocaleString()}`,
-                        inline: true,
-                    },
-                    {
-                        name: "Your New Balance",
-                        value: `$${updatedSenderData.wallet.toLocaleString()}`,
-                        inline: true,
-                    },
-                )
-                .setFooter({
-                    text: `Paid to ${receiver.tag}`,
-                    iconURL: receiver.displayAvatarURL(),
-                });
+            await sendEconomy(
+                interaction,
+                successContainer({
+                    title: 'Payment Successful',
+                    body: [
+                        `You successfully paid **${await resolveDisplayName(interaction, receiver)}** **$${amount.toLocaleString()}**!`,
+                        `**Your balance:** \`$${(updatedSenderData?.wallet || 0).toLocaleString()}\``,
+                    ].join('\n'),
+                    footer: `Paid to ${receiver.tag}`,
+                }),
+            );
 
-            await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-
-            logger.info(`[ECONOMY] Payment sent successfully`, {
+            logger.info('[ECONOMY] Payment sent successfully', {
                 senderId,
                 receiverId: receiver.id,
                 amount,
-                senderBalance: updatedSenderData.wallet,
-                receiverBalance: updatedReceiverData.wallet
+                senderBalance: updatedSenderData?.wallet,
+                receiverBalance: updatedReceiverData?.wallet,
             });
 
             try {
-                const receiverEmbed = createEmbed({ 
-                    title: "Incoming Payment!", 
-                    description: `${interaction.user.username} paid you **$${amount.toLocaleString()}**.` 
-                }).addFields({
-                    name: "Your New Cash",
-                    value: `$${updatedReceiverData.wallet.toLocaleString()}`,
-                    inline: true,
+                await receiver.send({
+                    components: [
+                        successContainer({
+                            title: 'Incoming Payment!',
+                            body: [
+                                `${await resolveDisplayName(interaction, interaction.user)} paid you **$${amount.toLocaleString()}**.`,
+                                `**Your balance:** \`$${(updatedReceiverData?.wallet || 0).toLocaleString()}\``,
+                            ].join('\n'),
+                        }),
+                    ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
-                await receiver.send({ embeds: [receiverEmbed] });
-            } catch (e) {
-                    logger.warn(`Could not DM user ${receiver.id}: ${e.message}`);
+            } catch (error) {
+                logger.warn(`Could not DM user ${receiver.id}: ${error.message}`);
             }
     }, { command: 'pay' })
 };

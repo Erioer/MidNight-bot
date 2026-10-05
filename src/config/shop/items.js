@@ -3,7 +3,7 @@ import { COUNTING_SHIELD } from '../countingGameConfig.js';
 export const shopItems = [
     {
         id: 'extra_work',
-        name: 'Extra Work Shift',
+        name: '📋 Extra Work Shift',
         price: 5000,
         description: 'Allows 1 extra use of the `/work` command.',
         type: 'consumable',
@@ -17,7 +17,7 @@ cooldown: 86400000,
     },
     {
         id: 'bank_upgrade_1',
-        name: 'Bank Upgrade I',
+        name: '🏦 Bank Upgrade I',
         price: 15000,
         description: 'Increases bank capacity and allows more funds to be deposited.',
         type: 'upgrade',
@@ -29,11 +29,12 @@ cooldown: 86400000,
     },
     {
         id: 'diamond_pickaxe',
-        name: 'Diamond Pickaxe',
+        name: '💎 Diamond Pickaxe',
         price: 50000,
         description: 'Increases yield from `/mine`',
         type: 'tool',
         durability: 100,
+        maxQuantity: 1,
         effect: {
             type: 'mining_yield',
             multiplier: 2.0
@@ -41,7 +42,7 @@ cooldown: 86400000,
     },
     {
         id: 'premium_role',
-        name: 'Premium Server Role',
+        name: '👑 Premium Server Role',
         price: 15000,
         description: 'A special role granting a fancy color and a 10% daily bonus.',
         type: 'role',
@@ -53,7 +54,7 @@ roleId: null,
     },
     {
         id: 'lucky_clover',
-        name: 'Lucky Clover',
+        name: '🍀 Lucky Clover',
         price: 10000,
         description: 'Increases the chance of winning a higher payout on `/gamble` once.',
         type: 'consumable',
@@ -71,6 +72,7 @@ roleId: null,
         description: 'Used for fishing commands',
         type: 'tool',
         durability: 100,
+        maxQuantity: 1,
         effect: {
             type: 'fishing_yield',
             multiplier: 1.0
@@ -83,6 +85,7 @@ roleId: null,
         description: 'Used for mining commands',
         type: 'tool',
         durability: 100,
+        maxQuantity: 1,
         effect: {
             type: 'mining_yield',
             multiplier: 1.2
@@ -95,6 +98,7 @@ roleId: null,
         description: 'Increases work earnings',
         type: 'tool',
         durability: 200,
+        maxQuantity: 1,
         effect: {
             type: 'work_yield',
             multiplier: 1.5
@@ -132,6 +136,7 @@ roleId: null,
         description: 'Protects your money from theft. Prevents others from robbing you.',
         type: 'tool',
         durability: null,
+        maxQuantity: 1,
         effect: {
             type: 'robbery_protection',
             protection: true
@@ -148,6 +153,19 @@ roleId: null,
             type: 'counting_shield',
             uses: 1
         }
+    },
+    {
+        id: 'xpboost',
+        name: '⚡ XP Boost (6h)',
+        price: 15000,
+        description: 'Grants 10% more XP from all sources for 6 hours.',
+        type: 'consumable',
+        maxQuantity: 10,
+        effect: {
+            type: 'xp_boost',
+            duration: 6 * 60 * 60 * 1000,
+            multiplier: 1.1
+        }
     }
 ];
 
@@ -162,6 +180,29 @@ export function getItemsByType(type) {
 export function getItemPrice(itemId) {
     const item = getItemById(itemId);
     return item ? item.price : 0;
+}
+
+/**
+ * Maximum units of an item one member may hold at once, or null when uncapped.
+ *
+ * Single-hold tools, roles and upgrades resolve to 1 even without an explicit
+ * `maxQuantity`; only deliberately repeatable items (bank notes) are uncapped.
+ */
+export function getItemHoldLimit(item) {
+    if (!item) return null;
+    if (item.maxQuantity) return item.maxQuantity;
+    if (item.type === 'role' || item.type === 'upgrade') return 1;
+    if (item.type === 'tool') return item.id === 'bank_note' ? null : 1;
+    return null;
+}
+
+/**
+ * `2/5` when capped, `3x` when uncapped — the same shape on the inventory
+ * card, the dropdown description and the shop listing.
+ */
+export function formatOwned(quantity, item) {
+    const limit = getItemHoldLimit(item);
+    return limit ? `${quantity}/${limit}` : `${quantity}x`;
 }
 
 export function validatePurchase(itemId, userData) {

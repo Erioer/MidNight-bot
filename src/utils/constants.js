@@ -19,7 +19,9 @@ export const DEFAULT_ECONOMY_DATA = {
     lastWithdraw: 0,
     inventory: {},
     upgrades: {},
-    cooldowns: {}
+    cooldowns: {},
+    xpBoostExpiresAt: 0,
+    xpBoostCooldownUntil: 0
 };
 
 export const DEFAULT_GUILD_CONFIG = {

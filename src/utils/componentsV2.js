@@ -146,15 +146,18 @@ function appendPart(builder, part) {
  * Nested containers are not allowed by Discord, so they are rejected here
  * rather than failing at the API with an opaque 400.
  *
- * Accent colours are intentionally not set: a plain container reads cleaner
- * than a coloured bar for these dense stat blocks.
+ * Accent colours are off by default: a plain container reads cleaner than a
+ * coloured bar for dense stat blocks, and leaving `accent_color` unset is what
+ * renders no accent at all. Pass `accentColor` only where the colour carries
+ * meaning (success / failure / cooldown / premium).
  */
-export function container({ spoiler = false, parts = [] } = {}) {
-  const builder = new ContainerBuilder();
-  if (spoiler) builder.setSpoiler(true);
-  for (const part of parts.flat().filter(Boolean)) appendPart(builder, part);
-  return builder;
-}
+export function container({ spoiler = false, accentColor, parts = [] } = {}) {
+    const builder = new ContainerBuilder();
+    if (spoiler) builder.setSpoiler(true);
+    if (accentColor !== undefined && accentColor !== null) builder.setAccentColor(accentColor);
+    for (const part of parts.flat().filter(Boolean)) appendPart(builder, part);
+    return builder;
+  }
 
 /**
  * Flattened length of a component payload, for the 40-component budget.
@@ -195,6 +198,19 @@ export function countText(components) {
 /** Wraps a value in inline code so digits and currency keep a fixed width. */
 export function code(value) {
   return `\`${String(value)}\``;
+}
+
+/**
+ * Proportion bar of `length` cells, filled to the `filled/total` ratio.
+ *
+ * A non-positive or non-numeric `total` yields an empty bar rather than a
+ * division by zero, so callers can render the ratio unconditionally.
+ */
+export function ratioBar(filled, total, length = 20) {
+  const denominator = Number(total) || 0;
+  const ratio = denominator > 0 ? Math.max(0, Number(filled) || 0) / denominator : 0;
+  const cells = Math.round(ratio * length);
+  return '█'.repeat(cells) + '░'.repeat(length - cells);
 }
 
 /** `01`-style zero-padded rank label. */

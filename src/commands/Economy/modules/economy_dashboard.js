@@ -11,11 +11,11 @@ import {
     ButtonStyle,
     MessageFlags,
     ComponentType,
-    EmbedBuilder,
 } from 'discord.js';
-import { getColor, BotConfig } from '../../../config/bot.js';
+import { BotConfig } from '../../../config/bot.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
-import { successEmbed } from '../../../utils/embeds.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer, failureContainer } from '../../../services/economy/economyViews.js';
 import { logger } from '../../../utils/logger.js';
 import { MidNightError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
 import { getEconomyPrefix } from '../../../utils/database.js';
@@ -27,7 +27,7 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-async function buildDashboardEmbed(guild, client) {
+async function buildDashboardContainer(guild, client) {
     const currencySymbol = BotConfig.economy.currency.symbol;
     const currencyName = BotConfig.economy.currency.name;
 
@@ -57,19 +57,25 @@ async function buildDashboardEmbed(guild, client) {
 
     const avgBalance = userCount > 0 ? Math.floor(totalInCirculation / userCount) : 0;
 
-    return new EmbedBuilder()
-        .setTitle('💰 Economy Dashboard')
-        .setDescription(`Manage the economy system for **${guild.name}**.\nSelect an option below to perform an action.`)
-        .setColor(getColor('economy'))
-        .addFields(
-            { name: '💰 Total in Circulation', value: `\`${currencySymbol}${totalInCirculation.toLocaleString()}\``, inline: true },
-            { name: '👥 Active Users', value: `\`${userCount.toLocaleString()}\``, inline: true },
-            { name: '📊 Average Balance', value: `\`${currencySymbol}${avgBalance.toLocaleString()}\``, inline: true },
-            { name: '💱 Currency Symbol', value: `\`${currencySymbol}\``, inline: true },
-            { name: '📝 Currency Name', value: `\`${currencyName}\``, inline: true },
-        )
-        .setFooter({ text: 'Dashboard closes after 10 minutes of inactivity' })
-        .setTimestamp();
+    // Admin dashboard: a neutral management view, so no accent colour is set.
+    return container({
+        parts: [
+            text('### Economy Dashboard'),
+            text(`Manage the economy system for **${guild.name}**.\nSelect an option below to perform an action.`),
+            divider(),
+            text(
+                [
+                    `**Total in Circulation:** \`${currencySymbol}${totalInCirculation.toLocaleString()}\``,
+                    `**Active Users:** \`${userCount.toLocaleString()}\``,
+                    `**Average Balance:** \`${currencySymbol}${avgBalance.toLocaleString()}\``,
+                    `**Currency Symbol:** \`${currencySymbol}\``,
+                    `**Currency Name:** \`${currencyName}\``,
+                ].join('\n'),
+            ),
+            divider(),
+            text('-# Dashboard closes after 10 minutes of inactivity'),
+        ],
+    });
 }
 
 function buildSelectMenu(guildId) {
@@ -103,10 +109,12 @@ function buildSelectMenu(guildId) {
 async function refreshDashboard(rootInteraction, guild, client) {
     const selectMenu = buildSelectMenu(guild.id);
     await InteractionHelper.safeEditReply(rootInteraction, {
-        embeds: [await buildDashboardEmbed(guild, client)],
         components: [
+            await buildDashboardContainer(guild, client),
             new ActionRowBuilder().addComponents(selectMenu),
         ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     }).catch(() => {});
 }
 
@@ -148,8 +156,9 @@ export default {
             const selectRow = new ActionRowBuilder().addComponents(selectMenu);
 
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [await buildDashboardEmbed(guild, client)],
-                components: [selectRow],
+                components: [await buildDashboardContainer(guild, client), selectRow],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
 
             const collector = interaction.channel.createMessageComponentCollector({
@@ -201,14 +210,13 @@ export default {
 
             collector.on('end', async (collected, reason) => {
                 if (reason === 'time') {
-                    const timeoutEmbed = new EmbedBuilder()
-                        .setTitle('Dashboard Timed Out')
-                        .setDescription('This dashboard has been closed due to inactivity. Please run the command again to continue.')
-                        .setColor(getColor('error'));
-                    
                     await InteractionHelper.safeEditReply(interaction, {
-                        embeds: [timeoutEmbed],
-                        components: [],
+                        components: [
+                            failureContainer({
+                                title: 'Dashboard Timed Out',
+                                body: 'This dashboard has been closed due to inactivity. Please run the command again to continue.',
+                            }),
+                        ],
                     }).catch(() => {});
                 }
             });
@@ -306,8 +314,14 @@ async function handleAddCurrency(selectInteraction, rootInteraction, guild, clie
     const currencySymbol = BotConfig.economy.currency.symbol;
 
     await submitted.reply({
-        embeds: [successEmbed('Currency Added', `Successfully added ${currencySymbol}${amount.toLocaleString()} to ${member.user.tag}'s ${type}.\n**New Balance:** ${currencySymbol}${newBalance.toLocaleString()}`)],
-        flags: MessageFlags.Ephemeral,
+        components: [
+            successContainer({
+                title: 'Currency Added',
+                body: `Successfully added ${currencySymbol}${amount.toLocaleString()} to ${member.user.tag}'s ${type}.\n**New Balance:** ${currencySymbol}${newBalance.toLocaleString()}`,
+            }),
+        ],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     logger.info(`[ECONOMY_DASHBOARD] Currency added`, {
@@ -403,8 +417,14 @@ async function handleRemoveCurrency(selectInteraction, rootInteraction, guild, c
     const currencySymbol = BotConfig.economy.currency.symbol;
 
     await submitted.reply({
-        embeds: [successEmbed('Currency Removed', `Successfully removed ${currencySymbol}${amount.toLocaleString()} from ${member.user.tag}'s ${type}.\n**New Balance:** ${currencySymbol}${newBalance.toLocaleString()}`)],
-        flags: MessageFlags.Ephemeral,
+        components: [
+            successContainer({
+                title: 'Currency Removed',
+                body: `Successfully removed ${currencySymbol}${amount.toLocaleString()} from ${member.user.tag}'s ${type}.\n**New Balance:** ${currencySymbol}${newBalance.toLocaleString()}`,
+            }),
+        ],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     logger.info(`[ECONOMY_DASHBOARD] Currency removed`, {
@@ -461,7 +481,9 @@ async function handleChangeCurrency(selectInteraction, rootInteraction, guild) {
     }
 
     await submitted.reply({
-        embeds: [successEmbed('Currency Symbol Updated', `Currency symbol changed to **${newSymbol}**.\n\n**Note:** The bot needs to be restarted for changes to take effect.`)],
+        components: [successContainer({ title: 'Currency Symbol Updated', body: `Currency symbol changed to **${newSymbol}**.\n\n**Note:** The bot needs to be restarted for changes to take effect.` })],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
         flags: MessageFlags.Ephemeral,
     });
 
@@ -515,7 +537,9 @@ async function handleChangeName(selectInteraction, rootInteraction, guild) {
     }
 
     await submitted.reply({
-        embeds: [successEmbed('Currency Name Updated', `Currency name changed to **${newName}**.\n\n**Note:** The bot needs to be restarted for changes to take effect.`)],
+        components: [successContainer({ title: 'Currency Name Updated', body: `Currency name changed to **${newName}**.\n\n**Note:** The bot needs to be restarted for changes to take effect.` })],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
         flags: MessageFlags.Ephemeral,
     });
 

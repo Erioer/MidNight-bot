@@ -7,6 +7,7 @@ import { formatLogLine } from '../../utils/logging/logEmbeds.js';
 import { Mutex } from '../../utils/mutex.js';
 import { wrapServiceBoundary } from '../../utils/errorHandler.js';
 import { updateFirstPlaceRole } from './firstPlaceRoleService.js';
+import { getEconomyData } from '../../utils/economy.js';
 
 /**
  * Award XP to a member. Returns null when XP is skipped (disabled/invalid amount).
@@ -30,7 +31,25 @@ export const addXp = wrapServiceBoundary(async function addXp(client, guild, mem
     const isBooster =
       Boolean(member.premiumSince) ||
       Boolean(config.boosterRoleId && member.roles.cache.has(config.boosterRoleId));
-    const effectiveXp = isBooster ? Math.ceil(xpToAdd * 1.1) : xpToAdd;
+
+    // Check for an active XP Boost item from the economy shop. The lookup is
+    // best-effort: if the economy store is unreachable, XP is still granted
+    // at the normal rate rather than failing the whole level event.
+    let xpBoostMultiplier = 1;
+    try {
+      const userData = await getEconomyData(client, guild.id, member.user.id);
+      if (userData?.xpBoostExpiresAt && userData.xpBoostExpiresAt > Date.now()) {
+        xpBoostMultiplier = 1.1; // 10% more XP from the XP Boost item
+      }
+    } catch (error) {
+      logger.debug('xpSystem: economy lookup for XP Boost failed, granting base XP', {
+        userId: member.user.id,
+        guildId: guild.id,
+        error: error?.message,
+      });
+    }
+
+    const effectiveXp = isBooster ? Math.ceil(xpToAdd * 1.1 * xpBoostMultiplier) : Math.ceil(xpToAdd * xpBoostMultiplier);
 
     const levelData = await getUserLevelData(client, guild.id, member.user.id);
 

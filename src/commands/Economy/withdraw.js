@@ -1,85 +1,98 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
 import { getEconomyData, setEconomyData, getMaxBankCapacity } from '../../utils/economy.js';
-import { withErrorHandling, createError, ErrorTypes } from '../../utils/errorHandler.js';
-
+import { withErrorHandling } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { logger } from '../../utils/logger.js';
+import {
+    dataErrorContainer,
+    failureContainer,
+    noticeContainer,
+    sendEconomy,
+    successContainer,
+} from '../../services/economy/economyViews.js';
+
 export default {
     data: new SlashCommandBuilder()
         .setName('withdraw')
         .setDescription('Withdraw money from your bank to your wallet')
-        .addIntegerOption(option =>
+        .addIntegerOption((option) =>
             option
                 .setName('amount')
                 .setDescription('Amount to withdraw')
                 .setRequired(true)
-                .setMinValue(1)
+                .setMinValue(1),
         ),
 
     execute: withErrorHandling(async (interaction, config, client) => {
-        await InteractionHelper.safeDefer(interaction);
-            
-            const userId = interaction.user.id;
-            const guildId = interaction.guildId;
-            const amountInput = interaction.options.getInteger("amount");
+        const deferred = await InteractionHelper.safeDefer(interaction);
+        if (!deferred) return;
 
-            const userData = await getEconomyData(client, guildId, userId);
-            
-            if (!userData) {
-                throw createError(
-                    "Failed to load economy data",
-                    ErrorTypes.DATABASE,
-                    "Failed to load your economy data. Please try again later.",
-                    { userId, guildId }
-                );
-            }
+        const userId = interaction.user.id;
+        const guildId = interaction.guildId;
+        const requested = interaction.options.getInteger('amount');
 
-            let withdrawAmount = amountInput;
+        const userData = await getEconomyData(client, guildId, userId);
 
-            if (withdrawAmount <= 0) {
-                throw createError(
-                    "Invalid withdrawal amount",
-                    ErrorTypes.VALIDATION,
-                    "You must withdraw a positive amount.",
-                    { amount: withdrawAmount, userId }
-                );
-            }
+        if (!userData) {
+            logger.error('[ECONOMY] Failed to load economy data for withdraw', { userId, guildId });
+            return sendEconomy(interaction, dataErrorContainer({ command: 'withdraw' }));
+        }
 
-            if (withdrawAmount > userData.bank) {
-                withdrawAmount = userData.bank;
-            }
+        const maxBank = getMaxBankCapacity(userData);
+        const wallet = userData.wallet || 0;
+        const bank = userData.bank || 0;
 
-            if (withdrawAmount === 0) {
-                throw createError(
-                    "Empty bank account",
-                    ErrorTypes.VALIDATION,
-                    "Your bank account is empty.",
-                    { userId, bankBalance: userData.bank }
-                );
-            }
+        let withdrawAmount = requested;
 
-            userData.wallet += withdrawAmount;
-            userData.bank -= withdrawAmount;
+        if (withdrawAmount <= 0) {
+            return sendEconomy(
+                interaction,
+                failureContainer({
+                    title: 'Invalid Withdrawal Amount',
+                    body: 'You must withdraw a positive amount.',
+                }),
+            );
+        }
 
-            await setEconomyData(client, guildId, userId, userData);
+        const notice = [];
 
-            const embed = successEmbed(
-                'Withdrawal Successful',
-                `You successfully withdrew **$${withdrawAmount.toLocaleString()}** from your bank.`
-            )
-                .addFields(
-                    {
-                        name: "New Cash Balance",
-                        value: `$${userData.wallet.toLocaleString()}`,
-                        inline: true,
-                    },
-                    {
-                        name: "New Bank Balance",
-                        value: `$${userData.bank.toLocaleString()}`,
-                        inline: true,
-                    },
-                );
+        if (withdrawAmount > bank) {
+            withdrawAmount = bank;
+            notice.push(
+                `You only had **$${withdrawAmount.toLocaleString()}** in your bank. Withdrawing the full available balance.`,
+            );
+        }
 
-            await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
-    }, { command: 'withdraw' })
+        if (withdrawAmount === 0) {
+            return sendEconomy(
+                interaction,
+                failureContainer({ title: 'Empty Bank Account', body: 'Your bank account is empty.' }),
+            );
+        }
+
+        userData.wallet = wallet + withdrawAmount;
+        userData.bank = bank - withdrawAmount;
+        await setEconomyData(client, guildId, userId, userData);
+
+        const components = [];
+
+        if (notice.length > 0) {
+            components.push(
+                noticeContainer({ title: 'Withdrawal Adjusted', body: notice.join('\n') }),
+            );
+        }
+
+        components.push(
+            successContainer({
+                title: 'Withdrawal Successful',
+                body: [
+                    `You successfully withdrew **$${withdrawAmount.toLocaleString()}** from your bank.`,
+                    `**Cash:** \`$${userData.wallet.toLocaleString()}\``,
+                    `**Bank:** \`$${userData.bank.toLocaleString()}\` of \`$${maxBank.toLocaleString()}\``,
+                ].join('\n'),
+            }),
+        );
+
+        return sendEconomy(interaction, ...components);
+    }, { command: 'withdraw' }),
 };

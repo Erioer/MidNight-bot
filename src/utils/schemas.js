@@ -96,7 +96,9 @@ export const EconomyDataSchema = z
     xp: z.number().int().nonnegative().default(0),
     level: z.number().int().nonnegative().default(1),
     inventory: z.record(z.any()).default({}),
-    cooldowns: z.record(z.number().int().nonnegative()).default({})
+    cooldowns: z.record(z.number().int().nonnegative()).default({}),
+    xpBoostExpiresAt: z.number().int().nonnegative().default(0),
+    xpBoostCooldownUntil: z.number().int().nonnegative().default(0)
   })
   .passthrough();
 
