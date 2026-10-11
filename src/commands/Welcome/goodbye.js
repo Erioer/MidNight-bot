@@ -1,10 +1,11 @@
 import { getColor } from '../../config/bot.js';
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, MessageFlags } from 'discord.js';
 import { getWelcomeConfig, updateWelcomeConfig } from '../../utils/database.js';
-import { formatWelcomeMessage, truncateForEmbedField } from '../../utils/welcome.js';
+import { formatWelcomeMessage } from '../../utils/welcome.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../utils/componentsV2.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -100,22 +101,23 @@ export default {
                     guild
                 });
 
-                const embed = new EmbedBuilder()
-                    .setColor(getColor('success'))
-                    .setTitle('Goodbye System Configured')
-                    .setDescription(`Goodbye messages will now be sent to ${channel}`)
-                    .addFields(
-                        { name: 'Message Preview', value: truncateForEmbedField(previewMessage) },
-                        { name: 'Ping User', value: ping ? 'Yes' : 'No' },
-                        { name: 'Status', value: 'Enabled' }
-                    )
-                    .setFooter({ text: 'Tip: Use /greet dashboard to customize goodbye settings' });
-
-                if (image) {
-                    embed.setImage(image);
-                }
-
-                await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+                await InteractionHelper.safeEditReply(interaction, {
+                    components: [
+                        container({
+                            accentColor: 3066993,
+                            parts: [
+                                text('### Goodbye System Configured'),
+                                text(`Goodbye messages will now be sent to ${channel}`),
+                                divider(),
+                                text(`**Message Preview**\n${previewMessage}`),
+                                text(`**Ping User**\n${ping ? 'Yes' : 'No'}`),
+                                text(`**Status**\nEnabled`),
+                            ],
+                        }),
+                    ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
+                });
             } catch (error) {
                 logger.error(`[Goodbye] Failed to setup goodbye system for guild ${guild.id}:`, error);
                 await replyUserError(interaction, { type: ErrorTypes.UNKNOWN, message: 'An error occurred while configuring the goodbye system. Please try again.' });

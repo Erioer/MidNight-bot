@@ -8,9 +8,10 @@ import { EMOTIONS, buildReactionMessage } from '../config/commands/reactionEmoti
 import { db } from '../utils/database/wrapper.js';
 import { getReactionBackKey } from '../utils/database/keys.js';
 import { container, gallery, NO_PINGS, text, v2Flags } from '../utils/componentsV2.js';
+import { BOT_USER_AGENT } from '../config/bot.js';
 
 const NEKOS_BASE_URL = 'https://nekos.best/api/v2';
-const NEKOS_USER_AGENT = 'MidNight (https://github.com/Erioer/MidNight-bot)';
+const NEKOS_USER_AGENT = BOT_USER_AGENT;
 
 export const reactBackHandler = {
   customId: 'react_back',

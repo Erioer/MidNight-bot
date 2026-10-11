@@ -148,6 +148,26 @@ export function getGiveawayLockKey(messageId) {
     return `giveaway:lock:${messageId}`;
 }
 
+export function getGuildMusicSessionKey(guildId) {
+    return `guild:${guildId}:music:session`;
+}
+
+export function getGuildMusicHistoryKey(guildId) {
+    return `guild:${guildId}:music:history`;
+}
+
+export function getMusicSessionIndexKey() {
+    return 'music:sessions:index';
+}
+
+export function getMusicNodesStatusKey() {
+    return 'music:nodes:status';
+}
+
+export function getGuildMusicSummaryKey(guildId) {
+    return `guild:${guildId}:music:summary`;
+}
+
 /**
  * Legacy key patterns mapped to canonical builders.
  * Used by migration script and read-time fallback.

@@ -115,11 +115,11 @@ export default {
         const lines = [
             catchMessage,
             '',
-            `You caught a **${fishCaught.emoji} ${fishCaught.name}** (${fishCaught.rarity}) and sold it for **$${finalEarned.toLocaleString()}**!`,
+            `You caught a **${fishCaught.name}** (${fishCaught.rarity}) and sold it for **$${finalEarned.toLocaleString()}**!`,
             `**New balance:** \`$${userData.wallet.toLocaleString()}\``,
         ];
 
-        if (hasFishingRod > 0) lines.push('🎣 **Fishing Rod Bonus: +50%**');
+        if (hasFishingRod > 0) lines.push('**Fishing Rod Bonus: +50%**');
         if (hasPremium) lines.push(premiumBonusLine(bonus));
 
         return sendEconomy(

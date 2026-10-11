@@ -4,7 +4,8 @@ import {
     ChannelType,
     MessageFlags,
 } from 'discord.js';
-import { successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logEvent } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -54,7 +55,7 @@ export default {
 
     async execute(interaction, _config, client) {
         const deferSuccess = await InteractionHelper.safeDefer(interaction, {
-            flags: MessageFlags.Ephemeral,
+            flags: v2Flags({ ephemeral: true }),
         });
         if (!deferSuccess) {
             logger.warn('Say interaction defer failed', {
@@ -122,13 +123,14 @@ export default {
         });
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [
-                successEmbed(
-                    'Message Sent',
-                    `Posted in ${channel}. [Jump to message](${sentMessage.url})`,
-                ),
+            components: [
+                successContainer({
+                    title: 'Message Sent',
+                    body: `Posted in ${channel}. [Jump to message](${sentMessage.url})`,
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
     },
 };

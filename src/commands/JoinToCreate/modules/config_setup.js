@@ -1,4 +1,3 @@
-import { getColor } from '../../../config/bot.js';
 import {
     ActionRowBuilder,
     StringSelectMenuBuilder,
@@ -6,12 +5,12 @@ import {
     ChannelType,
     MessageFlags,
     ComponentType,
-    EmbedBuilder,
     ButtonBuilder,
     ButtonStyle
 } from 'discord.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
-import { successEmbed } from '../../../utils/embeds.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../../utils/componentsV2.js';
+import { noticeContainer, successContainer } from '../../../services/economy/economyViews.js';
 import { logger } from '../../../utils/logger.js';
 import { MidNightError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
 import { 
@@ -37,29 +36,20 @@ export default {
             );
         }
 
-        const embed = new EmbedBuilder()
-            .setTitle('Join to Create Configuration')
-            .setDescription(`Configure settings for ${triggerChannel}`)
-            .setColor(getColor('info'))
-            .addFields(
-                {
-                    name: 'Current Channel Name Template',
-                    value: `\`${currentConfig.channelOptions?.[triggerChannel.id]?.nameTemplate || currentConfig.channelNameTemplate}\``,
-                    inline: false
-                },
-                {
-                    name: 'Current User Limit',
-                    value: `${currentConfig.channelOptions?.[triggerChannel.id]?.userLimit || currentConfig.userLimit === 0 ? 'No limit' : currentConfig.userLimit + ' users'}`,
-                    inline: true
-                },
-                {
-                    name: 'Current Bitrate',
-                    value: `${(currentConfig.channelOptions?.[triggerChannel.id]?.bitrate || currentConfig.bitrate) / 1000} kbps`,
-                    inline: true
-                }
-            )
-            .setFooter({ text: 'Select an option to configure below' })
-            .setTimestamp();
+        const card = container({
+            parts: [
+                text('### Join to Create Configuration'),
+                text(`Configure settings for ${triggerChannel}`),
+                divider(),
+                text([
+                    `**Current Channel Name Template**\n\`${currentConfig.channelOptions?.[triggerChannel.id]?.nameTemplate || currentConfig.channelNameTemplate}\``,
+                    `**Current User Limit**\n${currentConfig.channelOptions?.[triggerChannel.id]?.userLimit || currentConfig.userLimit === 0 ? 'No limit' : currentConfig.userLimit + ' users'}`,
+                    `**Current Bitrate**\n${(currentConfig.channelOptions?.[triggerChannel.id]?.bitrate || currentConfig.bitrate) / 1000} kbps`,
+                ].join('\n\n')),
+                divider(),
+                text('-# Select an option to configure below'),
+            ],
+        });
 
         const selectMenu = new StringSelectMenuBuilder()
             .setCustomId(`jointocreate_config_${triggerChannel.id}`)
@@ -90,8 +80,9 @@ export default {
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [embed],
-            components: [row],
+            components: [card, row],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         }).catch(error => {
             logger.error('Failed to edit reply in config_setup:', error);
         });
@@ -150,7 +141,9 @@ time: 60000
                 );
                 
                 await InteractionHelper.safeEditReply(interaction, {
-                    components: [disabledRow],
+                    components: [card, disabledRow],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 }).catch(() => {});
             }
         });
@@ -169,25 +162,26 @@ time: 60000
 };
 
 async function handleNameTemplateChange(interaction, triggerChannel, currentConfig, client) {
-    const embed = new EmbedBuilder()
-        .setTitle('Channel Name Template Configuration')
-        .setDescription('Please enter the new channel name template.')
-        .addFields(
-            {
-                name: 'Available Variables',
-                value: '• `{username}` - User\'s username\n• `{display_name}` - User\'s display name\n• `{user_tag}` - User\'s tag (User#1234)\n• `{guild_name}` - Server name',
-                inline: false
-            },
-            {
-                name: 'Current Template',
-                value: `\`${currentConfig.channelOptions?.[triggerChannel.id]?.nameTemplate || currentConfig.channelNameTemplate}\``,
-                inline: false
-            }
-        )
-        .setColor(getColor('info'))
-        .setFooter({ text: 'Type your new template in the chat below' });
+    const card = container({
+        parts: [
+            text('### Channel Name Template Configuration'),
+            text('Please enter the new channel name template.'),
+            divider(),
+            text([
+                '**Available Variables**',
+                "• `{username}` - User's username",
+                "• `{display_name}` - User's display name",
+                "• `{user_tag}` - User's tag (User#1234)",
+                '• `{guild_name}` - Server name',
+                '',
+                `**Current Template**\n\`${currentConfig.channelOptions?.[triggerChannel.id]?.nameTemplate || currentConfig.channelNameTemplate}\``,
+            ].join('\n')),
+            divider(),
+            text('-# Type your new template in the chat below'),
+        ],
+    });
 
-    await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    await interaction.followUp({ components: [card], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
 
     const collector = interaction.channel.createMessageCollector({
         filter: (m) => m.author.id === interaction.user.id,
@@ -218,8 +212,9 @@ time: 600_000,
             });
 
             await interaction.followUp({
-                embeds: [successEmbed('Template Updated', `Channel name template changed to \`${newTemplate}\``)],
-                flags: MessageFlags.Ephemeral,
+                components: [successContainer({ title: 'Template Updated', body: `Channel name template changed to \`${newTemplate}\`` })],
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
 
             await message.delete().catch(() => {});
@@ -252,20 +247,18 @@ time: 600_000,
 }
 
 async function handleUserLimitChange(interaction, triggerChannel, currentConfig, client) {
-    const embed = new EmbedBuilder()
-        .setTitle('User Limit Configuration')
-        .setDescription('Please enter the new user limit (0-99, where 0 = no limit).')
-        .addFields(
-            {
-                name: 'Current Limit',
-                value: `${currentConfig.channelOptions?.[triggerChannel.id]?.userLimit || currentConfig.userLimit === 0 ? 'No limit' : currentConfig.userLimit + ' users'}`,
-                inline: false
-            }
-        )
-        .setColor(getColor('info'))
-        .setFooter({ text: 'Type the new limit in the chat below' });
+    const card = container({
+        parts: [
+            text('### User Limit Configuration'),
+            text('Please enter the new user limit (0-99, where 0 = no limit).'),
+            divider(),
+            text(`**Current Limit**\n${currentConfig.channelOptions?.[triggerChannel.id]?.userLimit || currentConfig.userLimit === 0 ? 'No limit' : currentConfig.userLimit + ' users'}`),
+            divider(),
+            text('-# Type the new limit in the chat below'),
+        ],
+    });
 
-    await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    await interaction.followUp({ components: [card], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
 
     const collector = interaction.channel.createMessageCollector({
         filter: (m) => m.author.id === interaction.user.id && /^\d+$/.test(m.content.trim()),
@@ -296,8 +289,9 @@ async function handleUserLimitChange(interaction, triggerChannel, currentConfig,
             });
 
             await interaction.followUp({
-                embeds: [successEmbed('Limit Updated', `User limit changed to ${newLimit === 0 ? 'No limit' : newLimit + ' users'}`)],
-                flags: MessageFlags.Ephemeral,
+                components: [successContainer({ title: 'Limit Updated', body: `User limit changed to ${newLimit === 0 ? 'No limit' : newLimit + ' users'}` })],
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
 
             await message.delete().catch(() => {});
@@ -330,25 +324,21 @@ async function handleUserLimitChange(interaction, triggerChannel, currentConfig,
 }
 
 async function handleBitrateChange(interaction, triggerChannel, currentConfig, client) {
-    const embed = new EmbedBuilder()
-        .setTitle('Bitrate Configuration')
-        .setDescription('Please enter the new bitrate in kbps (8-384).')
-        .addFields(
-            {
-                name: 'Current Bitrate',
-                value: `${(currentConfig.channelOptions?.[triggerChannel.id]?.bitrate || currentConfig.bitrate) / 1000} kbps`,
-                inline: false
-            },
-            {
-                name: 'Common Values',
-                value: '• 64 kbps - Normal quality\n• 96 kbps - Good quality\n• 128 kbps - High quality\n• 256 kbps - Very high quality',
-                inline: false
-            }
-        )
-        .setColor(getColor('info'))
-        .setFooter({ text: 'Type the new bitrate in the chat below' });
+    const card = container({
+        parts: [
+            text('### Bitrate Configuration'),
+            text('Please enter the new bitrate in kbps (8-384).'),
+            divider(),
+            text([
+                `**Current Bitrate**\n${(currentConfig.channelOptions?.[triggerChannel.id]?.bitrate || currentConfig.bitrate) / 1000} kbps`,
+                '**Common Values**\n• 64 kbps - Normal quality\n• 96 kbps - Good quality\n• 128 kbps - High quality\n• 256 kbps - Very high quality',
+            ].join('\n\n')),
+            divider(),
+            text('-# Type the new bitrate in the chat below'),
+        ],
+    });
 
-    await interaction.followUp({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    await interaction.followUp({ components: [card], flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
 
     const collector = interaction.channel.createMessageCollector({
         filter: (m) => m.author.id === interaction.user.id && /^\d+$/.test(m.content.trim()),
@@ -379,8 +369,9 @@ async function handleBitrateChange(interaction, triggerChannel, currentConfig, c
             });
 
             await interaction.followUp({
-                embeds: [successEmbed('Bitrate Updated', `Bitrate changed to ${newBitrate} kbps`)],
-                flags: MessageFlags.Ephemeral,
+                components: [successContainer({ title: 'Bitrate Updated', body: `Bitrate changed to ${newBitrate} kbps` })],
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
 
             await message.delete().catch(() => {});
@@ -413,11 +404,11 @@ async function handleBitrateChange(interaction, triggerChannel, currentConfig, c
 }
 
 async function handleRemoveTrigger(interaction, triggerChannel, currentConfig, client) {
-    const embed = new EmbedBuilder()
-        .setTitle('Remove Trigger Channel')
-        .setDescription(`Are you sure you want to remove ${triggerChannel} from the Join to Create system?`)
-        .setColor('#ff6600')
-        .setFooter({ text: 'This action cannot be undone' });
+    const card = noticeContainer({
+        title: 'Remove Trigger Channel',
+        body: `Are you sure you want to remove ${triggerChannel} from the Join to Create system?`,
+        footer: 'This action cannot be undone',
+    });
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -430,10 +421,10 @@ async function handleRemoveTrigger(interaction, triggerChannel, currentConfig, c
             .setStyle(ButtonStyle.Secondary)
     );
 
-    await interaction.followUp({ 
-        embeds: [embed], 
-        components: [row],
-        flags: MessageFlags.Ephemeral 
+    await interaction.followUp({
+        components: [card, row],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     const collector = interaction.channel.createMessageComponentCollector({
@@ -453,8 +444,9 @@ async function handleRemoveTrigger(interaction, triggerChannel, currentConfig, c
                 
                 if (success) {
                     await buttonInteraction.followUp({
-                        embeds: [successEmbed('Channel Removed', `${triggerChannel} has been removed from the Join to Create system.`)],
-                        flags: MessageFlags.Ephemeral,
+                        components: [successContainer({ title: 'Channel Removed', body: `${triggerChannel} has been removed from the Join to Create system.` })],
+                        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                        allowedMentions: NO_PINGS,
                     });
                 } else {
                     await replyUserError(buttonInteraction, {
@@ -480,8 +472,9 @@ async function handleRemoveTrigger(interaction, triggerChannel, currentConfig, c
             }
         } else {
             await buttonInteraction.followUp({
-                embeds: [successEmbed('Cancelled', 'Channel removal has been cancelled.')],
-                flags: MessageFlags.Ephemeral,
+                components: [successContainer({ title: 'Cancelled', body: 'Channel removal has been cancelled.' })],
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
         }
     });
@@ -498,52 +491,27 @@ async function handleRemoveTrigger(interaction, triggerChannel, currentConfig, c
 
 async function handleViewSettings(interaction, triggerChannel, currentConfig, client) {
     const channelConfig = currentConfig.channelOptions?.[triggerChannel.id] || {};
-    
-    const embed = new EmbedBuilder()
-        .setTitle('Current Settings')
-        .setDescription(`Configuration for ${triggerChannel}`)
-        .setColor(getColor('info'))
-        .addFields(
-            {
-                name: 'Trigger Channel',
-                value: `${triggerChannel} (${triggerChannel.id})`,
-                inline: false
-            },
-            {
-                name: 'Channel Name Template',
-                value: `\`${channelConfig.nameTemplate || currentConfig.channelNameTemplate}\``,
-                inline: false
-            },
-            {
-                name: 'User Limit',
-                value: `${channelConfig.userLimit || currentConfig.userLimit === 0 ? 'No limit' : (channelConfig.userLimit || currentConfig.userLimit) + ' users'}`,
-                inline: true
-            },
-            {
-                name: 'Bitrate',
-                value: `${(channelConfig.bitrate || currentConfig.bitrate) / 1000} kbps`,
-                inline: true
-            },
-            {
-                name: 'Category',
-                value: currentConfig.categoryId ? `<#${currentConfig.categoryId}>` : 'Not set',
-                inline: true
-            },
-            {
-                name: 'System Status',
-                value: currentConfig.enabled ? '✅ Enabled' : '❌ Disabled',
-                inline: true
-            },
-            {
-                name: 'Active Temporary Channels',
-                value: Object.keys(currentConfig.temporaryChannels || {}).length.toString(),
-                inline: true
-            }
-        )
-        .setTimestamp();
 
-    await interaction.followUp({ 
-        embeds: [embed], 
-        flags: MessageFlags.Ephemeral 
+    const card = container({
+        parts: [
+            text('### Current Settings'),
+            text(`Configuration for ${triggerChannel}`),
+            divider(),
+            text([
+                `**Trigger Channel**\n${triggerChannel} (${triggerChannel.id})`,
+                `**Channel Name Template**\n\`${channelConfig.nameTemplate || currentConfig.channelNameTemplate}\``,
+                `**User Limit**\n${channelConfig.userLimit || currentConfig.userLimit === 0 ? 'No limit' : (channelConfig.userLimit || currentConfig.userLimit) + ' users'}`,
+                `**Bitrate**\n${(channelConfig.bitrate || currentConfig.bitrate) / 1000} kbps`,
+                `**Category**\n${currentConfig.categoryId ? `<#${currentConfig.categoryId}>` : 'Not set'}`,
+                `**System Status**\n${currentConfig.enabled ? '✅ Enabled' : '❌ Disabled'}`,
+                `**Active Temporary Channels**\n${Object.keys(currentConfig.temporaryChannels || {}).length.toString()}`,
+            ].join('\n\n')),
+        ],
+    });
+
+    await interaction.followUp({
+        components: [card],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 }

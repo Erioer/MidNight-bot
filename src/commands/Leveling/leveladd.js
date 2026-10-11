@@ -1,9 +1,10 @@
-import { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { checkUserPermissions } from '../../utils/permissionGuard.js';
 import { addLevels, getLevelingConfig } from '../../services/leveling/leveling.js';
-import { createEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { noticeContainer, successContainer } from '../../services/economy/economyViews.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
@@ -40,12 +41,14 @@ export default {
     const levelingConfig = await getLevelingConfig(client, interaction.guildId);
     if (!levelingConfig?.enabled) {
       await InteractionHelper.safeEditReply(interaction, {
-        embeds: [
-          new EmbedBuilder()
-            .setColor('#f1c40f')
-            .setDescription('The leveling system is currently disabled on this server.')
+        components: [
+          noticeContainer({
+            title: 'Leveling Disabled',
+            body: 'The leveling system is currently disabled on this server.',
+          }),
         ],
-        flags: MessageFlags.Ephemeral
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
       return;
     }
@@ -61,17 +64,19 @@ export default {
         'The specified user is not in this server.'
       );
     }
+    const displayName = member.displayName || targetUser.username;
 
     const userData = await addLevels(client, interaction.guildId, targetUser.id, levelsToAdd);
 
     await InteractionHelper.safeEditReply(interaction, {
-      embeds: [
-        createEmbed({
+      components: [
+        successContainer({
           title: 'Levels Added',
-          description: `Successfully added ${levelsToAdd} levels to ${targetUser.tag}.\n**New Level:** ${userData.level}`,
-          color: 'success'
-        })
-      ]
+          body: `Successfully added ${levelsToAdd} levels to **${displayName}**.\n**New Level:** \`${userData.level}\``,
+        }),
+      ],
+      flags: v2Flags(),
+      allowedMentions: NO_PINGS,
     });
 
     logger.info(

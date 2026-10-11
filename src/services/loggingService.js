@@ -3,10 +3,10 @@
 import { ChannelType } from 'discord.js';
 import { getGuildConfig, updateGuildConfig } from './config/guildConfig.js';
 import { logger } from '../utils/logger.js';
+import { NO_PINGS, v2Flags, container, divider, section, text, thumbnail } from '../utils/componentsV2.js';
 import {
   appendContentSection,
   buildLogDescription,
-  buildStandardLogEmbed,
   fieldsToLines,
   splitComparisonFields,
 } from '../utils/logging/logEmbeds.js';
@@ -26,6 +26,8 @@ const EVENT_TYPES = {
   MODERATION_UNLOCK: 'moderation.unlock',
   MODERATION_DM: 'moderation.dm',
   MODERATION_CONFIG: 'moderation.config',
+
+  LOGGING_CONFIG: 'logging.config',
 
   LEVELING_LEVELUP: 'leveling.levelup',
   LEVELING_MILESTONE: 'leveling.milestone',
@@ -60,6 +62,11 @@ const EVENT_TYPES = {
   APPLICATION_REVIEW: 'application.review',
 
   REPORT_FILE: 'report.file',
+
+  COUNTING_BROKEN: 'counting.broken',
+  COUNTING_RESTORED: 'counting.restored',
+  COUNTING_SHIELD_CONSUMED: 'counting.shield',
+  COUNTING_MILESTONE: 'counting.milestone',
 };
 
 const EVENT_COLORS = {
@@ -75,6 +82,7 @@ const EVENT_COLORS = {
   'moderation.unlock': 0x2ecc71,
   'moderation.dm': 0x3498db,
   'moderation.config': 0x5865F2,
+  'logging.config': 0x5865F2,
   'leveling.levelup': 0x00ff00,
   'leveling.milestone': 0xFFD700,
   'message.delete': 0x8b0000,
@@ -100,6 +108,10 @@ const EVENT_COLORS = {
   'application.submit': 0x5865F2,
   'application.review': 0x57F287,
   'report.file': 0xED4245,
+  'counting.broken': 0xe74c3c,
+  'counting.restored': 0x2ecc71,
+  'counting.shield': 0xFEE75C,
+  'counting.milestone': 0xFFD700,
 };
 
 const EVENT_ICONS = {
@@ -115,6 +127,7 @@ const EVENT_ICONS = {
   'moderation.unlock': '🔓',
   'moderation.dm': '✉️',
   'moderation.config': '⚙️',
+  'logging.config': '⚙️',
   'leveling.levelup': '📈',
   'leveling.milestone': '🏆',
   'message.delete': '❌',
@@ -140,6 +153,10 @@ const EVENT_ICONS = {
   'application.submit': '📝',
   'application.review': '📋',
   'report.file': '🚨',
+  'counting.broken': '💥',
+  'counting.restored': '🔄',
+  'counting.shield': '🛡️',
+  'counting.milestone': '🏆',
 };
 
 const CATEGORY_DESTINATION = {
@@ -246,9 +263,9 @@ export async function logEvent({
       return null;
     }
 
-    const embed = createLogEmbed(guild, eventType, data);
+    const card = createLogEmbed(guild, eventType, data);
 
-    const messageOptions = { embeds: [embed] };
+    const messageOptions = { components: [card], flags: v2Flags(), allowedMentions: NO_PINGS };
     if (content) {
       messageOptions.content = content;
     }
@@ -265,7 +282,38 @@ export async function logEvent({
   }
 }
 
-function createLogEmbed(guild, eventType, data) {
+/**
+ * Message-content events carry their own author context — never prepend a
+ * redundant user line to them.
+ */
+const NO_ACTOR_LINE_EVENTS = new Set(['message.delete', 'message.edit', 'message.bulkdelete']);
+
+/**
+ * Resolves a `{ id, displayName?, avatarUrl? }` ref against the guild member
+ * cache. Cache-only: rendering a log card must never fire extra API calls.
+ */
+function resolveAuditIdentity(guild, ref) {
+  if (!ref?.id) {
+    return null;
+  }
+  const member = guild?.members?.cache?.get(ref.id) || null;
+  const user = member?.user || null;
+  return {
+    id: ref.id,
+    display: ref.displayName || member?.displayName || user?.username || null,
+    avatar: ref.avatarUrl || member?.displayAvatarURL?.() || user?.displayAvatarURL?.() || null,
+  };
+}
+
+function formatAuditUserLine(identity) {
+  if (!identity) {
+    return null;
+  }
+  const name = identity.display ? `@${identity.display} ` : '';
+  return `**User:** ${name}(<@${identity.id}>)`;
+}
+
+export function createLogEmbed(guild, eventType, data) {
   const color = data.color ?? EVENT_COLORS[eventType] ?? 0x0099ff;
   const icon = EVENT_ICONS[eventType] || '📌';
   const title = data.title || `${icon} ${formatEventType(eventType)}`;
@@ -321,21 +369,65 @@ function createLogEmbed(guild, eventType, data) {
     description = appendContentSection(description, data.section.title || 'Message', data.section.body);
   }
 
+  // V2 has no side-by-side fields — comparison pairs become labeled lines.
+  const comparisonLines = [];
+  if (data.author?.name) {
+    comparisonLines.push(`**Author:** ${data.author.name}`);
+  }
+  for (const field of inlineFields) {
+    comparisonLines.push(`**${field.name}:** ${field.value}`);
+  }
   if (data.inlineFields?.length) {
-    inlineFields.push(...data.inlineFields);
+    for (const field of data.inlineFields) {
+      comparisonLines.push(`**${field.name}:** ${field.value}`);
+    }
+  }
+  if (data.blockFields?.length) {
+    for (const field of data.blockFields) {
+      comparisonLines.push(`**${field.name}:** ${field.value}`);
+    }
+  }
+  if (comparisonLines.length > 0) {
+    description = `${description}\n\n${comparisonLines.join('\n')}`.trim();
   }
 
-  return buildStandardLogEmbed({
-    color,
-    title,
-    description: description || undefined,
-    thumbnail: data.thumbnail || undefined,
-    inlineFields,
-    fields: data.blockFields || [],
-    author: data.author || null,
-    timestamp: true,
-    footer: data.footer || { text: guild.name, iconURL: guild.iconURL({ dynamic: true }) || undefined },
+  // Attribution: a user→victim action names the victim, avatars them, and
+  // credits the actor in the footer. An actor-only action names the actor.
+  const actor = resolveAuditIdentity(guild, data.actor);
+  const target = resolveAuditIdentity(guild, data.target);
+  const subject = target || (NO_ACTOR_LINE_EVENTS.has(eventType) ? null : actor);
+  const subjectLine = formatAuditUserLine(subject);
+  if (subjectLine) {
+    description = `${subjectLine}\n${description}`.trim();
+  }
+
+  let footerText = guild.name;
+  if (target && actor) {
+    footerText = `Action committed by ${actor.display || `<@${actor.id}>`}`;
+  } else if (data.footer?.text) {
+    footerText = data.footer.text;
+  }
+
+  const avatarUrl = subject?.avatar || data.thumbnail || null;
+  // Text displays cap at 4000 chars (V1 embeds allowed 4096).
+  const body = (description || '—').slice(0, 4000);
+  const head = avatarUrl
+    ? section([text(`### ${icon} ${stripTitleIcon(title)}`), text(body)], thumbnail(avatarUrl))
+    : [text(`### ${icon} ${stripTitleIcon(title)}`), text(body)];
+
+  return container({
+    accentColor: color,
+    parts: [
+      head,
+      divider(),
+      text(`-# ${footerText} • <t:${Math.floor(Date.now() / 1000)}:F>`),
+    ],
   });
+}
+
+/** Titles passed in already carry their icon — don't double it. */
+function stripTitleIcon(title) {
+  return String(title || '').replace(/^[\p{Extended_Pictographic}\uFE0F\s]+/u, '').trim() || title;
 }
 
 function formatEventType(eventType) {

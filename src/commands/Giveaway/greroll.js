@@ -1,12 +1,12 @@
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { errorEmbed, successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getGuildGiveaways, saveGiveaway } from '../../utils/giveaways.js';
 import { 
     selectWinners,
-    createGiveawayEmbed, 
-    createGiveawayButtons 
+    refreshGiveawayMessage
 } from '../../services/giveawayService.js';
 import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -121,13 +121,14 @@ export default {
             logger.warn(`Could not find channel for giveaway ${messageId}, but saved new winners to database`);
 
             return InteractionHelper.safeReply(interaction, {
-                embeds: [
-                    successEmbed(
-                        "Reroll Complete",
-                        "The new winners have been selected and saved to the database. Could not find channel to announce.",
-                    ),
+                components: [
+                    successContainer({
+                        title: 'Reroll Complete',
+                        body: 'The new winners have been selected and saved to the database. Could not find channel to announce.',
+                    }),
                 ],
-                flags: MessageFlags.Ephemeral,
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
         }
 
@@ -175,6 +176,7 @@ export default {
                         description: `Giveaway rerolled: ${giveaway.prize}`,
                         channelId: giveaway.channelId,
                         userId: interaction.user.id,
+                        actor: { id: interaction.user.id },
                         fields: [
                             {
                                 name: 'Prize',
@@ -199,13 +201,14 @@ export default {
             }
 
             return InteractionHelper.safeReply(interaction, {
-                embeds: [
-                    successEmbed(
-                        "Reroll Complete",
-                        `The new winners have been announced in ${channel}. (Original message not found).`,
-                    ),
+                components: [
+                    successContainer({
+                        title: 'Reroll Complete',
+                        body: `The new winners have been announced in ${channel}. (Original message not found).`,
+                    }),
                 ],
-                flags: MessageFlags.Ephemeral,
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
         }
 
@@ -215,14 +218,7 @@ export default {
             updatedGiveaway,
         );
 
-        const newEmbed = createGiveawayEmbed(updatedGiveaway, "reroll", newWinners);
-        const newRow = createGiveawayButtons(true);
-
-        await message.edit({
-            content: "🔄 **GIVEAWAY REROLLED** 🔄",
-            embeds: [newEmbed],
-            components: [newRow],
-        });
+        await refreshGiveawayMessage(interaction.client, interaction.guildId, updatedGiveaway, 'reroll', newWinners);
 
         const winnerMentions = newWinners
             .map((id) => `<@${id}>`)
@@ -277,13 +273,14 @@ export default {
         }
 
         return InteractionHelper.safeReply(interaction, {
-            embeds: [
-                successEmbed(
-                    "Reroll Successful ✅",
-                    `Successfully rerolled the giveaway for **${giveaway.prize}** in ${channel}. Selected ${newWinners.length} new winner(s).`,
-                ),
+            components: [
+                successContainer({
+                    title: 'Reroll Successful',
+                    body: `Successfully rerolled the giveaway for **${giveaway.prize}** in ${channel}. Selected ${newWinners.length} new winner(s).`,
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
     },
 };

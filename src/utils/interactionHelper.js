@@ -266,7 +266,7 @@ export class InteractionHelper {
         }
     }
 
-    static async safeExecute(interaction, commandFunction, errorEmbed, options = {}) {
+    static async safeExecute(interaction, commandFunction, errorMessage, options = {}) {
         const autoDeferDefault = !interaction._isPrefixCommand;
         const { autoDefer = autoDeferDefault, deferOptions = { flags: MessageFlags.Ephemeral } } = options;
 
@@ -303,8 +303,8 @@ export class InteractionHelper {
                 return;
             }
 
-            const errorToHandle = typeof errorEmbed === 'string'
-                ? createError(error.message || 'Command failed', ErrorTypes.UNKNOWN, errorEmbed, { expected: true })
+            const errorToHandle = typeof errorMessage === 'string'
+                ? createError(error.message || 'Command failed', ErrorTypes.UNKNOWN, errorMessage, { expected: true })
                 : error;
 
             await handleInteractionError(interaction, errorToHandle, { source: 'interactionHelper.safeExecute' });

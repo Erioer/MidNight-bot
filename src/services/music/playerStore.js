@@ -2,8 +2,18 @@
 
 export class GuildMusicData {
     constructor() {
+        this.playerMessage = null;
         this.playerMessageId = null;
         this.playerChannelId = null;
+        this.summaryMessageId = null;
+        this.summaryChannelId = null;
+        this.summaryTimeout = null;
+        this.summaryExpiresAt = 0;
+        this.lastTrackTitle = null;
+        this.lastTrackInfo = null;
+        this.lastSessionStats = null;
+        this.sessionTrackCount = 0;
+        this.filterPreset = 'clear';
         this.autoplay = false;
         this.loop = 'none';
         this.volume = 75;
@@ -33,6 +43,20 @@ export function clearUpdateInterval(guildData) {
     }
 }
 
+export function clearSummaryTimeout(guildData) {
+    if (guildData.summaryTimeout) {
+        clearTimeout(guildData.summaryTimeout);
+        guildData.summaryTimeout = null;
+    }
+}
+
+export function clearSummaryState(guildData) {
+    clearSummaryTimeout(guildData);
+    guildData.summaryMessageId = null;
+    guildData.summaryChannelId = null;
+    guildData.summaryExpiresAt = 0;
+}
+
 const guildStore = new Map();
 
 export function getGuildMusicData(guildId) {
@@ -50,6 +74,7 @@ export function deleteGuildMusicData(guildId) {
             clearTimeout(guildData.idleTimeout);
         }
         clearAutoLeaveTimer(guildData);
+        clearSummaryTimeout(guildData);
     }
     guildStore.delete(guildId);
 }

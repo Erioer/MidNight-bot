@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
-import { getColor } from '../../config/bot.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 export default {
     data: new SlashCommandBuilder()
@@ -15,17 +15,18 @@ export default {
                 const now = new Date();
                 const unixTimestamp = Math.floor(now.getTime() / 1000);
 
-                const embed = successEmbed(
-                    '⏱️ Current Unix Timestamp',
-                    `**Seconds since Unix Epoch:** \`${unixTimestamp}\`\n` +
+                const unixContainer = successContainer({
+                    title: '⏱️ Current Unix Timestamp',
+                    body: `**Seconds since Unix Epoch:** \`${unixTimestamp}\`\n` +
                     `**Milliseconds since Unix Epoch:** \`${now.getTime()}\`\n\n` +
                     `**Human-readable (UTC):** ${now.toUTCString()}\n` +
-                    `**ISO String:** ${now.toISOString()}`
-                );
-                embed.setColor(getColor('success'));
+                    `**ISO String:** ${now.toISOString()}`,
+                });
 
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [embed],
+                    components: [unixContainer],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
             },
             'Failed to get unix timestamp. Please try again.',

@@ -1,7 +1,8 @@
-import { EmbedBuilder } from 'discord.js';
 import { getUpcomingBirthdays } from '../../../services/birthdayService.js';
 import { deleteBirthday } from '../../../utils/database.js';
 import { logger } from '../../../utils/logger.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { failureContainer, successContainer } from '../../../services/economy/economyViews.js';
 
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 export default {
@@ -11,12 +12,14 @@ export default {
         const next5 = await getUpcomingBirthdays(client, interaction.guildId, 5);
 
         if (next5.length === 0) {
-            const embed = new EmbedBuilder()
-                .setColor(0xFF0000)
-                .setTitle('No Birthdays Found')
-                .setDescription('No birthdays have been set up in this server yet. Use `/birthday set` to add birthdays!');
+            const card = failureContainer({
+                title: 'No Birthdays Found',
+                body: 'No birthdays have been set up in this server yet. Use `/birthday set` to add birthdays!',
+            });
             return await InteractionHelper.safeEditReply(interaction, {
-                embeds: [embed]
+                components: [card],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
         }
 
@@ -40,12 +43,14 @@ export default {
         }
 
         if (displayIndex === 0) {
-            const embed = new EmbedBuilder()
-                .setColor(0xFF0000)
-                .setTitle('No Upcoming Birthdays')
-                .setDescription('No upcoming birthdays found for current server members.');
+            const card = failureContainer({
+                title: 'No Upcoming Birthdays',
+                body: 'No upcoming birthdays found for current server members.',
+            });
             return await InteractionHelper.safeEditReply(interaction, {
-                embeds: [embed]
+                components: [card],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
         }
 
@@ -72,13 +77,15 @@ export default {
 
         birthdayList += `Use /birthday set to add your birthday!`;
 
-        const embed = new EmbedBuilder()
-            .setColor(0x00FF00)
-            .setTitle('Next 5 Upcoming Birthdays')
-            .setDescription(birthdayList);
+        const card = successContainer({
+            title: 'Next 5 Upcoming Birthdays',
+            body: birthdayList,
+        });
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [embed]
+            components: [card],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
 
         logger.info('Next birthdays retrieved successfully', {

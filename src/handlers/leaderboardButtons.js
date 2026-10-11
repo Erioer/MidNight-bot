@@ -129,6 +129,7 @@ export const levelRankHandler = {
 
       const userData = await getUserLevelData(client, interaction.guildId, userId);
       const level = userData?.level ?? 0;
+      const economyData = await getEconomyData(client, interaction.guildId, userId).catch(() => null);
 
       await interaction.reply({
         components: [
@@ -139,6 +140,7 @@ export const levelRankHandler = {
             xp: userData?.xp ?? 0,
             totalXp: userData?.totalXp ?? 0,
             xpNeeded: getXpForLevel(level + 1),
+            boostExpiresAt: Number(economyData?.xpBoostExpiresAt) || 0,
             isSelf: userId === interaction.user.id,
           }),
         ],

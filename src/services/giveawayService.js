@@ -1,9 +1,11 @@
 // giveawayService.js
 
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { logger } from '../utils/logger.js';
+import { NO_PINGS, container, divider, text } from '../utils/componentsV2.js';
+import { ECONOMY_ACCENT } from './economy/economyViews.js';
 import { MidNightError, ErrorTypes } from '../utils/errorHandler.js';
-import { getColor, botConfig } from '../config/bot.js';
+import { botConfig } from '../config/bot.js';
 import { getEndedGiveaways, markGiveawayEnded } from '../utils/database.js';
 import { checkRateLimit, getRateLimitStatus } from '../utils/rateLimiter.js';
 import { logEvent, EVENT_TYPES } from './loggingService.js';
@@ -132,39 +134,48 @@ export function validateWinnerCount(winnerCount) {
     }
 }
 
-export function createGiveawayEmbed(giveaway, status, winners = []) {
+export function buildGiveawayContainer(giveaway, status, winners = []) {
     try {
-        const statusEmoji = status === 'ended' ? '🎉' : status === 'reroll' ? '🔄' : '🎉';
         const isEnded = status === 'ended' || status === 'reroll';
-        const color = isEnded ? getColor('giveaway.ended') : getColor('giveaway.active');
-        
-        const embed = new EmbedBuilder()
-            .setTitle(`${statusEmoji} ${giveaway.prize}`)
-            .setDescription('React with the button below to enter!')
-            .setColor(color)
-            .addFields(
-                { name: '👤 Hosted by', value: `<@${giveaway.hostId}>`, inline: true },
-                { name: '🏆 Winners', value: giveaway.winnerCount.toString(), inline: true },
-                { name: '👥 Entries', value: giveaway.participants?.length?.toString() || '0', inline: true }
-            );
+        const stateLine = status === 'reroll'
+            ? '🔄 **GIVEAWAY REROLLED** 🔄'
+            : isEnded
+                ? '🎉 **GIVEAWAY ENDED** 🎉'
+                : 'React with the button below to enter!';
+
+        const statsLine = [
+            `**Hosted by:** <@${giveaway.hostId}>`,
+            `**Winners:** ${giveaway.winnerCount}`,
+            `**Entries:** ${giveaway.participants?.length || 0}`,
+        ].join(' • ');
+
+        const lines = [stateLine, '', statsLine];
 
         if (isEnded) {
-            const winnerDisplay = winners.length > 0 
-                ? winners.map(id => `<@${id}>`).join(', ')
+            const winnerDisplay = winners.length > 0
+                ? winners.map((id) => `<@${id}>`).join(', ')
                 : 'No valid entries';
-            embed.addFields({ name: '🎯 Winners', value: winnerDisplay, inline: false });
-        } else {
-            const endTime = giveaway.endsAt || giveaway.endTime;
-            embed.addFields({ name: '⏰ Ends', value: `<t:${Math.floor(endTime / 1000)}:R>`, inline: false });
+            lines.push('', `**Winners:** ${winnerDisplay}`);
         }
 
-        embed.setTimestamp();
-        
-        return embed;
+        const endTime = giveaway.endsAt || giveaway.endTime;
+        const footer = isEnded
+            ? `-# Ended${giveaway.endedAt ? ` <t:${Math.floor(new Date(giveaway.endedAt).getTime() / 1000)}:F>` : ''} • Hosted by <@${giveaway.hostId}>`
+            : `-# Ends <t:${Math.floor(endTime / 1000)}:R> • Hosted by <@${giveaway.hostId}>`;
+
+        return container({
+            accentColor: isEnded && winners.length > 0 ? ECONOMY_ACCENT.SUCCESS : undefined,
+            parts: [
+                text(`### 🎉 ${giveaway.prize}`),
+                text(lines.join('\n').slice(0, 3500)),
+                divider(),
+                text(footer),
+            ],
+        });
     } catch (error) {
-        logger.error('Error creating giveaway embed:', error);
+        logger.error('Error creating giveaway container:', error);
         throw new MidNightError(
-            'Failed to create giveaway embed',
+            'Failed to create giveaway card',
             ErrorTypes.UNKNOWN,
             'An internal error occurred while formatting the giveaway.',
             { error: error.message }
@@ -180,12 +191,12 @@ export function createGiveawayButtons(ended = false) {
             row.addComponents(
                 new ButtonBuilder()
                     .setCustomId('giveaway_reroll')
-                    .setLabel('🎲 Reroll')
+                    .setLabel('Reroll')
                     .setStyle(ButtonStyle.Secondary)
                     .setDisabled(false),
                 new ButtonBuilder()
                     .setCustomId('giveaway_view')
-                    .setLabel('👁️ View Winners')
+                    .setLabel('View Winners')
                     .setStyle(ButtonStyle.Primary)
                     .setDisabled(false)
             );
@@ -193,12 +204,12 @@ export function createGiveawayButtons(ended = false) {
             row.addComponents(
                 new ButtonBuilder()
                     .setCustomId('giveaway_join')
-                    .setLabel('🎉 Join')
+                    .setLabel('Join')
                     .setStyle(ButtonStyle.Primary)
                     .setDisabled(false),
                 new ButtonBuilder()
                     .setCustomId('giveaway_end')
-                    .setLabel('🛑 End')
+                    .setLabel('End')
                     .setStyle(ButtonStyle.Danger)
                     .setDisabled(false)
             );
@@ -214,6 +225,58 @@ export function createGiveawayButtons(ended = false) {
             { error: error.message }
         );
     }
+}
+
+/**
+ * Refreshes a giveaway's public card. Existing cards predate Components V2
+ * and cannot be edited into V2 — on edit failure the message is replaced and
+ * the stored message ID updated so buttons keep resolving.
+ */
+export async function refreshGiveawayMessage(client, guildId, giveaway, status, winners = []) {
+    const channel = client.channels.cache.get(giveaway.channelId)
+        ?? await client.channels.fetch(giveaway.channelId).catch(() => null);
+    if (!channel?.isTextBased?.()) {
+        throw new MidNightError(
+            'Giveaway channel unavailable',
+            ErrorTypes.VALIDATION,
+            'Could not find the channel where the giveaway was hosted.',
+            { channelId: giveaway.channelId }
+        );
+    }
+
+    const card = buildGiveawayContainer(giveaway, status, winners);
+    const row = createGiveawayButtons(status !== 'active');
+    const payload = {
+        components: [card, row],
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
+    };
+
+    const existing = giveaway.messageId
+        ? await channel.messages.fetch(giveaway.messageId).catch(() => null)
+        : null;
+
+    if (existing) {
+        try {
+            await existing.edit(payload);
+            return existing;
+        } catch {
+            // V1 message: fall through to delete + resend below.
+        }
+    }
+
+    const fresh = await channel.send(payload);
+    if (existing) {
+        await existing.delete().catch(() => null);
+    }
+    const previousMessageId = giveaway.messageId;
+    giveaway.messageId = fresh.id;
+    const { saveGiveaway, deleteGiveaway } = await import('../utils/giveaways.js');
+    await saveGiveaway(client, guildId, giveaway).catch(() => null);
+    if (existing && previousMessageId && previousMessageId !== fresh.id) {
+        await deleteGiveaway(client, guildId, previousMessageId).catch(() => null);
+    }
+    return fresh;
 }
 
 export function selectWinners(participants, winnerCount) {
@@ -369,17 +432,12 @@ export async function checkGiveaways(client) {
           ? winners.map(id => `<@${id}>`).join(', ')
           : 'No valid entries!';
 
-        const endedEmbed = createGiveawayEmbed(giveaway, 'ended', winners);
-
-        await message.edit({
-          embeds: [endedEmbed],
-          components: [createGiveawayButtons(true)]
-        });
-
         giveaway.ended = true;
         giveaway.isEnded = true;
         giveaway.winnerIds = winners;
         giveaway.endedAt = new Date().toISOString();
+
+        await refreshGiveawayMessage(client, guildId, giveaway, 'ended', winners);
 
         const markedSuccess = await markGiveawayEnded(client, giveawayId, giveaway);
         if (!markedSuccess) {

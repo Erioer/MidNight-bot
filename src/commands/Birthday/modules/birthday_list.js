@@ -1,7 +1,8 @@
-import { EmbedBuilder } from 'discord.js';
 import { getAllBirthdays } from '../../../services/birthdayService.js';
 import { deleteBirthday } from '../../../utils/database.js';
 import { logger } from '../../../utils/logger.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { failureContainer, successContainer } from '../../../services/economy/economyViews.js';
 
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 export default {
@@ -13,12 +14,14 @@ export default {
         const sortedBirthdays = await getAllBirthdays(client, guildId);
 
         if (sortedBirthdays.length === 0) {
-            const embed = new EmbedBuilder()
-                .setColor(0xFF0000)
-                .setTitle('No Birthdays')
-                .setDescription('No birthdays have been set in this server yet.');
+            const card = failureContainer({
+                title: 'No Birthdays',
+                body: 'No birthdays have been set in this server yet.',
+            });
             return await InteractionHelper.safeEditReply(interaction, {
-                embeds: [embed]
+                components: [card],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
         }
 
@@ -45,24 +48,28 @@ export default {
         }
 
         if (displayIndex === 0) {
-            const embed = new EmbedBuilder()
-                .setColor(0xFF0000)
-                .setTitle('No Birthdays')
-                .setDescription('No birthdays have been set by current server members.');
+            const card = failureContainer({
+                title: 'No Birthdays',
+                body: 'No birthdays have been set by current server members.',
+            });
             return await InteractionHelper.safeEditReply(interaction, {
-                embeds: [embed]
+                components: [card],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
         }
 
         birthdayList = `**${displayIndex} birthday${displayIndex !== 1 ? 's' : ''} in ${interaction.guild.name}**\n\n` + birthdayList;
 
-        const embed = new EmbedBuilder()
-            .setColor(0x00FF00)
-            .setTitle('Server Birthdays')
-            .setDescription(`${birthdayList}\n\nTotal: ${displayIndex} birthday${displayIndex !== 1 ? 's' : ''}`);
+        const card = successContainer({
+            title: 'Server Birthdays',
+            body: `${birthdayList}\n\nTotal: ${displayIndex} birthday${displayIndex !== 1 ? 's' : ''}`,
+        });
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [embed]
+            components: [card],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
 
         logger.info('Birthday list retrieved successfully', {

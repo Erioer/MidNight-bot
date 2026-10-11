@@ -1,7 +1,7 @@
 // leveling.js
 
-import { EmbedBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
+import { container, text } from '../../utils/componentsV2.js';
 import { getGuildConfig, setGuildConfig } from '../config/guildConfig.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { addXp } from './xpSystem.js';
@@ -131,35 +131,43 @@ export async function getLeaderboardSnapshot(client, guildId, limit = 10) {
   };
 }
 
-export function createLeaderboardEmbed(leaderboard, guild) {
-  const embed = new EmbedBuilder()
-    .setTitle(`🏆 ${guild.name} Leaderboard`)
-    .setColor('#2ecc71')
-    .setTimestamp();
-    
+export function createLeaderboardContainer(leaderboard, guild) {
+  const title = `## 🏆 ${guild.name} Leaderboard`;
+
   if (!leaderboard || leaderboard.length === 0) {
-    embed.setDescription('No users on the leaderboard yet!');
-    return embed;
+    return container({
+      parts: [
+        text(title),
+        text('No users on the leaderboard yet!'),
+      ],
+    });
   }
-  
+
   const top3 = leaderboard.slice(0, 3);
   const rest = leaderboard.slice(3);
-  
+
   const top3Text = top3.map((user, index) => {
     const medal = ['🥇', '🥈', '🥉'][index];
     return `${medal} **#${user.rank}** ${user.username} - Level ${user.level} (${user.totalXp} XP)`;
   }).join('\n');
-  
+
   const restText = rest.map(user => {
     return `**#${user.rank}** ${user.username} - Level ${user.level} (${user.totalXp} XP)`;
   }).join('\n');
-  
-  embed.setDescription(
-    `**Top Members**\n${top3Text}${restText ? '\n\n' + restText : ''}`
-  );
-  
-  return embed;
+
+  return container({
+    parts: [
+      text(title),
+      text(
+        `**Top Members**\n${top3Text}${restText ? '\n\n' + restText : ''}`
+      ),
+    ],
+  });
 }
+
+// Backward-compatible alias: the V1 embed builder was renamed when the
+// leaderboard card moved to Components V2.
+export const createLeaderboardEmbed = createLeaderboardContainer;
 
 export async function getLevelingConfig(client, guildId) {
   try {

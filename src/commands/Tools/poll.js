@@ -1,7 +1,6 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed, errorEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
-import { getColor } from '../../config/bot.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 const EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 const MAX_OPTIONS = 10;
@@ -93,12 +92,12 @@ export default {
             description += '\n*React with the emoji to vote!*';
         }
 
-        const embed = successEmbed(
-            `📊 ${isAnonymous ? 'Anonymous ' : ''}Poll`,
-            description
-        );
+        const pollContainer = successContainer({
+            title: `📊 ${isAnonymous ? 'Anonymous ' : ''}Poll`,
+            body: description,
+        });
 
-        const message = await interaction.channel.send({ embeds: [embed] });
+        const message = await interaction.channel.send({ components: [pollContainer], flags: MessageFlags.IsComponentsV2 });
 
         for (let i = 0; i < options.length; i++) {
             await message.react(EMOJIS[i]);

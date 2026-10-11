@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logModerationAction } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { ModerationService } from '../../services/moderation/moderationService.js';
@@ -162,15 +163,21 @@ export default {
                 });
             }
 
-            const embed = results.successful.length > 0 ? successEmbed : warningEmbed;
-            
+            const isSuccess = results.successful.length > 0;
+            const resultContainer = isSuccess
+                ? successContainer({
+                    title: `👢 Mass Kick Completed`,
+                    body: description,
+                })
+                : container({
+                    accentColor: 16705372,
+                    parts: [text(`### 👢 Mass Kick Completed`), text(description)],
+                });
+
             return await InteractionHelper.safeEditReply(interaction, {
-                embeds: [
-                    embed(
-                        `👢 Mass Kick Completed`,
-                        description
-                    )
-                ]
+                components: [resultContainer],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
 
         } catch (error) {

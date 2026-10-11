@@ -1,4 +1,6 @@
-import { successEmbed } from '../../utils/embeds.js';
+﻿import { MessageFlags } from 'discord.js';
+import { success } from './musicEmbeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
 import { getGuildMusicData, clearAutoLeaveTimer } from './playerStore.js';
 import { applyPause, applyResume, getPlayer, destroyPlayerSession } from './musicActions.js';
 import { clearVoiceChannelStatus } from './voiceStatus.js';
@@ -12,7 +14,7 @@ async function sendPlayerMessage(client, channelId, embed) {
     }
     const channel = client.channels.cache.get(channelId);
     if (channel) {
-        channel.send({ embeds: [embed] }).catch(() => null);
+        channel.send({ components: [embed], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS }).catch(() => null);
     }
 }
 
@@ -37,7 +39,19 @@ function scheduleAutoLeave(client, guildId, guildData) {
                 return;
             }
             clearVoiceChannelStatus(client, guildId).catch(() => null);
-            await destroyPlayerSession(client, guildId, player, getGuildMusicData(guildId), { forceDisconnect: true });
+            const sessionData = getGuildMusicData(guildId);
+            const lastTitle = player.current?.info?.title || sessionData.lastTrackTitle;
+            await destroyPlayerSession(client, guildId, player, sessionData, {
+                forceDisconnect: true,
+                summary: sessionData.summaryMessageId
+                    ? null
+                    : {
+                        title: 'Disconnected from Voice Channel',
+                        body: lastTitle
+                            ? `Voice channel is empty. Last played **${lastTitle}**.\nSession tracks played: **${sessionData.sessionTrackCount}**.`
+                            : 'Voice channel is empty. The bot left to save resources.',
+                    },
+            });
         } catch (error) {
             logger.error(`Auto-leave failed for guild ${guildId}:`, error);
         }
@@ -73,7 +87,7 @@ export async function handleMusicVoiceState(client, oldState, newState) {
             if (!player.paused && player.playing) {
                 guildData.autoPaused = true;
                 await applyPause(client, guildId);
-                await sendPlayerMessage(client, guildData.playerChannelId, successEmbed('Paused', 'Voice channel is empty. Music paused until someone joins.'));
+                await sendPlayerMessage(client, guildData.playerChannelId, success('Paused', 'Voice channel is empty. Music paused until someone joins.'));
             }
             return;
         }
@@ -87,6 +101,7 @@ export async function handleMusicVoiceState(client, oldState, newState) {
     if (guildData.autoPaused && player.paused) {
         await applyResume(client, guildId);
         guildData.autoPaused = false;
-        await sendPlayerMessage(client, guildData.playerChannelId, successEmbed('Resumed', 'Someone joined the voice channel. Playback resumed.'));
+        await sendPlayerMessage(client, guildData.playerChannelId, success('Resumed', 'Someone joined the voice channel. Playback resumed.'));
     }
 }
+

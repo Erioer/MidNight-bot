@@ -271,7 +271,6 @@ commands:
     isPrefixEnabled: false
   ping:
   stats:
-  uptime:
   support:
 
   # ========================
@@ -414,7 +413,8 @@ commands:
   music:
     # subcommands: pause, resume, skip, stop, shuffle, loop,
     #              volume, seek, remove, move, clear, leave, 247,
-    #              ping, likes add, likes list, likes remove,
+    #              ping, autoplay, filter, search,
+    #              likes add, likes list, likes remove,
     #              likes play
   nowplaying:
   play:
@@ -435,7 +435,7 @@ commands:
   # Search
   # ========================
   search:
-    # subcommands: define, google, urban
+    # subcommands: define, duckduckgo, urban
 
   # ========================
   # ServerStats

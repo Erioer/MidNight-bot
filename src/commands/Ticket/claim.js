@@ -1,6 +1,7 @@
 import { getColor } from '../../config/bot.js';
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -13,7 +14,7 @@ export default {
         .setDMPermission(false),
 
     async execute(interaction, guildConfig, client) {
-        const deferred = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+        const deferred = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
         if (!deferred) {
             return;
         }
@@ -30,12 +31,14 @@ export default {
         await claimTicket(interaction.channel, interaction.user);
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [
-                successEmbed(
-                    "Ticket Claimed!",
-                    "You have successfully claimed this ticket.",
-                ),
+            components: [
+                successContainer({
+                    title: "Ticket Claimed!",
+                    body: "You have successfully claimed this ticket.",
+                }),
             ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
 
         logger.info('Ticket claimed successfully', {

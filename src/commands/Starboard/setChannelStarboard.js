@@ -14,7 +14,8 @@
 // command in the bot.
 
 import { PermissionFlagsBits, ChannelType } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { failureContainer, noticeContainer, successContainer } from '../../services/economy/economyViews.js';
 import { getStarboardConfig, saveStarboardConfig } from '../../services/starboard/starboardStore.js';
 import { parseEmojiInput, displayEmoji } from '../../services/starboard/emoji.js';
 
@@ -42,7 +43,9 @@ export default {
     const guild = interaction.guild;
     if (!guild) {
       return interaction.reply({
-        embeds: [createEmbed({ title: 'Server Only', description: 'This command can only be used in a server.', color: 'error' })],
+        components: [failureContainer({ title: 'Server Only', body: 'This command can only be used in a server.' })],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
@@ -50,18 +53,21 @@ export default {
     const existingConfig = await getStarboardConfig(guild.id);
     if (existingConfig) {
       return interaction.reply({
-        embeds: [createEmbed({
+        components: [noticeContainer({
           title: 'Starboard Already Configured',
-          description: 'A starboard is already configured for this server. Run `$removeStarboard` first if you want to reconfigure it.',
-          color: 'warning',
+          body: 'A starboard is already configured for this server. Run `$removeStarboard` first if you want to reconfigure it.',
         })],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
     const channel = await interaction.options.getChannel('channel');
     if (!channel || !ALLOWED_CHANNEL_TYPES.includes(channel.type)) {
       return interaction.reply({
-        embeds: [createEmbed({ title: 'Invalid Channel', description: 'Please mention a valid text channel for the starboard.', color: 'error' })],
+        components: [failureContainer({ title: 'Invalid Channel', body: 'Please mention a valid text channel for the starboard.' })],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
@@ -75,33 +81,30 @@ export default {
     ];
     if (!channelPerms || !requiredPerms.every((p) => channelPerms.has(p))) {
       return interaction.reply({
-        embeds: [createEmbed({
+        components: [failureContainer({
           title: 'Missing Permissions',
-          description: `I need **View Channel**, **Send Messages**, **Embed Links**, and **Read Message History** permissions in ${channel} to run the starboard there.`,
-          color: 'error',
+          body: `I need **View Channel**, **Send Messages**, **Embed Links**, and **Read Message History** permissions in ${channel} to run the starboard there.`,
         })],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
     const parsedEmoji = parseEmojiInput(interaction.options.getString('emoji'));
     if (!parsedEmoji) {
       return interaction.reply({
-        embeds: [createEmbed({
-          title: 'Invalid Emoji',
-          description: "That doesn't look like a valid emoji. Use a standard emoji (e.g. ⭐) or a custom server emoji.",
-          color: 'error',
-        })],
+        components: [failureContainer({ title: 'Invalid Emoji', body: "That doesn't look like a valid emoji. Use a standard emoji (e.g. ⭐) or a custom server emoji." })],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
     const threshold = interaction.options.getInteger('threshold');
     if (!Number.isInteger(threshold) || threshold < MIN_THRESHOLD || threshold > MAX_THRESHOLD) {
       return interaction.reply({
-        embeds: [createEmbed({
-          title: 'Invalid Threshold',
-          description: `Threshold must be a whole number between ${MIN_THRESHOLD} and ${MAX_THRESHOLD}.`,
-          color: 'error',
-        })],
+        components: [failureContainer({ title: 'Invalid Threshold', body: `Threshold must be a whole number between ${MIN_THRESHOLD} and ${MAX_THRESHOLD}.` })],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
@@ -112,11 +115,12 @@ export default {
     });
 
     return interaction.reply({
-      embeds: [createEmbed({
+      components: [successContainer({
         title: 'Starboard Configured',
-        description: `Messages with **${threshold}+** ${displayEmoji(parsedEmoji)} reactions will be posted to ${channel}.`,
-        color: 'success',
+        body: `Messages with **${threshold}+** ${displayEmoji(parsedEmoji)} reactions will be posted to ${channel}.`,
       })],
+      flags: v2Flags(),
+      allowedMentions: NO_PINGS,
     });
   },
 };

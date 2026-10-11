@@ -1,7 +1,7 @@
-import { createEmbed } from '../../utils/embeds.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { logger } from '../../utils/logger.js';
 import { fetchJson } from '../../services/fun/funApi.js';
+import { NO_PINGS, container, text, v2Flags } from '../../utils/componentsV2.js';
 
 const DOG_FACT_URL = 'https://dogapi.dog/api/v2/facts';
 
@@ -19,7 +19,9 @@ export default {
       const data = await fetchJson(DOG_FACT_URL);
       const fact = data.data?.[0]?.attributes?.body || 'No dog facts available right now.';
       return interaction.reply({
-        embeds: [createEmbed({ title: 'Dog Fact', description: fact, color: 'primary' })],
+        components: [container({ parts: [text('### Dog Fact'), text(fact)] })],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     } catch (error) {
       logger.error('Dog fact command API error:', error);

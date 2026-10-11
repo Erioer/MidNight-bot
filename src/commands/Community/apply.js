@@ -1,6 +1,5 @@
-import { getColor, getDefaultApplicationQuestions } from '../../config/bot.js';
+import { getDefaultApplicationQuestions } from '../../config/bot.js';
 import { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
-import { createEmbed, successEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { handleInteractionError, withErrorHandling, createError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
 import ApplicationService from '../../services/applicationService.js';
@@ -8,6 +7,8 @@ import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { logEvent, EVENT_TYPES, resolveApplicationLogChannel } from '../../services/loggingService.js';
 import { formatLogLine, resolveUserAuthor } from '../../utils/logging/logEmbeds.js';
 import { getGuildConfig } from '../../services/config/guildConfig.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { 
     getApplicationSettings, 
     getUserApplications, 
@@ -162,14 +163,14 @@ export async function handleApplicationModal(interaction) {
             answers: answers
         });
         
-        const embed = successEmbed(
-            'Application Submitted',
-            `Your application for **${applicationRole.name}** has been submitted successfully!\n\n` +
+        const successView = successContainer({
+            title: 'Application Submitted',
+            body: `Your application for **${applicationRole.name}** has been submitted successfully!\n\n` +
             `Application ID: \`${application.id}\`\n` +
-            `You can check the status with \`/apply status id:${application.id}\``
-        );
-        
-        await InteractionHelper.safeEditReply(interaction, { embeds: [embed], flags: ["Ephemeral"] });
+            `You can check the status with \`/apply status id:${application.id}\``,
+        });
+
+        await InteractionHelper.safeEditReply(interaction, { components: [successView], flags: v2Flags(), allowedMentions: NO_PINGS });
         
         const settings = await getApplicationSettings(interaction.client, interaction.guild.id);
         const roleSettings = await getApplicationRoleSettings(interaction.client, interaction.guild.id, roleId);
@@ -230,26 +231,25 @@ async function handleList(interaction) {
             return await replyUserError(interaction, { type: ErrorTypes.USER_INPUT, message: 'No applications are currently available.' });
         }
 
-        const embed = createEmbed({
-            title: "Available Applications",
-            description: "Here are the roles you can apply for:"
-        });
-
-        applicationRoles.forEach((appRole, index) => {
+        const roleLines = applicationRoles.map((appRole, index) => {
             const role = interaction.guild.roles.cache.get(appRole.roleId);
-            embed.addFields({
-                name: `${index + 1}. ${appRole.name}`,
-                value: `**Role:** ${role ?`<@&${appRole.roleId}>`: 'Role not found'}\n` +
-                       `**Apply with:** \`/apply submit application:"${appRole.name}"\``,
-                inline: false
-            });
+            return `**${index + 1}. ${appRole.name}**\n**Role:** ${role ?`<@&${appRole.roleId}>`: 'Role not found'}\n**Apply with:** \`/apply submit application:"${appRole.name}"\``;
         });
 
-        embed.setFooter({
-            text: "Use /apply submit application:<name> to apply for any of these roles."
+        return InteractionHelper.safeEditReply(interaction, {
+            components: [
+                container({
+                    parts: [
+                        text('### Available Applications'),
+                        text('Here are the roles you can apply for:'),
+                        divider(),
+                        text(roleLines.join('\n\n')),
+                    ],
+                }),
+            ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
-
-        return InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
     } catch (error) {
         logger.error('Error listing applications:', {
             error: error.message,
@@ -344,15 +344,22 @@ async function handleStatus(interaction) {
             ? submittedAt.toLocaleString()
             : 'Unknown date';
         const statusView = getApplicationStatusPresentation(application.status);
-        const embed = createEmbed({
-            title: `Application #${application.id} - ${application.roleName || 'Unknown Role'}`,
-            description:
-                `**Application ID:** \`${application.id}\`\n` +
-                `**Status:** ${statusView.statusEmoji} ${statusView.statusLabel}\n` +
-                `**Submitted:** ${submittedAtDisplay}`
+        return InteractionHelper.safeEditReply(interaction, {
+            components: [
+                container({
+                    parts: [
+                        text(`### Application #${application.id} - ${application.roleName || 'Unknown Role'}`),
+                        text(
+                            `**Application ID:** \`${application.id}\`\n` +
+                            `**Status:** ${statusView.statusEmoji} ${statusView.statusLabel}\n` +
+                            `**Submitted:** ${submittedAtDisplay}`
+                        ),
+                    ],
+                }),
+            ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
-
-        return InteractionHelper.safeEditReply(interaction, { embeds: [embed], flags: ["Ephemeral"] });
     } else {
         const applications = await getUserApplications(
             interaction.client,
@@ -368,32 +375,35 @@ async function handleStatus(interaction) {
             .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
             .slice(0, 10);
 
-        const embed = createEmbed({
-            title: "Your Applications",
-            description: `Showing ${recentApplications.length} recent application(s).`
-        });
-
-        recentApplications.forEach((application) => {
+        const appLines = recentApplications.map((application) => {
             const submittedAt = application?.createdAt ? new Date(application.createdAt) : null;
             const submittedAtDisplay = submittedAt && !Number.isNaN(submittedAt.getTime())
                 ? submittedAt.toLocaleDateString()
                 : 'Unknown date';
             const statusView = getApplicationStatusPresentation(application.status);
 
-            embed.addFields({
-                name: `${statusView.statusEmoji} ${application.roleName || 'Unknown Role'} (${statusView.statusLabel})`,
-                value:
-                    `**ID:** \`${application.id}\`\n` +
-                    `**Status:** ${statusView.statusEmoji} ${statusView.statusLabel}\n` +
-                    `**Submitted:** ${submittedAtDisplay}`,
-                inline: true,
-            });
+            return (
+                `**${statusView.statusEmoji} ${application.roleName || 'Unknown Role'} (${statusView.statusLabel})**\n` +
+                `**ID:** \`${application.id}\`\n` +
+                `**Status:** ${statusView.statusEmoji} ${statusView.statusLabel}\n` +
+                `**Submitted:** ${submittedAtDisplay}`
+            );
         });
 
+        const parts = [
+            text('### Your Applications'),
+            text(`Showing ${recentApplications.length} recent application(s).`),
+            divider(),
+            text(appLines.join('\n\n')),
+        ];
         if (applications.length > recentApplications.length) {
-            embed.setFooter({ text: `Showing latest ${recentApplications.length} of ${applications.length} applications.` });
+            parts.push(text(`-# Showing latest ${recentApplications.length} of ${applications.length} applications.`));
         }
 
-        return InteractionHelper.safeEditReply(interaction, { embeds: [embed], flags: ["Ephemeral"] });
+        return InteractionHelper.safeEditReply(interaction, {
+            components: [container({ parts })],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
+        });
     }
 }

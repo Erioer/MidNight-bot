@@ -1,8 +1,8 @@
-import { createEmbed } from '../../utils/embeds.js';
 import { createAllCommandsMenu } from './helpSelectMenus.js';
 import { createInitialHelpMenu } from '../../commands/Core/help.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { logger } from '../../utils/logger.js';
+import { NO_PINGS, container, text } from '../../utils/componentsV2.js';
 
 const BACK_BUTTON_ID = "help-back-to-main";
 const PAGINATION_PREFIX = "help-page";
@@ -16,10 +16,10 @@ export const helpBackButton = {
                 await interaction.deferUpdate();
             }
 
-            const { embeds, components } = await createInitialHelpMenu(client);
+            const { components } = await createInitialHelpMenu(client);
             await interaction.editReply({
-                embeds,
                 components,
+                flags: MessageFlags.IsComponentsV2,
             });
         } catch (error) {
             if (error?.code === 40060 || error?.code === 10062) {
@@ -41,33 +41,36 @@ export const helpBugReportButton = {
     name: BUG_REPORT_BUTTON_ID,
     async execute(interaction, client) {
         const githubButton = new ButtonBuilder()
-            .setLabel('🐛 Report Bug on GitHub')
+            .setLabel('Report Bug on GitHub')
             .setStyle(ButtonStyle.Link)
-            .setURL('https://github.com/Erioer/MidNight/issues');
+            .setURL('https://github.com/Erioer/MidNight-bot/issues');
 
         const bugRow = new ActionRowBuilder().addComponents(githubButton);
 
-        const bugReportEmbed = createEmbed({
-            title: '🐛 Bug Report',
-            description: 'Found a bug? Please report it on our GitHub Issues page!\n\n' +
-                '**When reporting a bug, please include:**\n' +
-                '• 📝 Detailed description of the issue\n' +
-                '• 📋 Steps to reproduce the problem\n' +
-                '• 📸 Screenshots if applicable\n' +
-                '• 💻 Your bot version and environment\n\n' +
-                'This helps us fix issues faster and more effectively!',
-            color: 'error'
-        });
-        bugReportEmbed.setFooter({
-            text: 'MidNight Bug Reporting System',
-            iconURL: client.user.displayAvatarURL()
-        });
-        bugReportEmbed.setTimestamp();
-
         await interaction.reply({
-            embeds: [bugReportEmbed],
-            components: [bugRow],
-            flags: MessageFlags.Ephemeral
+            components: [
+                container({
+                    parts: [
+                        text('### Bug Report'),
+                        text(
+                            [
+                                'Found a bug? Please report it on our GitHub Issues page!',
+                                '',
+                                '**When reporting a bug, please include:**',
+                                '• Detailed description of the issue',
+                                '• Steps to reproduce the problem',
+                                '• Screenshots if applicable',
+                                '• Your bot version and environment',
+                                '',
+                                'This helps us fix issues faster and more effectively!',
+                            ].join('\n'),
+                        ),
+                    ],
+                }),
+                bugRow,
+            ],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
     },
 };
@@ -120,8 +123,11 @@ export const helpPaginationButton = {
                     break;
             }
 
-            const { embeds, components } = await createAllCommandsMenu(nextPage, client);
-            await interaction.editReply({ embeds, components });
+            const { components } = await createAllCommandsMenu(nextPage, client);
+            await interaction.editReply({
+                components,
+                flags: MessageFlags.IsComponentsV2,
+            });
         } catch (error) {
             if (error?.code === 40060 || error?.code === 10062) {
                 logger.warn('Help pagination interaction already acknowledged or expired.', {

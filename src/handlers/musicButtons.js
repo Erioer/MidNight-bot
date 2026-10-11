@@ -1,17 +1,19 @@
 import { MessageFlags } from 'discord.js';
 import { logger } from '../utils/logger.js';
 import { handleInteractionError } from '../utils/errorHandler.js';
+import { NO_PINGS } from '../utils/componentsV2.js';
 import { getGuildMusicData } from '../services/music/playerStore.js';
 import {
     getPlayer,
     buildQueueReply,
     destroyPlayerSession,
     setLoopMode,
+    setAutoplayState,
     applyPause,
     applyResume,
 } from '../services/music/musicActions.js';
 import { canControlMusic, VOICE_CHANNEL_DENIAL } from '../services/music/permissions.js';
-import { refreshPlayerMessage } from '../services/music/playerHandler.js';
+import { refreshPlayerMessage, dismissSummary } from '../services/music/playerHandler.js';
 import { MUSIC_BUTTON_IDS } from '../services/music/musicEmbeds.js';
 import { replyUserError, ErrorTypes } from '../utils/errorHandler.js';
 
@@ -19,6 +21,18 @@ async function handleMusicButton(interaction, client) {
     const player = getPlayer(client, interaction.guild.id);
     const guildData = getGuildMusicData(interaction.guild.id);
     const customId = interaction.customId;
+
+    if (customId === MUSIC_BUTTON_IDS.DISMISS) {
+        await interaction.deferUpdate().catch(() => null);
+        const dismissed = await dismissSummary(client, interaction.guild.id, interaction.message?.id);
+        if (!dismissed) {
+            await interaction.followUp({
+                content: 'That music summary is already gone.',
+                flags: MessageFlags.Ephemeral,
+            }).catch(() => null);
+        }
+        return;
+    }
 
     if (customId === MUSIC_BUTTON_IDS.QUEUE) {
         if (!player?.current) {
@@ -30,9 +44,9 @@ async function handleMusicButton(interaction, client) {
         guildData.queuePages.set(interaction.user.id, 0);
         const payload = buildQueueReply(client, interaction.guild.id, 0);
         return interaction.reply({
-            embeds: payload.embeds,
             components: payload.components,
-            flags: MessageFlags.Ephemeral,
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
     }
 
@@ -76,8 +90,8 @@ async function handleMusicButton(interaction, client) {
         guildData.queuePages.set(interaction.user.id, page);
         const updated = buildQueueReply(client, interaction.guild.id, page);
         return interaction.editReply({
-            embeds: updated.embeds,
             components: updated.components,
+            flags: MessageFlags.IsComponentsV2,
         });
     }
 
@@ -121,6 +135,10 @@ async function handleMusicButton(interaction, client) {
                 const guildDataLoop = getGuildMusicData(interaction.guild.id);
                 const next = guildDataLoop.loop === 'none' ? 'track' : guildDataLoop.loop === 'track' ? 'queue' : 'none';
                 await setLoopMode(client, interaction, next);
+                break;
+            }
+            case MUSIC_BUTTON_IDS.AUTOPLAY: {
+                await setAutoplayState(client, interaction, null);
                 break;
             }
             case MUSIC_BUTTON_IDS.VOL_DOWN:

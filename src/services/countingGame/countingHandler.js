@@ -4,10 +4,13 @@
 // starboard posts, restore votes, and essential-event logging.
 
 import { logger } from '../../utils/logger.js';
+import { MessageFlags } from 'discord.js';
+import { NO_PINGS, text as v2Text } from '../../utils/componentsV2.js';
 import {
   COUNTING_TIMERS,
   COUNTING_EMOJI,
   COUNTING_COMMENT_PREFIX,
+  COUNTING_SHIELD,
 } from '../../config/countingGameConfig.js';
 import { splitComment } from './countingNumberParser.js';
 import {
@@ -45,6 +48,7 @@ import {
   startRestoreVote,
 } from '../countingGameService.js';
 import { consumeShield } from './countingShields.js';
+import { buildCountingNoticeContainer } from './countingStatsView.js';
 import {
   logCountBroken,
   logCountRestored,
@@ -62,13 +66,17 @@ function truncateForLog(value, max = 100) {
 }
 
 /**
- * Sends `embed` and removes it after the configured notice lifespan.
- * `content` carries the user mention, because Discord does not ping mentions
- * placed inside an embed.
+ * Sends `noticeContainer` and removes it after the configured notice lifespan.
+ * `mention` carries the user mention as a leading Text Display, because a V2
+ * payload must not mix `content` with `components`.
  */
-async function sendTemporaryNotice(channel, embed, content = '') {
+async function sendTemporaryNotice(channel, noticeContainer, mention = '') {
   try {
-    const notice = await channel.send({ ...(content ? { content } : {}), embeds: [embed] });
+    const notice = await channel.send({
+      components: mention ? [v2Text(mention), noticeContainer] : [noticeContainer],
+      flags: MessageFlags.IsComponentsV2,
+      allowedMentions: NO_PINGS,
+    });
     setTimeout(() => {
       notice.delete().catch(() => {});
     }, COUNTING_TIMERS.noticeLifespanMs).unref?.();
@@ -254,13 +262,17 @@ async function handleMistake({ message, client, config, sentValue, reason }) {
     const safeValue = (config.nextNumber || 1) - 1;
 
     await message.channel.send({
-      content: buildMention(message.author.id, 'A shield absorbed your mistake.'),
-      embeds: [buildShieldSavedEmbed({
-        mistakeValue: sentValue,
-        safeValue,
-        nextExpected: config.nextNumber,
-        shieldsRemaining: shieldResult.shields,
-      })],
+      components: [
+        v2Text(buildMention(message.author.id, 'A shield absorbed your mistake.')),
+        buildShieldSavedEmbed({
+          mistakeValue: sentValue,
+          safeValue,
+          nextExpected: config.nextNumber,
+          shieldsRemaining: shieldResult.shields,
+        }),
+      ],
+      flags: MessageFlags.IsComponentsV2,
+      allowedMentions: NO_PINGS,
     });
 
     await logShieldConsumed({
@@ -320,14 +332,15 @@ async function postRuin({ message, client, config, sentValue, reason, isRuinEven
 
   const requiredVotes = config.restoreVotesRequired || COUNTING_TIMERS.cooldownValidCounts;
 
-  // The Ruin Event framing and the permanent ruin embed are the same message, so
-  // the community vote always lives on a fully detailed embed. No `<@id>` may
-  // appear inside the embed itself — the mention goes out as message content.
+  // The Ruin Event framing and the permanent ruin card are the same message, so
+  // the community vote always lives on a fully detailed card. The mention goes
+  // out as a leading Text Display, because a V2 payload cannot mix `content`
+  // with `components`.
   const leadingText = isRuinEvent
     ? `${COUNTING_EMOJI.warning} You have repeatedly posted invalid messages without the \`${COUNTING_COMMENT_PREFIX}\` comment prefix.`
     : null;
 
-  const embed = buildRuinEmbed({
+  const ruinContainer = buildRuinEmbed({
     sentValue,
     countAtBreak,
     expectedValue,
@@ -339,12 +352,16 @@ async function postRuin({ message, client, config, sentValue, reason, isRuinEven
     ...(leadingText ? { leadingText } : {}),
   });
 
-  const content = buildMention(
+  const mention = buildMention(
     message.author.id,
     isRuinEvent ? 'Ruin Event — you broke the count.' : 'broke the count.',
   );
 
-  const ruinMessage = await message.channel.send({ content, embeds: [embed] }).catch(() => null);
+  const ruinMessage = await message.channel.send({
+    components: [v2Text(mention), ruinContainer],
+    flags: MessageFlags.IsComponentsV2,
+    allowedMentions: NO_PINGS,
+  }).catch(() => null);
 
   if (ruinMessage) {
     await ruinMessage.react(COUNTING_EMOJI.restoreVote).catch(() => {});
@@ -408,9 +425,34 @@ async function handleValidCount({ message, client, config }) {
   let currentConfig = clearMultiNumberStrikes(result.config, message.author.id);
   currentConfig = await saveCountingGameConfig(client, message.guild.id, currentConfig);
 
+  // Both shield notices share the counting notice shape so the two outcomes
+  // read as one feature. The mention still pings: Text Display mentions behave
+  // like message content, and no mention suppression is set here.
   if (result.shieldAwarded) {
+    const awardCounts = result.shieldAwardCounts ?? currentConfig.users[message.author.id].counts;
     await message.channel.send({
-      content: `${COUNTING_EMOJI.shield} <@${message.author.id}> earned a **Counting Shield** for reaching **${currentConfig.users[message.author.id].counts}** valid counts! (${result.shields} held)`,
+      components: [
+        buildCountingNoticeContainer({
+          title: 'Counting Shield Earned',
+          lines: [
+            `<@${message.author.id}> earned a **Counting Shield** for reaching **${awardCounts}** valid counts! (${result.shields} held)`,
+          ],
+        }),
+      ],
+      flags: MessageFlags.IsComponentsV2,
+    }).catch(() => {});
+  } else if (result.shieldCapped) {
+    const awardCounts = currentConfig.users[message.author.id].counts;
+    await message.channel.send({
+      components: [
+        buildCountingNoticeContainer({
+          title: 'Shields Full',
+          lines: [
+            `<@${message.author.id}> reached **${awardCounts}** valid counts, but shields are full (${result.shields}/${COUNTING_SHIELD.max} held). Free a slot before <t:${Math.floor(result.shieldCapExpiresAt / 1000)}:R> or the shield is voided.`,
+          ],
+        }),
+      ],
+      flags: MessageFlags.IsComponentsV2,
     }).catch(() => {});
   }
 
@@ -507,21 +549,25 @@ export async function restoreCount({ client, guild, messageId, method, actor }) 
   clearRestoreVoteExpiry(guild.id);
 
   if (ruinMessage) {
-    // `content` is updated too, because the actor mention has to live outside
-    // the embed to actually ping.
+    // The actor mention lives in a leading Text Display: a V2 payload must
+    // not mix `content` with `components`.
     await ruinMessage.edit({
-      content: actor
-        ? buildMention(actor, 'restored the count.')
-        : 'The count was restored.',
-      embeds: [buildRuinEmbed({
-        sentValue: vote?.sentValue ?? '—',
-        countAtBreak,
-        expectedValue: vote?.expectedValue ?? nextExpected,
-        nextExpected,
-        highestRecord,
-        reason: 'Sequence was restored.',
-        voteState: 'restored',
-      })],
+      components: [
+        v2Text(actor
+          ? buildMention(actor, 'restored the count.')
+          : 'The count was restored.'),
+        buildRuinEmbed({
+          sentValue: vote?.sentValue ?? '—',
+          countAtBreak,
+          expectedValue: vote?.expectedValue ?? nextExpected,
+          nextExpected,
+          highestRecord,
+          reason: 'Sequence was restored.',
+          voteState: 'restored',
+        }),
+      ],
+      flags: MessageFlags.IsComponentsV2,
+      allowedMentions: NO_PINGS,
     }).catch(() => {});
 
     await ruinMessage.reactions.removeAll().catch(() => {});

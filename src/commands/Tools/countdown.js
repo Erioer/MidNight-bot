@@ -1,8 +1,7 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { successEmbed } from '../../utils/embeds.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { createControlButtons, formatTime, startCountdown } from '../../handlers/countdownButtons.js';
+import { buildCountdownContainer, createControlButtons, startCountdown } from '../../handlers/countdownButtons.js';
 
 const activeCountdowns = new Map();
 
@@ -65,14 +64,11 @@ export default {
 
         const row = createControlButtons(countdownId);
 
-        const initialEmbed = successEmbed(
-            `⏱️ ${title}`,
-            `Time remaining: **${formatTime(totalSeconds)}**`,
-        );
+        const initialContainer = buildCountdownContainer(title, totalSeconds);
 
         const message = await interaction.channel.send({
-            embeds: [initialEmbed],
-            components: [row],
+            components: [initialContainer, row],
+            flags: MessageFlags.IsComponentsV2,
         });
 
         const countdownData = {

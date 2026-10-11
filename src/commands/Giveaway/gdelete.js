@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { errorEmbed, successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getGuildGiveaways, deleteGiveaway } from '../../utils/giveaways.js';
@@ -158,6 +159,7 @@ export default {
                     description: `Giveaway deleted: ${giveaway.prize}`,
                     channelId: giveaway.channelId,
                     userId: interaction.user.id,
+                    actor: { id: interaction.user.id },
                     fields: [
                         {
                             name: 'Prize',
@@ -177,13 +179,14 @@ export default {
         }
 
         return InteractionHelper.safeReply(interaction, {
-            embeds: [
-                successEmbed(
-                    "Giveaway Deleted",
-                    `Successfully deleted the giveaway for **${giveaway.prize}** ${statusMsg}. ${winnerStatusMsg}`,
-                ),
+            components: [
+                successContainer({
+                    title: 'Giveaway Deleted',
+                    body: `Successfully deleted the giveaway for **${giveaway.prize}** ${statusMsg}. ${winnerStatusMsg}`,
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
     },
 };

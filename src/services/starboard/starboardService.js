@@ -3,6 +3,7 @@
 // posting/editing/deleting starboard messages. Called from
 // src/events/messageReactionAdd.js and messageReactionRemove.js.
 
+import { MessageFlags } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import {
   getStarboardConfig,
@@ -83,10 +84,16 @@ async function syncStarboardMessage(config, message, count) {
         .fetch(entry.starboardMessageId)
         .catch(() => null);
       if (existingMessage) {
-        await existingMessage
-          .edit(payload)
-          .catch((error) => logger.debug(`Starboard edit failed: ${error.message}`));
-        return;
+        // A message can never be converted between V1 and V2 after it is
+        // sent. Posts from before the V2 conversion are deleted and recreated
+        // below so the mapping keeps pointing at a live message.
+        if (existingMessage.flags?.has(MessageFlags.IsComponentsV2)) {
+          await existingMessage
+            .edit(payload)
+            .catch((error) => logger.debug(`Starboard edit failed: ${error.message}`));
+          return;
+        }
+        await existingMessage.delete().catch(() => {});
       }
       // Starboard message was deleted out-of-band (e.g. by a mod) — fall
       // through and recreate it below so the mapping stays accurate.

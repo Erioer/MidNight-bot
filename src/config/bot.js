@@ -1,5 +1,12 @@
 import { logger } from '../utils/logger.js';
 
+/**
+ * Canonical User-Agent for every outbound HTTP request the bot makes
+ * (APIs, search, shortening, weather). One identity everywhere: changing it
+ * here changes it globally.
+ */
+export const BOT_USER_AGENT = 'MidNight (https://github.com/Erioer/MidNight-bot)';
+
 export const botConfig = {
   // =========================
   // BOT PRESENCE (what users see under the bot name)

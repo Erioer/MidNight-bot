@@ -171,6 +171,7 @@ const DEFAULT_COUNTING_GAME = {
   cooldown: null,
   multiNumberStrikes: {},
   restoreVote: null,
+  pendingShieldAwards: {},
 };
 
 const DEFAULT_USER_STATS = {
@@ -502,11 +503,10 @@ export function clearMultiNumberStrikes(config, userId) {
  * "last awarded at count" cursor is kept here, in the counting config.
  * ------------------------------------------------------------------ */
 
-/** True when the user's lifetime count has crossed a new shield threshold. */
+/** True when lifetime counts crossed a new multiple of the shield interval. */
 export function hasCrossedShieldThreshold(stats) {
-  return COUNTING_SHIELD.awardThresholds.some(
-    (threshold) => stats.counts >= threshold && stats.lastShieldAwardCount < threshold,
-  );
+  const every = COUNTING_SHIELD.awardEvery || 15;
+  return Math.floor(stats.counts / every) > Math.floor((stats.lastShieldAwardCount || 0) / every);
 }
 
 /** Records that shield thresholds have been processed up to `stats.counts`. */
@@ -606,15 +606,50 @@ export async function recordCorrectCount(client, guildId, userId) {
     updatedConfig = markShieldThresholdsProcessed(updatedConfig, userId);
   }
 
+  // A pending award resolves on any later valid count: free a slot within the
+  // grace window and the shield drops in, otherwise it silently voids.
+  const now = Date.now();
+  const pending = updatedConfig.pendingShieldAwards?.[userId] || null;
+  let pendingGranted = false;
+  let pendingCounts = null;
+  if (pending) {
+    if (pending.expiresAt <= now) {
+      const { [userId]: _voided, ...rest } = updatedConfig.pendingShieldAwards;
+      updatedConfig = { ...updatedConfig, pendingShieldAwards: rest };
+    } else {
+      const retry = await grantShield(client, guildId, userId).catch(() => ({ granted: false }));
+      if (retry.granted) {
+        const { [userId]: _claimed, ...rest } = updatedConfig.pendingShieldAwards;
+        updatedConfig = { ...updatedConfig, pendingShieldAwards: rest };
+        pendingGranted = true;
+        pendingCounts = pending.counts;
+      }
+    }
+  }
+
   const saved = await saveCountingGameConfig(client, guildId, updatedConfig);
 
   // Award after persisting the count so a failed grant cannot roll it back.
-  let shieldAwarded = false;
+  let shieldAwarded = pendingGranted;
+  let shieldAwardCounts = pendingGranted ? pendingCounts : null;
   let shields = await getShieldBalance(client, guildId, userId).catch(() => 0);
+  let shieldCapExpiresAt = null;
   if (shouldAward) {
     const grant = await grantShield(client, guildId, userId).catch(() => ({ granted: false, shields: 0 }));
-    shieldAwarded = grant.granted;
-    shields = grant.shields;
+    if (grant.granted) {
+      shieldAwarded = true;
+      shieldAwardCounts = counts;
+    } else {
+      // Capped: hold the award for the grace window instead of forfeiting it.
+      const expiresAt = Date.now() + COUNTING_SHIELD.pendingGraceMs;
+      const { [userId]: _previous, ...rest } = saved.pendingShieldAwards || {};
+      await saveCountingGameConfig(client, guildId, {
+        ...saved,
+        pendingShieldAwards: { ...rest, [userId]: { counts, expiresAt } },
+      });
+      shieldCapExpiresAt = expiresAt;
+    }
+    shields = grant.shields ?? shields;
   }
 
   return {
@@ -624,6 +659,12 @@ export async function recordCorrectCount(client, guildId, userId) {
     streak: saved.users[userId]?.streak ?? streak,
     counts: saved.users[userId]?.counts ?? counts,
     shieldAwarded,
+    // Lifetime count the awarded shield was earned for (fresh or pending).
+    shieldAwardCounts,
+    // Crossed a shield threshold while already capped: held for the grace
+    // window, and the caller should say so instead of staying silent.
+    shieldCapped: shouldAward && !shieldAwarded,
+    shieldCapExpiresAt,
     shields,
     closedVote,
   };

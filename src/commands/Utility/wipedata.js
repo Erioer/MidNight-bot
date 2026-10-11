@@ -1,5 +1,5 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed, errorEmbed, warningEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder } from 'discord.js';
+import { NO_PINGS, container, text, v2Flags } from '../../utils/componentsV2.js';
 import { getConfirmationButtons } from '../../utils/components.js';
 import { logger } from '../../utils/logger.js';
 
@@ -23,14 +23,20 @@ export default {
             `• 📋 All other personal data\n\n` +
             `**This cannot be undone. Are you absolutely sure?**`;
 
-        const embed = warningEmbed('Wipe All Data', warningMessage);
+        const wipeContainer = container({
+            accentColor: 16705372,
+            parts: [
+                text('### Wipe All Data'),
+                text(warningMessage),
+            ],
+        });
 
         const confirmButtons = getConfirmationButtons('wipedata');
 
         await InteractionHelper.safeReply(interaction, {
-            embeds: [embed],
-            components: [confirmButtons],
-            flags: MessageFlags.Ephemeral
+            components: [wipeContainer, confirmButtons],
+            flags: v2Flags({ ephemeral: true }),
+            allowedMentions: NO_PINGS,
         });
 
         logger.info(`Wipedata command executed - confirmation prompt shown`, {

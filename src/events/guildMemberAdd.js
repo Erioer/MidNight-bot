@@ -1,5 +1,5 @@
-import { Events, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import { getColor, botConfig } from '../config/bot.js';
+import { Events, MessageFlags, PermissionFlagsBits } from 'discord.js';
+import { botConfig } from '../config/bot.js';
 import { getGuildConfig } from '../services/config/guildConfig.js';
 import { getWelcomeConfig } from '../utils/database.js';
 import { formatWelcomeMessage } from '../utils/welcome.js';
@@ -7,6 +7,15 @@ import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { getServerCounters, updateCounter } from '../services/serverstatsService.js';
 import { setBirthday as dbSetBirthday } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
+import {
+  NO_PINGS,
+  container,
+  divider,
+  gallery,
+  section,
+  text,
+  thumbnail,
+} from '../utils/componentsV2.js';
 
 export default {
   name: Events.GuildMemberAdd,
@@ -52,27 +61,36 @@ export default {
                         content: messageContent || welcomeMessage
                     });
                 } else {
-                    const embed = new EmbedBuilder()
-                        .setColor(welcomeConfig.welcomeEmbed?.color || getColor('success'))
-                        .setTitle(embedTitle)
-                        .setDescription(welcomeMessage)
-                        .setThumbnail(user.displayAvatarURL())
-                        .addFields(
-                            { name: 'User', value: `${user.tag} (${user.id})`, inline: true },
-                            { name: 'Member Count', value: guild.memberCount.toString(), inline: true }
-                        )
-                        .setTimestamp()
-                        .setFooter({ text: embedFooter });
-                    
-                    if (welcomeConfig.welcomeImage) {
-                        embed.setImage(welcomeConfig.welcomeImage);
-                    } else if (welcomeConfig.welcomeEmbed?.image?.url) {
-                        embed.setImage(welcomeConfig.welcomeEmbed.image.url);
+                    // Welcome card (Components V2). The template rendering
+                    // above is untouched: only the structure changed from an
+                    // embed to a container. The ping toggle still decides
+                    // whether the member mention may ping.
+                    const welcomeImageUrl = welcomeConfig.welcomeImage
+                        || welcomeConfig.welcomeEmbed?.image?.url
+                        || null;
+
+                    const parts = [
+                        section(
+                            [text(`### ${embedTitle}`), text(welcomeMessage)],
+                            thumbnail(user.displayAvatarURL()),
+                        ),
+                        text(`**User:** ${user.tag} (${user.id})\n**Member Count:** ${guild.memberCount.toString()}`),
+                    ];
+
+                    if (welcomeImageUrl) {
+                        parts.push(gallery(welcomeImageUrl));
                     }
-                    
-                    await channel.send({ 
-                        content: messageContent,
-                        embeds: [embed] 
+
+                    parts.push(divider(), text(`-# ${embedFooter}`));
+
+                    const welcomeContainer = container({ parts });
+
+                    await channel.send({
+                        components: messageContent
+                            ? [text(messageContent), welcomeContainer]
+                            : [welcomeContainer],
+                        flags: MessageFlags.IsComponentsV2,
+                        allowedMentions: welcomeConfig.welcomePing ? { users: [user.id] } : NO_PINGS,
                     });
                 }
             }

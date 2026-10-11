@@ -78,10 +78,10 @@ export default {
         let gearLine = '';
         if (hasDiamondPickaxe > 0) {
             gearEarned = Math.floor(baseEarned * DIAMOND_PICKAXE_MULTIPLIER);
-            gearLine = '💎 **Diamond Pickaxe Bonus: +100%**';
+            gearLine = '**Diamond Pickaxe Bonus: +100%**';
         } else if (hasPickaxe > 0) {
             gearEarned = Math.floor(baseEarned * PICKAXE_MULTIPLIER);
-            gearLine = '⛏️ **Pickaxe Bonus: +20%**';
+            gearLine = '**Pickaxe Bonus: +20%**';
         }
 
         const bonus = hasPremium ? Math.floor(gearEarned * 0.1) : 0;

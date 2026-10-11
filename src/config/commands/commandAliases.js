@@ -104,6 +104,9 @@ export const commandAliases = {
 
     'np': 'nowplaying',
     'now': 'nowplaying',
+
+    'setstarboard': 'setchannelstarboard',
+    'starboard': 'setchannelstarboard',
 };
 
 export const subcommandAliases = {

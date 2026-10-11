@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logEvent } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { getColor } from '../../config/bot.js';
@@ -64,12 +65,14 @@ export default {
             });
 
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [
-                    successEmbed(
-                        `🔓 **Channel Unlocked**`,
-                        `${channel} is now unlocked. You may speak now.`,
-                    ),
+                components: [
+                    successContainer({
+                        title: `🔓 **Channel Unlocked**`,
+                        body: `${channel} is now unlocked. You may speak now.`,
+                    }),
                 ],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
         } catch (error) {
             logger.error('Unlock command error:', error);

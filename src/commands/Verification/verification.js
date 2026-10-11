@@ -1,12 +1,13 @@
-import { botConfig, getColor } from '../../config/bot.js';
+import { botConfig } from '../../config/bot.js';
 import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
-import { createEmbed, infoEmbed, successEmbed } from '../../utils/embeds.js';
 import { getGuildConfig, setGuildConfig } from '../../services/config/guildConfig.js';
 import { withErrorHandling, createError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
 import { removeVerification, verifyUser } from '../../services/verificationService.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getWelcomeConfig } from '../../utils/database.js';
+import { NO_PINGS, container, text, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import verificationDashboard from './modules/verification_dashboard.js';
 
 export default {
@@ -181,10 +182,9 @@ async function handleSetup(interaction, guild, client) {
 
     await InteractionHelper.safeDefer(interaction);
 
-    const verifyEmbed = createEmbed({
-        title: "Server Verification",
-        description: message,
-        color: getColor('success')
+    const verifyPanel = successContainer({
+        title: 'Server Verification',
+        body: message,
     });
 
     const verifyButton = new ActionRowBuilder().addComponents(
@@ -196,8 +196,9 @@ async function handleSetup(interaction, guild, client) {
     );
 
     const verifyMessage = await verificationChannel.send({
-        embeds: [verifyEmbed],
-        components: [verifyButton]
+        components: [verifyPanel, verifyButton],
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     guildConfig.verification = {
@@ -212,14 +213,18 @@ async function handleSetup(interaction, guild, client) {
     await setGuildConfig(client, guild.id, guildConfig);
 
     await InteractionHelper.safeEditReply(interaction, {
-        embeds: [successEmbed(
-            'Verification System Updated',
-            [
-                `Channel: ${verificationChannel}`,
-                `Verified Role: ${verifiedRole}`,
-                `Button Text: ${buttonText}`
-            ].join('\n')
-        )]
+        components: [
+            successContainer({
+                title: 'Verification System Updated',
+                body: [
+                    `Channel: ${verificationChannel}`,
+                    `Verified Role: ${verifiedRole}`,
+                    `Button Text: ${buttonText}`,
+                ].join('\n'),
+            }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 }
 
@@ -233,8 +238,16 @@ async function handleRemove(interaction, guild, client) {
 
     if (result.status === 'not_verified') {
         return await InteractionHelper.safeReply(interaction, {
-            embeds: [infoEmbed('Not Verified', `${targetUser.tag} does not currently have the verified role.`)],
-            flags: MessageFlags.Ephemeral
+            components: [
+                container({
+                    parts: [
+                        text('### Not Verified'),
+                        text(`${targetUser.tag} does not currently have the verified role.`),
+                    ],
+                }),
+            ],
+            flags: v2Flags({ ephemeral: true }),
+            allowedMentions: NO_PINGS,
         });
     }
 
@@ -245,6 +258,13 @@ async function handleRemove(interaction, guild, client) {
     });
 
     return await InteractionHelper.safeReply(interaction, {
-        embeds: [successEmbed('Verification Removed', `Verification removed from ${targetUser.tag}.`)]
+        components: [
+            successContainer({
+                title: 'Verification Removed',
+                body: `Verification removed from ${targetUser.tag}.`,
+            }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 }

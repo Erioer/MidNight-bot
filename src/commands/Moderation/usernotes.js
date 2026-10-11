@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, container, text, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { getFromDb, setInDb, deleteFromDb, getUserNotesKey, getUserNotesListKey } from '../../utils/database.js';
 import { sanitizeInput } from '../../utils/validation.js';
@@ -149,27 +150,33 @@ async function handleAddNote(interaction, targetUser, notes, guildId) {
     const typeInfo = getNoteTypeInfo(type);
 
     return InteractionHelper.safeReply(interaction, {
-        embeds: [
-            successEmbed(
-                `${typeInfo.emoji} Note Added`,
-                `Added a **${type}** note for **${targetUser.tag}**:\n\n` +
+        components: [
+            successContainer({
+                title: `${typeInfo.emoji} Note Added`,
+                body: `Added a **${type}** note for **${targetUser.tag}**:\n\n` +
                 `> ${note}\n\n` +
                 `**Moderator:** ${interaction.user.tag}\n` +
-                `**Total Notes:** ${notes.length}`
-            )
-        ]
+                `**Total Notes:** ${notes.length}`,
+            }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 }
 
 async function handleViewNotes(interaction, targetUser, notes) {
     if (notes.length === 0) {
         return InteractionHelper.safeReply(interaction, {
-            embeds: [
-                infoEmbed(
-                    "📝 No Notes",
-                    `There are no notes for **${targetUser.tag}**.`
-                ),
+            components: [
+                container({
+                    parts: [
+                        text(`### 📝 No Notes`),
+                        text(`There are no notes for **${targetUser.tag}**.`),
+                    ],
+                }),
             ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
     }
 
@@ -190,12 +197,16 @@ async function handleViewNotes(interaction, targetUser, notes) {
     }
 
     return InteractionHelper.safeReply(interaction, {
-        embeds: [
-            infoEmbed(
-                `📝 User Notes (${notes.length})`,
-                description
-            )
-        ]
+        components: [
+            container({
+                parts: [
+                    text(`### 📝 User Notes (${notes.length})`),
+                    text(description),
+                ],
+            }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 }
 
@@ -219,14 +230,16 @@ async function handleRemoveNote(interaction, targetUser, notes, guildId) {
     const typeInfo = getNoteTypeInfo(removedNote.type);
 
     return InteractionHelper.safeReply(interaction, {
-        embeds: [
-            successEmbed(
-                `${typeInfo.emoji} Note Removed`,
-                `Removed note #${index + 1} from **${targetUser.tag}**:\n\n` +
+        components: [
+            successContainer({
+                title: `${typeInfo.emoji} Note Removed`,
+                body: `Removed note #${index + 1} from **${targetUser.tag}**:\n\n` +
                 `> ${removedNote.content}\n\n` +
-                `**Remaining Notes:** ${notes.length}`
-            )
-        ]
+                `**Remaining Notes:** ${notes.length}`,
+            }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 }
 
@@ -235,12 +248,16 @@ async function handleClearNotes(interaction, targetUser, notes, guildId) {
     
     if (noteCount === 0) {
         return InteractionHelper.safeReply(interaction, {
-            embeds: [
-                infoEmbed(
-                    "No Notes to Clear",
-                    `There are no notes for **${targetUser.tag}** to clear.`
-                ),
+            components: [
+                container({
+                    parts: [
+                        text(`### No Notes to Clear`),
+                        text(`There are no notes for **${targetUser.tag}** to clear.`),
+                    ],
+                }),
             ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
     }
 
@@ -250,12 +267,14 @@ async function handleClearNotes(interaction, targetUser, notes, guildId) {
     await setInDb(notesKey, notes);
 
     return InteractionHelper.safeReply(interaction, {
-        embeds: [
-            successEmbed(
-                "🗑️ Notes Cleared",
-                `Cleared **${noteCount}** notes from **${targetUser.tag}**.`
-            )
-        ]
+        components: [
+            successContainer({
+                title: "🗑️ Notes Cleared",
+                body: `Cleared **${noteCount}** notes from **${targetUser.tag}**.`,
+            }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 }
 

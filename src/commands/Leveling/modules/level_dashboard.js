@@ -1,5 +1,4 @@
-import { getColor } from '../../../config/bot.js';
-import {
+﻿import {
     ActionRowBuilder,
     StringSelectMenuBuilder,
     StringSelectMenuOptionBuilder,
@@ -14,17 +13,17 @@ import {
     ChannelType,
     MessageFlags,
     ComponentType,
-    EmbedBuilder,
 } from 'discord.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
-import { successEmbed } from '../../../utils/embeds.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer, failureContainer } from '../../../services/economy/economyViews.js';
 import { logger } from '../../../utils/logger.js';
 import { MidNightError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
 import { getLevelingConfig, saveLevelingConfig } from '../../../services/leveling/leveling.js';
 import { botHasPermission } from '../../../utils/permissionGuard.js';
 import { startDashboardSession } from '../../../utils/dashboardSession.js';
 
-function buildDashboardEmbed(cfg, guild) {
+function buildDashboardContainer(cfg, guild) {
     const xpMin = cfg.xpRange?.min ?? cfg.xpPerMessage?.min ?? 15;
     const xpMax = cfg.xpRange?.max ?? cfg.xpPerMessage?.max ?? 40;
     const cooldown = cfg.xpCooldown ?? 60;
@@ -45,25 +44,31 @@ function buildDashboardEmbed(cfg, guild) {
     const ignoredChValue = ignoredChannels.length > 0 ? ignoredChannels.map(id => `<#${id}>`).join(',') : '`None`';
     const ignoredRoValue = ignoredRoles.length > 0 ? ignoredRoles.map(id => `<@&${id}>`).join(',') : '`None`';
 
-    return new EmbedBuilder()
-        .setTitle('⚡ Leveling System Dashboard')
-        .setDescription(`Manage leveling settings for **${guild.name}**.\nSelect an option below to modify a setting.`)
-        .setColor(getColor('info'))
-        .addFields(
-            { name: 'System Status', value: cfg.enabled ? '**Enabled**' : '**Disabled**', inline: true },
-            { name: 'Announcements', value: cfg.announceLevelUp !== false ? '**Enabled**' : '**Disabled**', inline: true },
-            { name: 'Reaction XP', value: reactionXpOn ? '**Enabled**' : '**Disabled**', inline: true },
-            { name: 'XP per Message', value: `\`${xpMin} – ${xpMax}\``, inline: true },
-            { name: 'XP Cooldown', value: `\`${cooldown}s\``, inline: true },
-            { name: 'First-Place Role', value: firstPlaceRole, inline: true },
-            { name: 'Booster Role', value: boosterRole, inline: true },
-            { name: 'Level-up Message', value: msgPreview, inline: false },
-            { name: 'Role Rewards', value: rewardsValue, inline: false },
-            { name: 'Ignored Channels', value: ignoredChValue, inline: true },
-            { name: 'Ignored Roles', value: ignoredRoValue, inline: true },
-        )
-        .setFooter({ text: 'Dashboard closes after 10 minutes of inactivity' })
-        .setTimestamp();
+    // Admin dashboard: a neutral management view, so no accent colour is set.
+    return container({
+        parts: [
+            text('### Leveling System Dashboard'),
+            text(`Manage leveling settings for **${guild.name}**.\nSelect an option below to modify a setting.`),
+            divider(),
+            text(
+                [
+                    `**System Status:** ${cfg.enabled ? '**Enabled**' : '**Disabled**'}`,
+                    `**Announcements:** ${cfg.announceLevelUp !== false ? '**Enabled**' : '**Disabled**'}`,
+                    `**Reaction XP:** ${reactionXpOn ? '**Enabled**' : '**Disabled**'}`,
+                    `**XP per Message:** \`${xpMin} – ${xpMax}\``,
+                    `**XP Cooldown:** \`${cooldown}s\``,
+                    `**First-Place Role:** ${firstPlaceRole}`,
+                    `**Booster Role:** ${boosterRole}`,
+                    `**Level-up Message:** ${msgPreview}`,
+                    `**Role Rewards:**\n${rewardsValue}`,
+                    `**Ignored Channels:** ${ignoredChValue}`,
+                    `**Ignored Roles:** ${ignoredRoValue}`,
+                ].join('\n'),
+            ),
+            divider(),
+            text('-# Dashboard closes after 10 minutes of inactivity'),
+        ],
+    });
 }
 
 function buildSelectMenu(guildId) {
@@ -74,48 +79,39 @@ function buildSelectMenu(guildId) {
             new StringSelectMenuOptionBuilder()
                 .setLabel('Edit Level-up Message')
                 .setDescription('Customise the message shown when a user earns a role')
-                .setValue('message')
-                .setEmoji('💬'),
+                .setValue('message'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Set XP Range')
                 .setDescription('Set the minimum and maximum XP rewarded per message')
-                .setValue('xp_range')
-                .setEmoji('🎲'),
+                .setValue('xp_range'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Set XP Cooldown')
                 .setDescription('Seconds between XP grants for the same user')
-                .setValue('xp_cooldown')
-                .setEmoji('⏱️'),
+                .setValue('xp_cooldown'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Add Role Reward')
                 .setDescription('Award a role when a user reaches a specific level')
-                .setValue('role_reward_add')
-                .setEmoji('🏆'),
+                .setValue('role_reward_add'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Remove Role Reward')
                 .setDescription('Remove a role reward from a specific level')
-                .setValue('role_reward_remove')
-                .setEmoji('\ud83d\uddd1\ufe0f'),
+                .setValue('role_reward_remove'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Set First-Place Role')
                 .setDescription('Role given to whoever is currently #1 on the XP leaderboard')
-                .setValue('first_place_role')
-                .setEmoji('👑'),
+                .setValue('first_place_role'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Set Booster Role')
                 .setDescription('Role that grants a 10% XP bonus (alongside native server boosters)')
-                .setValue('booster_role')
-                .setEmoji('🚀'),
+                .setValue('booster_role'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Ignored Channels')
                 .setDescription('Toggle channels where XP will not be awarded')
-                .setValue('ignore_channels')
-                .setEmoji('\ud83d\udeab'),
+                .setValue('ignore_channels'),
             new StringSelectMenuOptionBuilder()
                 .setLabel('Ignored Roles')
                 .setDescription('Toggle roles that will not receive XP')
                 .setValue('ignore_roles')
-                .setEmoji('\ud83d\udeab'),
         );
 }
 
@@ -128,31 +124,45 @@ function buildButtonRow(cfg, guildId, disabled = false) {
             .setCustomId(`level_cfg_toggle_announce_${guildId}`)
             .setLabel('Announcements')
             .setStyle(announceOn ? ButtonStyle.Success : ButtonStyle.Danger)
-            .setEmoji('📣')
             .setDisabled(disabled),
         new ButtonBuilder()
             .setCustomId(`level_cfg_toggle_system_${guildId}`)
             .setLabel('Leveling')
             .setStyle(systemOn ? ButtonStyle.Success : ButtonStyle.Danger)
-            .setEmoji('⚡')
             .setDisabled(disabled),
         new ButtonBuilder()
             .setCustomId(`level_cfg_toggle_reactionxp_${guildId}`)
             .setLabel('Reaction XP')
             .setStyle(reactionXpOn ? ButtonStyle.Success : ButtonStyle.Danger)
-            .setEmoji('🚀')
             .setDisabled(disabled),
     );
+}
+
+/**
+ * Shows a dashboard modal. Returns false when the select interaction went
+ * stale (unknown interaction / already acknowledged) so callers bail out
+ * instead of throwing 10062 into the collector.
+ */
+async function showDashboardModal(selectInteraction, modal) {
+    try {
+        await selectInteraction.showModal(modal);
+        return true;
+    } catch (error) {
+        if (error?.code === 10062 || error?.code === 40060) return false;
+        throw error;
+    }
 }
 
 async function refreshDashboard(rootInteraction, cfg, guildId) {
     const selectMenu = buildSelectMenu(guildId);
     await InteractionHelper.safeEditReply(rootInteraction, {
-        embeds: [buildDashboardEmbed(cfg, rootInteraction.guild)],
         components: [
+            buildDashboardContainer(cfg, rootInteraction.guild),
             buildButtonRow(cfg, guildId),
             new ActionRowBuilder().addComponents(selectMenu),
         ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     }).catch(() => {});
 }
 
@@ -165,16 +175,27 @@ export default {
 
             await startDashboardSession({
                 interaction,
-                embeds: [buildDashboardEmbed(cfg, interaction.guild)],
                 components: [
+                    buildDashboardContainer(cfg, interaction.guild),
                     buildButtonRow(cfg, guildId),
                     new ActionRowBuilder().addComponents(buildSelectMenu(guildId)),
                 ],
+                flags: v2Flags(),
                 selectMenuId: `level_cfg_${guildId}`,
                 buttonMatcher: (customId) =>
                     customId === `level_cfg_toggle_announce_${guildId}` ||
                     customId === `level_cfg_toggle_system_${guildId}` ||
                     customId === `level_cfg_toggle_reactionxp_${guildId}`,
+                onTimeout: async (rootInteraction) => {
+                    await InteractionHelper.safeEditReply(rootInteraction, {
+                        components: [
+                            failureContainer({
+                                title: 'Dashboard Timed Out',
+                                body: 'This dashboard has been closed due to inactivity. Please run the command again to continue.',
+                            }),
+                        ],
+                    }).catch(() => {});
+                },
                 onSelect: async (selectInteraction) => {
                     const selectedOption = selectInteraction.values[0];
                     switch (selectedOption) {
@@ -216,39 +237,42 @@ export default {
                         cfg.announceLevelUp = cfg.announceLevelUp === false;
                         await saveLevelingConfig(client, guildId, cfg);
                         await btnInteraction.followUp({
-                            embeds: [
-                                successEmbed(
-                                    '✅ Announcements Updated',
-                                    `Level-up announcements are now **${cfg.announceLevelUp ? 'enabled' : 'disabled'}**.`,
-                                ),
+                            components: [
+                                successContainer({
+                                    title: 'Announcements Updated',
+                                    body: `Level-up announcements are now **${cfg.announceLevelUp ? 'enabled' : 'disabled'}**.`,
+                                }),
                             ],
-                            flags: MessageFlags.Ephemeral,
+                            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                            allowedMentions: NO_PINGS,
                         });
                     } else if (isReactionXp) {
                         cfg.reactionXp = cfg.reactionXp ?? { min: 25, max: 25, cooldown: 300 };
                         cfg.reactionXp.enabled = cfg.reactionXp.enabled !== true;
                         await saveLevelingConfig(client, guildId, cfg);
                         await btnInteraction.followUp({
-                            embeds: [
-                                successEmbed(
-                                    '✅ Reaction XP Updated',
-                                    `Reaction XP is now **${cfg.reactionXp.enabled ? 'enabled' : 'disabled'}**.${cfg.reactionXp.enabled ? `\nBoth the reactor and the message author earn **${cfg.reactionXp.min}–${cfg.reactionXp.max} XP** (${cfg.reactionXp.cooldown}s cooldown each).` : ''}`,
-                                ),
+                            components: [
+                                successContainer({
+                                    title: 'Reaction XP Updated',
+                                    body: `Reaction XP is now **${cfg.reactionXp.enabled ? 'enabled' : 'disabled'}**.${cfg.reactionXp.enabled ? `\nBoth the reactor and the message author earn **${cfg.reactionXp.min}–${cfg.reactionXp.max} XP** (${cfg.reactionXp.cooldown}s cooldown each).` : ''}`,
+                                }),
                             ],
-                            flags: MessageFlags.Ephemeral,
+                            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                            allowedMentions: NO_PINGS,
                         });
                     } else {
                         const wasEnabled = cfg.enabled !== false;
                         cfg.enabled = !wasEnabled;
                         await saveLevelingConfig(client, guildId, cfg);
                         await btnInteraction.followUp({
-                            embeds: [
-                                successEmbed(
-                                    '✅ System Updated',
-                                    `The leveling system is now **${cfg.enabled ? 'enabled' : 'disabled'}**.${!cfg.enabled ? '\nUsers will not earn XP until the system is re-enabled.' : ''}`,
-                                ),
+                            components: [
+                                successContainer({
+                                    title: 'System Updated',
+                                    body: `The leveling system is now **${cfg.enabled ? 'enabled' : 'disabled'}**.${!cfg.enabled ? '\nUsers will not earn XP until the system is re-enabled.' : ''}`,
+                                }),
                             ],
-                            flags: MessageFlags.Ephemeral,
+                            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                            allowedMentions: NO_PINGS,
                         });
                     }
 
@@ -296,7 +320,8 @@ async function handleRoleRewardAdd(selectInteraction, rootInteraction, cfg, guil
     modal.addLabelComponents(roleLabel);
     modal.addComponents(new ActionRowBuilder().addComponents(levelInput));
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -322,8 +347,9 @@ async function handleRoleRewardAdd(selectInteraction, rootInteraction, cfg, guil
     await saveLevelingConfig(client, guildId, cfg);
 
     await submitted.reply({
-        embeds: [successEmbed('Role Reward Added', `<@&${roleId}> will now be awarded at level **${level}**.`)],
-        flags: MessageFlags.Ephemeral,
+        components: [successContainer({ title: 'Role Reward Added', body: `<@&${roleId}> will now be awarded at level **${level}**.` })],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, cfg, guildId);
@@ -367,7 +393,8 @@ async function handleRoleRewardRemove(selectInteraction, rootInteraction, cfg, g
         new ActionRowBuilder().addComponents(levelInput),
     );
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -390,8 +417,9 @@ async function handleRoleRewardRemove(selectInteraction, rootInteraction, cfg, g
     await saveLevelingConfig(client, guildId, cfg);
 
     await submitted.reply({
-        embeds: [successEmbed('Role Reward Removed', `The role reward for level **${level}** has been removed.`)],
-        flags: MessageFlags.Ephemeral,
+        components: [successContainer({ title: 'Role Reward Removed', body: `The role reward for level **${level}** has been removed.` })],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, cfg, guildId);
@@ -416,7 +444,8 @@ async function handleFirstPlaceRole(selectInteraction, rootInteraction, cfg, gui
 
     modal.addLabelComponents(roleLabel);
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -434,8 +463,9 @@ async function handleFirstPlaceRole(selectInteraction, rootInteraction, cfg, gui
     await saveLevelingConfig(client, guildId, cfg);
 
     await submitted.reply({
-        embeds: [successEmbed('\u2705 Role Set', `<@&${roleId}> will now be given to whoever reaches #1 on the XP leaderboard.`)],
-        flags: MessageFlags.Ephemeral,
+        components: [successContainer({ title: 'Role Set', body: `<@&${roleId}> will now be given to whoever reaches #1 on the XP leaderboard.` })],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, cfg, guildId);
@@ -460,7 +490,8 @@ async function handleBoosterRole(selectInteraction, rootInteraction, cfg, guildI
 
     modal.addLabelComponents(roleLabel);
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -477,8 +508,9 @@ async function handleBoosterRole(selectInteraction, rootInteraction, cfg, guildI
     await saveLevelingConfig(client, guildId, cfg);
 
     await submitted.reply({
-        embeds: [successEmbed('✅ Role Set', `<@&${roleId}> will now receive a **+10%** XP bonus on all XP earned.`)],
-        flags: MessageFlags.Ephemeral,
+        components: [successContainer({ title: 'Role Set', body: `<@&${roleId}> will now receive a **+10%** XP bonus on all XP earned.` })],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, cfg, guildId);
@@ -504,7 +536,8 @@ async function handleIgnoreChannels(selectInteraction, rootInteraction, cfg, gui
 
     modal.addLabelComponents(channelLabel);
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -534,8 +567,9 @@ async function handleIgnoreChannels(selectInteraction, rootInteraction, cfg, gui
         : '`None`';
 
     await submitted.reply({
-        embeds: [successEmbed('\u2705 Ignored Channels Updated', `XP will not be awarded in: ${list}`)],
-        flags: MessageFlags.Ephemeral,
+        components: [successContainer({ title: 'Ignored Channels Updated', body: `XP will not be awarded in: ${list}` })],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, cfg, guildId);
@@ -560,7 +594,8 @@ async function handleIgnoreRoles(selectInteraction, rootInteraction, cfg, guildI
 
     modal.addLabelComponents(roleLabel);
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -590,8 +625,9 @@ async function handleIgnoreRoles(selectInteraction, rootInteraction, cfg, guildI
         : '`None`';
 
     await submitted.reply({
-        embeds: [successEmbed('\u2705 Ignored Roles Updated', `These roles will not earn XP: ${list}`)],
-        flags: MessageFlags.Ephemeral,
+        components: [successContainer({ title: 'Ignored Roles Updated', body: `These roles will not earn XP: ${list}` })],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, cfg, guildId);
@@ -615,7 +651,8 @@ async function handleMessage(selectInteraction, rootInteraction, cfg, guildId, c
             ),
         );
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -641,13 +678,14 @@ async function handleMessage(selectInteraction, rootInteraction, cfg, guildId, c
     const preview = newMessage.replace('{user}', '@User').replace('{role}', 'Champion').replace('{level}', '5');
 
     await submitted.reply({
-        embeds: [
-            successEmbed(
-                '✅ Message Updated',
-                `Level-up message saved.\n**Preview:** ${preview}`,
-            ),
+        components: [
+            successContainer({
+                title: 'Message Updated',
+                body: `Level-up message saved.\n**Preview:** ${preview}`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, cfg, guildId);
@@ -685,7 +723,8 @@ async function handleXpRange(selectInteraction, rootInteraction, cfg, guildId, c
             ),
         );
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -716,13 +755,14 @@ async function handleXpRange(selectInteraction, rootInteraction, cfg, guildId, c
     await saveLevelingConfig(client, guildId, cfg);
 
     await submitted.reply({
-        embeds: [
-            successEmbed(
-                '✅ XP Range Updated',
-                `Users will now earn between **${newMin}** and **${newMax}** XP per message.`,
-            ),
+        components: [
+            successContainer({
+                title: 'XP Range Updated',
+                body: `Users will now earn between **${newMin}** and **${newMax}** XP per message.`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, cfg, guildId);
@@ -746,7 +786,8 @@ async function handleXpCooldown(selectInteraction, rootInteraction, cfg, guildId
             ),
         );
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -770,14 +811,17 @@ async function handleXpCooldown(selectInteraction, rootInteraction, cfg, guildId
     await saveLevelingConfig(client, guildId, cfg);
 
     await submitted.reply({
-        embeds: [
-            successEmbed(
-                '✅ Cooldown Updated',
-                `XP cooldown set to **${newCooldown} second${newCooldown !== 1 ? 's' : ''}**.${newCooldown === 0 ? '\n> ⚠️ A cooldown of 0 means XP is granted on every message.' : ''}`,
-            ),
+        components: [
+            successContainer({
+                title: 'Cooldown Updated',
+                body: `XP cooldown set to **${newCooldown} second${newCooldown !== 1 ? 's' : ''}**.${newCooldown === 0 ? '\n> A cooldown of 0 means XP is granted on every message.' : ''}`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, cfg, guildId);
 }
+
+

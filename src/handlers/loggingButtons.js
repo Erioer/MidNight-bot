@@ -1,4 +1,4 @@
-import {
+﻿import {
   PermissionFlagsBits,
   ChannelSelectMenuBuilder,
   ChannelType,
@@ -17,9 +17,11 @@ import {
   setLogChannel,
   updateIgnoreList,
   getIgnoreList,
+  logEvent,
 } from '../services/loggingService.js';
 import { getGuildConfig } from '../services/config/guildConfig.js';
-import { successEmbed } from '../utils/embeds.js';
+import { NO_PINGS } from '../utils/componentsV2.js';
+import { successContainer } from '../services/economy/economyViews.js';
 import { replyUserError, ErrorTypes, handleInteractionError } from '../utils/errorHandler.js';
 import { logger } from '../utils/logger.js';
 import {
@@ -88,22 +90,22 @@ export default {
 
 async function handleRefresh(interaction) {
   if (isCategoriesView(interaction)) {
-    const { embed, components } = await buildLoggingCategoriesView(interaction, interaction.client);
-    return interaction.update({ embeds: [embed], components, content: null });
+    const { card, components } = await buildLoggingCategoriesView(interaction, interaction.client);
+    return interaction.update({ components: [card, ...components], flags: MessageFlags.IsComponentsV2 });
   }
 
   if (isFilterView(interaction)) {
-    const { embed, components } = await buildLoggingFilterView(interaction, interaction.client);
-    return interaction.update({ embeds: [embed], components, content: null });
+    const { card, components } = await buildLoggingFilterView(interaction, interaction.client);
+    return interaction.update({ components: [card, ...components], flags: MessageFlags.IsComponentsV2 });
   }
 
-  const { embed, components } = await buildLoggingDashboardView(interaction, interaction.client);
-  await interaction.update({ embeds: [embed], components, content: null });
+  const { card, components } = await buildLoggingDashboardView(interaction, interaction.client);
+  await interaction.update({ components: [card, ...components], flags: MessageFlags.IsComponentsV2 });
 }
 
 async function handleBackToMain(interaction) {
-  const { embed, components } = await buildLoggingDashboardView(interaction, interaction.client);
-  await interaction.update({ embeds: [embed], components, content: null });
+  const { card, components } = await buildLoggingDashboardView(interaction, interaction.client);
+  await interaction.update({ components: [card, ...components], flags: MessageFlags.IsComponentsV2 });
 }
 
 async function handleToggle(interaction) {
@@ -128,12 +130,12 @@ async function handleToggle(interaction) {
   }
 
   if (onCategoriesView || (eventType !== 'audit_enabled' && eventType.includes('.*'))) {
-    const { embed, components } = await buildLoggingCategoriesView(interaction, interaction.client);
-    return interaction.update({ embeds: [embed], components, content: null });
+    const { card, components } = await buildLoggingCategoriesView(interaction, interaction.client);
+    return interaction.update({ components: [card, ...components], flags: MessageFlags.IsComponentsV2 });
   }
 
-  const { embed, components } = await buildLoggingDashboardView(interaction, interaction.client);
-  await interaction.update({ embeds: [embed], components, content: null });
+  const { card, components } = await buildLoggingDashboardView(interaction, interaction.client);
+  await interaction.update({ components: [card, ...components], flags: MessageFlags.IsComponentsV2 });
 }
 
 async function handleAddFilterModal(interaction) {
@@ -205,8 +207,14 @@ async function handleAddFilterModal(interaction) {
     await updateIgnoreList(interaction.client, interaction.guildId, { action: 'add', type: filterType, id });
 
     await modalSubmission.reply({
-      embeds: [successEmbed('Filter Added', `${filterType === 'user' ? 'User' : 'Channel'} \`${id}\` will be ignored in audit logs.`)],
-      flags: MessageFlags.Ephemeral,
+      components: [
+        successContainer({
+          title: 'Filter Added',
+          body: `${filterType === 'user' ? 'User' : 'Channel'} \`${id}\` will be ignored in audit logs.`,
+        }),
+      ],
+      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      allowedMentions: NO_PINGS,
     });
 
     if (isFilterView(interaction)) {
@@ -289,8 +297,14 @@ async function handleRemoveFilterModal(interaction) {
     await updateIgnoreList(interaction.client, interaction.guildId, { action: 'remove', type, id });
 
     await modalSubmission.reply({
-      embeds: [successEmbed('Filter Removed', `Removed ${type} \`${id}\` from the ignore list.`)],
-      flags: MessageFlags.Ephemeral,
+      components: [
+        successContainer({
+          title: 'Filter Removed',
+          body: `Removed ${type} \`${id}\` from the ignore list.`,
+        }),
+      ],
+      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      allowedMentions: NO_PINGS,
     });
 
     if (isFilterView(interaction)) {
@@ -355,9 +369,33 @@ async function showChannelModal(interaction, destination) {
 
     await setLogChannel(interaction.client, interaction.guildId, destination, channel.id);
 
+    await logEvent({
+      client: interaction.client,
+      guildId: interaction.guildId,
+      eventType: EVENT_TYPES.LOGGING_CONFIG,
+      data: {
+        title: 'Log Channel Updated',
+        lines: [
+          `**Destination:** ${label}`,
+          `**Channel:** ${channel}`,
+        ],
+        actor: {
+          id: interaction.user.id,
+          displayName: interaction.member?.displayName || interaction.user.username,
+          avatarUrl: interaction.user.displayAvatarURL(),
+        },
+      },
+    }).catch(() => null);
+
     await modalSubmission.reply({
-      embeds: [successEmbed('Channel Updated', `**${label}** logs will be sent to ${channel}.`)],
-      flags: MessageFlags.Ephemeral,
+      components: [
+        successContainer({
+          title: 'Channel Updated',
+          body: `**${label}** logs will be sent to ${channel}.`,
+        }),
+      ],
+      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      allowedMentions: NO_PINGS,
     });
 
     await refreshDashboardMessage(interaction, interaction.client);
@@ -391,23 +429,23 @@ export async function handleLoggingMenuSelect(interaction) {
   if (value.startsWith('clear:')) {
     const destination = value.replace('clear:', '');
     await setLogChannel(interaction.client, interaction.guildId, destination, null);
-    const { embed, components } = await buildLoggingDashboardView(interaction, interaction.client);
+    const { card, components } = await buildLoggingDashboardView(interaction, interaction.client);
     return interaction.update({
-      embeds: [embed],
-      components,
-      content: null,
+      components: [card, ...components],
+      flags: MessageFlags.IsComponentsV2,
     });
   }
 
   if (value === 'view:categories') {
-    const { embed, components } = await buildLoggingCategoriesView(interaction, interaction.client);
-    return interaction.update({ embeds: [embed], components, content: null });
+    const { card, components } = await buildLoggingCategoriesView(interaction, interaction.client);
+    return interaction.update({ components: [card, ...components], flags: MessageFlags.IsComponentsV2 });
   }
 
   if (value === 'view:filters') {
-    const { embed, components } = await buildLoggingFilterView(interaction, interaction.client);
-    return interaction.update({ embeds: [embed], components, content: null });
+    const { card, components } = await buildLoggingFilterView(interaction, interaction.client);
+    return interaction.update({ components: [card, ...components], flags: MessageFlags.IsComponentsV2 });
   }
 
   return interaction.reply({ content: '❌ Unknown option.', ephemeral: true });
 }
+

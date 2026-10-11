@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logEvent } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { sanitizeMarkdown } from '../../utils/validation.js';
@@ -62,14 +63,15 @@ export default {
             const dmChannel = await targetUser.createDM();
             
             await dmChannel.send({
-                embeds: [
-                    successEmbed(
-                        anonymous ? "Message from the Staff Team" : `Message from ${interaction.user.tag}`,
-                        sanitized
-                    ).setFooter({
-                        text: `You cannot reply to this message. | Logger ID: ${interaction.id}`
-                    })
-                ]
+                components: [
+                    successContainer({
+                        title: anonymous ? "Message from the Staff Team" : `Message from ${interaction.user.tag}`,
+                        body: sanitized,
+                        footer: `You cannot reply to this message. | Logger ID: ${interaction.id}`,
+                    }),
+                ],
+                flags: MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
 
             await logEvent({
@@ -90,12 +92,14 @@ export default {
             });
 
             return await InteractionHelper.safeEditReply(interaction, {
-                embeds: [
-                    successEmbed(
-                        "DM Sent",
-                        `Successfully sent a message to ${targetUser.tag}`
-                    ),
+                components: [
+                    successContainer({
+                        title: "DM Sent",
+                        body: `Successfully sent a message to ${targetUser.tag}`,
+                    }),
                 ],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
         } catch (error) {
             logger.error('DM command error:', error);

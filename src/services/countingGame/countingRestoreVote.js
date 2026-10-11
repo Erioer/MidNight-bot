@@ -13,6 +13,8 @@
 //     are enforced here, alongside the reaction handling.
 
 import { logger } from '../../utils/logger.js';
+import { MessageFlags } from 'discord.js';
+import { NO_PINGS } from '../../utils/componentsV2.js';
 import { COUNTING_EMOJI } from '../../config/countingGameConfig.js';
 import {
   buildVoteEmbed,
@@ -43,10 +45,12 @@ function releaseVoteLock(guildId) {
   voteLocks.delete(guildId);
 }
 
-/** Renders the current tally onto the ruin embed, replaying the stored details. */
+/** Renders the current tally onto the ruin card, replaying the stored details. */
 async function refreshVoteEmbed(reaction, config, vote, votes) {
   await reaction.message.edit({
-    embeds: [buildVoteEmbed(vote, { votes, voteState: 'active', highestRecord: config.highestRecord })],
+    components: [buildVoteEmbed(vote, { votes, voteState: 'active', highestRecord: config.highestRecord })],
+    flags: MessageFlags.IsComponentsV2,
+    allowedMentions: NO_PINGS,
   }).catch(() => {});
 }
 

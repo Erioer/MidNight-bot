@@ -1,4 +1,4 @@
-import { createEmbed } from '../../../utils/embeds.js';
+import { NO_PINGS, container, text, v2Flags } from '../../../utils/componentsV2.js';
 import { getGuildConfig } from '../../../services/config/guildConfig.js';
 import { logEvent, EVENT_TYPES, resolveLogChannel } from '../../../services/loggingService.js';
 import { formatLogLine, resolveUserAuthor } from '../../../utils/logging/logEmbeds.js';
@@ -48,10 +48,14 @@ export default {
         });
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [createEmbed({
-                title: 'Report Submitted',
-                description: `Your report against **${targetUser.tag}** has been successfully filed and sent to the moderation team. Thank you!`,
+            components: [container({
+                parts: [
+                    text('### Report Submitted'),
+                    text(`Your report against **${targetUser.tag}** has been successfully filed and sent to the moderation team. Thank you!`),
+                ],
             })],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
 
         logger.info('Report submitted', {

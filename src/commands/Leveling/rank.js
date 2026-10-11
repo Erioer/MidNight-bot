@@ -2,6 +2,7 @@ import { SlashCommandBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getUserLevelData, getLevelingConfig, getXpForLevel } from '../../services/leveling/leveling.js';
+import { getEconomyData } from '../../utils/economy.js';
 import { buildLevelRankContainer } from '../../services/leveling/levelRankView.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -58,6 +59,7 @@ export default {
     }
 
     const userData = await getUserLevelData(client, interaction.guildId, targetUser.id);
+    const economyData = await getEconomyData(client, interaction.guildId, targetUser.id).catch(() => null);
 
     const components = buildLevelRankContainer({
       displayName: member.displayName || targetUser.username,
@@ -66,6 +68,7 @@ export default {
       xp: userData?.xp ?? 0,
       totalXp: userData?.totalXp ?? 0,
       xpNeeded: getXpForLevel((userData?.level ?? 0) + 1),
+      boostExpiresAt: Number(economyData?.xpBoostExpiresAt) || 0,
       isSelf: targetUser.id === interaction.user.id,
     });
 

@@ -1,6 +1,6 @@
 // countingVoteLifecycle.js
 // Owns the Discord-side lifecycle of a ruin restore vote: rendering the active
-// embed, closing/voiding it, and enforcing the 30-minute window.
+// card, closing/voiding it, and enforcing the 30-minute window.
 //
 // This module deliberately does NOT import countingHandler.js, so that
 // countingRestoreVote.js can import both this and `restoreCount` without an
@@ -17,6 +17,8 @@
 //    a lazy check on every reaction, and a startup sweep.
 
 import { logger } from '../../utils/logger.js';
+import { MessageFlags } from 'discord.js';
+import { NO_PINGS } from '../../utils/componentsV2.js';
 import {
   COUNTING_COMMENT_PREFIX,
   COUNTING_EMOJI,
@@ -49,7 +51,7 @@ export function shouldVoidByHighWaterMark(currentCount, target) {
   return currentCount >= targetCount;
 }
 
-/** Builds the ruin embed for a stored vote (active, restored, or a closed state). */
+/** Builds the ruin card for a stored vote (active, restored, or a closed state). */
 export function buildVoteEmbed(vote, { votes = 0, voteState = 'active', highestRecord = 0 } = {}) {
   const countAtBreak = Number.isFinite(vote?.preRuinCount) ? vote.preRuinCount : 0;
   return buildRuinEmbed({
@@ -79,14 +81,18 @@ export async function resolveVoteMessage(client, vote) {
 }
 
 /**
- * Rewrites the vote message so it no longer invites votes: the embed shows the
+ * Rewrites the vote message so it no longer invites votes: the card shows the
  * closing state and the bot's own reactions are removed. Only the message owned
  * by `vote` is touched, so an overwritten vote can never edit a newer one.
  */
 export async function closeRestoreVoteMessage(client, vote, voteState = 'voided') {
   const message = await resolveVoteMessage(client, vote);
   if (!message) return false;
-  await message.edit({ embeds: [buildVoteEmbed(vote, { voteState })] }).catch(() => {});
+  await message.edit({
+    components: [buildVoteEmbed(vote, { voteState })],
+    flags: MessageFlags.IsComponentsV2,
+    allowedMentions: NO_PINGS,
+  }).catch(() => {});
   await message.reactions?.removeAll?.().catch(() => {});
   return true;
 }

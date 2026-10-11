@@ -137,11 +137,13 @@ categories:
   # ------------------------------------------------
   # Moderation
   # ------------------------------------------------
-  # moderation:
-  #   isEnabled: true
-  #   isAdminOnly: true
-  #   isSlashEnabled: true
-  #   isPrefixEnabled: true
+  # Slash-only: prefix names collide with fun commands (e.g. $react kick),
+  # so a mistyped prefix must never trigger a real moderation action.
+  moderation:
+    isEnabled: true
+    isAdminOnly: true
+    isSlashEnabled: true
+    isPrefixEnabled: false
 
   # ------------------------------------------------
   # Music
@@ -284,12 +286,10 @@ commands:
     isAdminOnly: true
     isSlashEnabled: true
     isPrefixEnabled: false
-  # ping, stats, uptime, support are normal commands
+  # ping, stats, support are normal commands
   ping:
     # isAdminOnly: true
   stats:
-    # isAdminOnly: true
-  uptime:
     # isAdminOnly: true
   support:
     # isAdminOnly: true
@@ -462,7 +462,8 @@ commands:
   music:
     # subcommands: pause, resume, skip, stop, shuffle, loop,
     #              volume, seek, remove, move, clear, leave, 247,
-    #              ping, likes add, likes list, likes remove,
+    #              ping, autoplay, filter, search,
+    #              likes add, likes list, likes remove,
     #              likes play
     # isAdminOnly: true
   nowplaying:
@@ -488,7 +489,7 @@ commands:
   # ========================
   search:
     # isAdminOnly: true
-    # subcommands: define, google, urban
+    # subcommands: define, duckduckgo, urban
 
   # ========================
   # ServerStats

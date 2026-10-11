@@ -1,9 +1,9 @@
-import { getColor } from '../../config/bot.js';
-import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder, LabelBuilder } from 'discord.js';
-import { successEmbed, warningEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, LabelBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../utils/componentsV2.js';
+import { noticeContainer, successContainer } from '../../services/economy/economyViews.js';
 import {
     initializeJoinToCreate,
     getChannelConfiguration,
@@ -199,17 +199,17 @@ async function handleSetupSubcommand(interaction, client) {
 
         logger.info(`Successfully created Join to Create system in guild ${guildId}`);
 
-        const responseEmbed = successEmbed(
-            '✅ Setup Complete',
-            `Created Join to Create channel: ${triggerChannel}\n\n` +
+        const card = successContainer({
+            title: '✅ Setup Complete',
+            body: `Created Join to Create channel: ${triggerChannel}\n\n` +
             `**Settings:**\n` +
             `• Template: \`${nameTemplate}\`\n` +
             `• User Limit: ${userLimit === 0 ? 'Unlimited' : userLimit + ' users'}\n` +
             `• Bitrate: ${bitrate} kbps\n` +
-            `${category ?`• Category: ${category.name}`: '• Category: Root level'}`
-        );
+            `${category ?`• Category: ${category.name}`: '• Category: Root level'}`,
+        });
 
-        return await InteractionHelper.safeEditReply(interaction, { embeds: [responseEmbed] });
+        return await InteractionHelper.safeEditReply(interaction, { components: [card], flags: v2Flags(), allowedMentions: NO_PINGS });
 
     } catch (error) {
         logger.error('Error in handleSetupSubcommand:', error);
@@ -232,29 +232,20 @@ async function handleConfigSubcommand(interaction, client) {
         const currentConfig = await getChannelConfiguration(client, guildId, triggerChannel.id);
         const channelConfig = currentConfig.channelConfig || {};
 
-        const configEmbed = new EmbedBuilder()
-            .setTitle('Join to Create Configuration')
-            .setDescription(`Configuration for ${triggerChannel}`)
-            .setColor(getColor('info'))
-            .addFields(
-                {
-                    name: 'Channel Name Template',
-                    value: `\`${channelConfig.nameTemplate || currentConfig.channelNameTemplate || "{username}'s Room"}\``,
-                    inline: false
-                },
-                {
-                    name: 'User Limit',
-                    value: `${(channelConfig.userLimit ?? currentConfig.userLimit ?? 0) === 0 ? 'Unlimited' : (channelConfig.userLimit ?? currentConfig.userLimit ?? 0) + ' users'}`,
-                    inline: true
-                },
-                {
-                    name: 'Bitrate',
-                    value: `${(channelConfig.bitrate ?? currentConfig.bitrate ?? 64000) / 1000} kbps`,
-                    inline: true
-                }
-            )
-            .setFooter({ text: 'Use the buttons below to modify settings • Only one trigger channel is supported per guild' })
-            .setTimestamp();
+        const configCard = container({
+            parts: [
+                text('### Join to Create Configuration'),
+                text(`Configuration for ${triggerChannel}`),
+                divider(),
+                text([
+                    `**Channel Name Template**\n\`${channelConfig.nameTemplate || currentConfig.channelNameTemplate || "{username}'s Room"}\``,
+                    `**User Limit**\n${(channelConfig.userLimit ?? currentConfig.userLimit ?? 0) === 0 ? 'Unlimited' : (channelConfig.userLimit ?? currentConfig.userLimit ?? 0) + ' users'}`,
+                    `**Bitrate**\n${(channelConfig.bitrate ?? currentConfig.bitrate ?? 64000) / 1000} kbps`,
+                ].join('\n\n')),
+                divider(),
+                text('-# Use the buttons below to modify settings • Only one trigger channel is supported per guild'),
+            ],
+        });
 
         const nameButton = new ButtonBuilder()
             .setCustomId(`jtc_config_name_${triggerChannel.id}`)
@@ -279,8 +270,9 @@ async function handleConfigSubcommand(interaction, client) {
         const row = new ActionRowBuilder().addComponents(nameButton, limitButton, bitrateButton, deleteButton);
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [configEmbed],
-            components: [row]
+            components: [configCard, row],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
 
         const message = await interaction.fetchReply();
@@ -346,9 +338,25 @@ async function handleConfigSubcommand(interaction, client) {
                 deleteButton.setDisabled(true)
             );
 
+            const expiredCard = container({
+                parts: [
+                    text('### Join to Create Configuration'),
+                    text(`Configuration for ${triggerChannel}`),
+                    divider(),
+                    text([
+                        `**Channel Name Template**\n\`${channelConfig.nameTemplate || currentConfig.channelNameTemplate || "{username}'s Room"}\``,
+                        `**User Limit**\n${(channelConfig.userLimit ?? currentConfig.userLimit ?? 0) === 0 ? 'Unlimited' : (channelConfig.userLimit ?? currentConfig.userLimit ?? 0) + ' users'}`,
+                        `**Bitrate**\n${(channelConfig.bitrate ?? currentConfig.bitrate ?? 64000) / 1000} kbps`,
+                    ].join('\n\n')),
+                    divider(),
+                    text('-# Configuration session expired. Run the command again to make changes.'),
+                ],
+            });
+
             message.edit({
-                components: [disabledRow],
-                embeds: [configEmbed.setFooter({ text: 'Configuration session expired. Run the command again to make changes.' })]
+                components: [expiredCard, disabledRow],
+                flags: MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             }).catch(() => {});
         });
 
@@ -430,8 +438,9 @@ async function handleNameTemplateModal(interaction, triggerChannel, currentConfi
         });
 
         await modalSubmission.reply({
-            embeds: [successEmbed('Updated', `Channel name template changed to \`${newTemplate}\``)],
-            flags: MessageFlags.Ephemeral
+            components: [successContainer({ title: 'Updated', body: `Channel name template changed to \`${newTemplate}\`` })],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
     } catch (error) {
@@ -498,8 +507,9 @@ async function handleUserLimitModal(interaction, triggerChannel, currentConfig, 
         });
 
         await modalSubmission.reply({
-            embeds: [successEmbed('Updated', `User limit changed to ${parseInt(userInput) === 0 ? 'Unlimited' : parseInt(userInput) + ' users'}`)],
-            flags: MessageFlags.Ephemeral
+            components: [successContainer({ title: 'Updated', body: `User limit changed to ${parseInt(userInput) === 0 ? 'Unlimited' : parseInt(userInput) + ' users'}` })],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
     } catch (error) {
@@ -566,8 +576,9 @@ async function handleBitrateModal(interaction, triggerChannel, currentConfig, cl
         });
 
         await modalSubmission.reply({
-            embeds: [successEmbed('Updated', `Bitrate changed to ${parseInt(userInput)} kbps`)],
-            flags: MessageFlags.Ephemeral
+            components: [successContainer({ title: 'Updated', body: `Bitrate changed to ${parseInt(userInput)} kbps` })],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
     } catch (error) {
@@ -600,9 +611,9 @@ async function handleChannelDeletion(interaction, triggerChannel, currentConfig,
         );
 
         await InteractionHelper.safeReply(interaction, {
-            embeds: [warningEmbed('Confirm Deletion', `Are you sure you want to remove **${triggerChannel.name}** from the Join to Create system?\n\nThis action cannot be undone.`)],
-            components: [confirmRow],
-            flags: MessageFlags.Ephemeral
+            components: [noticeContainer({ title: 'Confirm Deletion', body: `Are you sure you want to remove **${triggerChannel.name}** from the Join to Create system?\n\nThis action cannot be undone.` }), confirmRow],
+            flags: v2Flags({ ephemeral: true }),
+            allowedMentions: NO_PINGS,
         });
 
         const message = await interaction.fetchReply();
@@ -645,14 +656,16 @@ async function handleChannelDeletion(interaction, triggerChannel, currentConfig,
                     }
 
                     await buttonInteraction.update({
-                        embeds: [successEmbed('Removed', `**${triggerChannel.name}** has been removed from the Join to Create system.`)],
-                        components: []
+                        components: [successContainer({ title: 'Removed', body: `**${triggerChannel.name}** has been removed from the Join to Create system.` })],
+                        flags: MessageFlags.IsComponentsV2,
+                        allowedMentions: NO_PINGS,
                     });
 
                 } else {
                     await buttonInteraction.update({
-                        embeds: [successEmbed('Cancelled', 'Channel removal has been cancelled.')],
-                        components: []
+                        components: [successContainer({ title: 'Cancelled', body: 'Channel removal has been cancelled.' })],
+                        flags: MessageFlags.IsComponentsV2,
+                        allowedMentions: NO_PINGS,
                     });
                 }
             } catch (collectError) {

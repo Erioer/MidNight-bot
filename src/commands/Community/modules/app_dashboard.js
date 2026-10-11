@@ -1,4 +1,4 @@
-import { getColor, getDefaultApplicationQuestions, botConfig } from '../../../config/bot.js';
+import { getDefaultApplicationQuestions, botConfig } from '../../../config/bot.js';
 import {
     ActionRowBuilder,
     StringSelectMenuBuilder,
@@ -13,16 +13,16 @@ import {
     ChannelType,
     MessageFlags,
     ComponentType,
-    EmbedBuilder,
     LabelBuilder,
     CheckboxBuilder,
     TextDisplayBuilder,
 } from 'discord.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
-import { successEmbed } from '../../../utils/embeds.js';
 import { logger } from '../../../utils/logger.js';
 import { MidNightError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
 import { safeDeferInteraction } from '../../../utils/interactionValidator.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../../utils/componentsV2.js';
+import { failureContainer, noticeContainer, successContainer } from '../../../services/economy/economyViews.js';
 import {
     getApplicationSettings,
     saveApplicationSettings,
@@ -55,25 +55,21 @@ async function buildDashboardEmbed(settings, roles, guild, client) {
             ? `\`${settings.questions[0].length > 55 ? settings.questions[0].substring(0, 55) + '…' : settings.questions[0]}\``
             : '`Not set`';
 
-    return new EmbedBuilder()
-        .setTitle('Applications Dashboard')
-        .setDescription(`Manage application settings for **${guild.name}**.\nSelect an option below to modify a setting.`)
-        .setColor(getColor('info'))
-        .addFields(
-            { name: 'Application Status', value: settings.enabled ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'Log Channel', value: logChannel, inline: true },
-            { name: '\u200B', value: '\u200B', inline: true },
-            { name: 'Manager Roles', value: managerRoleList, inline: false },
-            { name: 'Questions', value: `${questionCount} configured — first: ${firstQ}`, inline: false },
-            { name: 'Application Roles', value: roleList, inline: false },
-            {
-                name: 'Retention',
-                value: `Pending: **${settings.pendingApplicationRetentionDays ?? 30}d** · Reviewed: **${settings.reviewedApplicationRetentionDays ?? 14}d**`,
-                inline: false,
-            },
-        )
-        .setFooter({ text: 'Dashboard closes after 15 minutes of inactivity' })
-        .setTimestamp();
+    return container({
+        parts: [
+            text('### Applications Dashboard'),
+            text(`Manage application settings for **${guild.name}**.\nSelect an option below to modify a setting.`),
+            divider(),
+            text(`**Application Status**\n${settings.enabled ? 'Enabled' : 'Disabled'}`),
+            text(`**Log Channel**\n${logChannel}`),
+            text(`**Manager Roles**\n${managerRoleList}`),
+            text(`**Questions**\n${questionCount} configured — first: ${firstQ}`),
+            text(`**Application Roles**\n${roleList}`),
+            text(`**Retention**\nPending: **${settings.pendingApplicationRetentionDays ?? 30}d** · Reviewed: **${settings.reviewedApplicationRetentionDays ?? 14}d**`),
+            divider(),
+            text('-# Dashboard closes after 15 minutes of inactivity'),
+        ],
+    });
 }
 
 function buildSelectMenu(guildId) {
@@ -128,11 +124,13 @@ function buildButtonRow(settings, guildId, disabled = false) {
 async function refreshDashboard(rootInteraction, settings, roles, guildId, client) {
     const selectMenu = buildSelectMenu(guildId);
     await InteractionHelper.safeEditReply(rootInteraction, {
-        embeds: [await buildDashboardEmbed(settings, roles, rootInteraction.guild, client)],
         components: [
+            await buildDashboardEmbed(settings, roles, rootInteraction.guild, client),
             buildButtonRow(settings, guildId),
             new ActionRowBuilder().addComponents(selectMenu),
         ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     }).catch(() => {});
 }
 
@@ -209,14 +207,17 @@ async function showApplicationSelector(interaction, roles, settings, guildId, cl
             ),
         );
 
-    const embed = new EmbedBuilder()
-        .setTitle('Select Application')
-        .setDescription('Choose which application role you want to configure.')
-        .setColor(getColor('info'));
+    const panel = container({
+        parts: [
+            text('### Select Application'),
+            text('Choose which application role you want to configure.'),
+        ],
+    });
 
     await InteractionHelper.safeEditReply(interaction, {
-        embeds: [embed],
-        components: [new ActionRowBuilder().addComponents(selectMenu)],
+        components: [panel, new ActionRowBuilder().addComponents(selectMenu)],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 
     const collector = interaction.channel.createMessageComponentCollector({
@@ -253,11 +254,13 @@ async function showGlobalDashboard(interaction, settings, roles, guildId, client
     const selectMenu = buildSelectMenu(guildId);
 
     await InteractionHelper.safeEditReply(interaction, {
-        embeds: [await buildDashboardEmbed(settings, roles, interaction.guild, client)],
         components: [
+            await buildDashboardEmbed(settings, roles, interaction.guild, client),
             buildButtonRow(settings, guildId),
             new ActionRowBuilder().addComponents(selectMenu),
         ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 
     setupCollectors(interaction, settings, roles, guildId, client, null);
@@ -284,45 +287,22 @@ async function showApplicationDashboard(rootInteraction, selectedRole, settings,
         ? settings.managerRoles.map(id => `<@&${id}>`).join(',')
         : '`None configured`';
 
-    const embed = new EmbedBuilder()
-        .setTitle('📋 Application Dashboard')
-        .setDescription(`Configuration for **${selectedRole.name}**`)
-        .setColor(isEnabled ? getColor('success') : getColor('error'))
-        .addFields(
-            { 
-                name: 'Role', 
-                value: roleObj ? roleObj.toString() : `<@&${selectedRole.roleId}>`, 
-                inline: true 
-            },
-            { 
-                name: 'Application Status', 
-                value: isEnabled ? '✅ **Enabled**' : '❌ **Disabled**', 
-                inline: true 
-            },
-            { name: '\u200B', value: '\u200B', inline: true },
-            { 
-                name: 'Questions', 
-                value: questionsDisplay,
-                inline: false 
-            },
-            { 
-                name: 'Log Channel', 
-                value: logChannelDisplay,
-                inline: true 
-            },
-            { 
-                name: 'Manager Roles',
-                value: managerRolesDisplay,
-                inline: true 
-            },
-            { 
-                name: 'Retention Period',
-                value: `Pending: **${settings.pendingApplicationRetentionDays ?? 30}d** · Reviewed: **${settings.reviewedApplicationRetentionDays ?? 14}d**`,
-                inline: false 
-            },
-        )
-        .setFooter({ text: 'Dashboard closes after 10 minutes of inactivity' })
-        .setTimestamp();
+    const panel = container({
+        accentColor: isEnabled ? 3066993 : 16711680,
+        parts: [
+            text('### Application Dashboard'),
+            text(`Configuration for **${selectedRole.name}**`),
+            divider(),
+            text(`**Role**\n${roleObj ? roleObj.toString() : `<@&${selectedRole.roleId}>`}`),
+            text(`**Application Status**\n${isEnabled ? 'Enabled' : 'Disabled'}`),
+            text(`**Questions**\n${questionsDisplay}`),
+            text(`**Log Channel**\n${logChannelDisplay}`),
+            text(`**Manager Roles**\n${managerRolesDisplay}`),
+            text(`**Retention Period**\nPending: **${settings.pendingApplicationRetentionDays ?? 30}d** · Reviewed: **${settings.reviewedApplicationRetentionDays ?? 14}d**`),
+            divider(),
+            text('-# Dashboard closes after 10 minutes of inactivity'),
+        ],
+    });
 
     const configMenu = buildApplicationSelectMenu(guildId, selectedRole.roleId);
 
@@ -341,8 +321,9 @@ async function showApplicationDashboard(rootInteraction, selectedRole, settings,
     const menuRow = new ActionRowBuilder().addComponents(configMenu);
 
     await InteractionHelper.safeEditReply(rootInteraction, {
-        embeds: [embed],
-        components: [menuRow, controlButtons],
+        components: [panel, menuRow, controlButtons],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 
     setupCollectors(rootInteraction, settings, roles, guildId, client, selectedRole.roleId);
@@ -413,14 +394,15 @@ function setupCollectors(interaction, settings, roles, guildId, client, selected
 
     collector.on('end', async (collected, reason) => {
         if (reason === 'time') {
-            const timeoutEmbed = new EmbedBuilder()
-                .setTitle('\u23f0 Dashboard Timed Out')
-                .setDescription('This dashboard has been closed due to inactivity. Please run the command again to continue.')
-                .setColor(getColor('error'));
-                
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [timeoutEmbed],
-                components: [],
+                components: [
+                    failureContainer({
+                        title: 'Dashboard Timed Out',
+                        body: 'This dashboard has been closed due to inactivity. Please run the command again to continue.',
+                    }),
+                ],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             }).catch(() => {});
         }
     });
@@ -449,15 +431,18 @@ function setupCollectors(interaction, settings, roles, guildId, client, selected
                 await showGlobalDashboard(interaction, updatedSettings, updatedRoles, guildId, interaction.client);
 
                 await toggleInteraction.followUp({
-                    embeds: [successEmbed(
-                        wasEnabled ? '🔴 Applications Disabled' : '🟢 Applications Enabled',
-                        `The applications system is now **${wasEnabled ? 'disabled' : 'enabled'}**.\n\n${
-                            wasEnabled 
-                                ? 'Members will no longer be able to apply for roles.' 
-                                : 'Members can now start applying for roles.'
-                        }`,
-                    )],
-                    flags: MessageFlags.Ephemeral,
+                    components: [
+                        successContainer({
+                            title: wasEnabled ? 'Applications Disabled' : 'Applications Enabled',
+                            body: `The applications system is now **${wasEnabled ? 'disabled' : 'enabled'}**.\n\n${
+                                wasEnabled
+                                    ? 'Members will no longer be able to apply for roles.'
+                                    : 'Members can now start applying for roles.'
+                            }`,
+                        }),
+                    ],
+                    flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                    allowedMentions: NO_PINGS,
                 });
 
             } catch (error) {
@@ -471,14 +456,15 @@ function setupCollectors(interaction, settings, roles, guildId, client, selected
 
         globalToggleCollector.on('end', async (collected, reason) => {
             if (reason === 'time') {
-                const timeoutEmbed = new EmbedBuilder()
-                    .setTitle('Configuration Timeout')
-                    .setDescription('This dashboard session has timed out due to inactivity (10 minutes).\n\nTo continue configuring your applications, please run the command again.')
-                    .setColor(getColor('warning'));
-                    
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [timeoutEmbed],
-                    components: [],
+                    components: [
+                        noticeContainer({
+                            title: 'Configuration Timeout',
+                            body: 'This dashboard session has timed out due to inactivity (10 minutes).\n\nTo continue configuring your applications, please run the command again.',
+                        }),
+                    ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 }).catch(() => {});
             }
         });
@@ -564,14 +550,15 @@ function setupCollectors(interaction, settings, roles, guildId, client, selected
 
         btnCollector.on('end', async (collected, reason) => {
             if (reason === 'time') {
-                const timeoutEmbed = new EmbedBuilder()
-                    .setTitle('Configuration Timeout')
-                    .setDescription('This dashboard session has timed out due to inactivity (10 minutes).\n\nTo continue configuring your applications, please run the command again.')
-                    .setColor(getColor('warning'));
-                    
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [timeoutEmbed],
-                    components: [],
+                    components: [
+                        noticeContainer({
+                            title: 'Configuration Timeout',
+                            body: 'This dashboard session has timed out due to inactivity (10 minutes).\n\nTo continue configuring your applications, please run the command again.',
+                        }),
+                    ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 }).catch(() => {});
             }
         });
@@ -609,15 +596,18 @@ function setupCollectors(interaction, settings, roles, guildId, client, selected
                 await showApplicationDashboard(interaction, updatedRole, updatedSettings, roles, guildId, interaction.client);
 
                 await toggleInteraction.followUp({
-                    embeds: [successEmbed(
-                        wasEnabled ? '🔴 Application Disabled' : '🟢 Application Enabled',
-                        `The **${updatedRole.name}** application is now **${wasEnabled ? 'disabled' : 'enabled'}**.\n\n${
-                            wasEnabled 
-                                ? 'This application will no longer appear in `/apply submit` options.' 
-                                : 'This application will now appear in `/apply submit` options.'
-                        }`,
-                    )],
-                    flags: MessageFlags.Ephemeral,
+                    components: [
+                        successContainer({
+                            title: wasEnabled ? 'Application Disabled' : 'Application Enabled',
+                            body: `The **${updatedRole.name}** application is now **${wasEnabled ? 'disabled' : 'enabled'}**.\n\n${
+                                wasEnabled
+                                    ? 'This application will no longer appear in `/apply submit` options.'
+                                    : 'This application will now appear in `/apply submit` options.'
+                            }`,
+                        }),
+                    ],
+                    flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                    allowedMentions: NO_PINGS,
                 });
 
             } catch (error) {
@@ -631,14 +621,15 @@ function setupCollectors(interaction, settings, roles, guildId, client, selected
 
         toggleCollector.on('end', async (collected, reason) => {
             if (reason === 'time') {
-                const timeoutEmbed = new EmbedBuilder()
-                    .setTitle('Configuration Timeout')
-                    .setDescription('This dashboard session has timed out due to inactivity (10 minutes).\n\nTo continue configuring your applications, please run the command again.')
-                    .setColor(getColor('warning'));
-                    
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [timeoutEmbed],
-                    components: [],
+                    components: [
+                        noticeContainer({
+                            title: 'Configuration Timeout',
+                            body: 'This dashboard session has timed out due to inactivity (10 minutes).\n\nTo continue configuring your applications, please run the command again.',
+                        }),
+                    ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 }).catch(() => {});
             }
         });
@@ -721,8 +712,14 @@ async function handleLogChannel(selectInteraction, rootInteraction, settings, ro
         }
 
         await modalSubmission.reply({
-            embeds: [successEmbed('Log Channel Updated', `Application logs will now be sent to ${channel ?? `<#${channelId}>`}.\nYou can also manage this from \`/logging dashboard\`.`)],
-            flags: MessageFlags.Ephemeral,
+            components: [
+                successContainer({
+                    title: 'Log Channel Updated',
+                    body: `Application logs will now be sent to ${channel ?? `<#${channelId}>`}.\nYou can also manage this from \`/logging dashboard\`.`,
+                }),
+            ],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         await refreshDashboard(rootInteraction, settings, roles, guildId, client);
@@ -782,8 +779,14 @@ async function handleManagerRole(selectInteraction, rootInteraction, settings, r
             : '`None`';
 
         await modalSubmission.reply({
-            embeds: [successEmbed('Manager Roles Updated', `Current manager roles: ${finalList}`)],
-            flags: MessageFlags.Ephemeral,
+            components: [
+                successContainer({
+                    title: 'Manager Roles Updated',
+                    body: `Current manager roles: ${finalList}`,
+                }),
+            ],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         await refreshDashboard(rootInteraction, settings, roles, guildId, client);
@@ -890,13 +893,14 @@ async function handleQuestions(selectInteraction, rootInteraction, settings, rol
     }
 
     await submitted.reply({
-        embeds: [
-            successEmbed(
-                '✅ Questions Updated',
-                `${newQuestions.length} question${newQuestions.length !== 1 ? 's' : ''} saved.`,
-            ),
+        components: [
+            successContainer({
+                title: 'Questions Updated',
+                body: `${newQuestions.length} question${newQuestions.length !== 1 ? 's' : ''} saved.`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, settings, roles, guildId, client);
@@ -953,8 +957,14 @@ async function handleRoleAdd(selectInteraction, rootInteraction, settings, roles
         });
 
         await modalSubmission.reply({
-            embeds: [successEmbed('Role Added', `${role ?? roleId} added as **${customName}**.`)],
-            flags: MessageFlags.Ephemeral,
+            components: [
+                successContainer({
+                    title: 'Role Added',
+                    body: `${role ?? roleId} added as **${customName}**.`,
+                }),
+            ],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         await refreshDashboard(rootInteraction, settings, roles, guildId, client);
@@ -1015,8 +1025,14 @@ async function handleRoleRemove(selectInteraction, rootInteraction, settings, ro
         await saveApplicationRoles(client, guildId, roles);
 
         await modalSubmission.reply({
-            embeds: [successEmbed('Role Removed', `<@&${roleId}> has been removed from the application roles.`)],
-            flags: MessageFlags.Ephemeral,
+            components: [
+                successContainer({
+                    title: 'Role Removed',
+                    body: `<@&${roleId}> has been removed from the application roles.`,
+                }),
+            ],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         await refreshDashboard(rootInteraction, settings, roles, guildId, client);
@@ -1100,13 +1116,14 @@ async function handleRetention(selectInteraction, rootInteraction, settings, rol
     await saveApplicationSettings(client, guildId, settings);
 
     await submitted.reply({
-        embeds: [
-            successEmbed(
-                '✅ Retention Updated',
-                `Pending applications will be kept for **${pendingDays} days**.\nReviewed applications will be kept for **${reviewedDays} days**.`,
-            ),
+        components: [
+            successContainer({
+                title: 'Retention Updated',
+                body: `Pending applications will be kept for **${pendingDays} days**.\nReviewed applications will be kept for **${reviewedDays} days**.`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, settings, roles, guildId, client);
@@ -1137,14 +1154,15 @@ async function handleDeleteApplication(confirmSubmit, selectedRoleId, guildId, r
         }
 
         await confirmSubmit.reply({
-            embeds: [
-                successEmbed(
-                    '🗑️ Application Deleted',
-                    `The application for <@&${selectedRoleId}> (**${deletedRole.name}**) has been permanently deleted.\n\n` +
+            components: [
+                successContainer({
+                    title: 'Application Deleted',
+                    body: `The application for <@&${selectedRoleId}> (**${deletedRole.name}**) has been permanently deleted.\n\n` +
                     `Deleted: **${applicationsToDelete.length}** application${applicationsToDelete.length !== 1 ? 's' : ''}`,
-                ),
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
     } catch (error) {

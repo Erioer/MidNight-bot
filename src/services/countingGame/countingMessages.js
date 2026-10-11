@@ -1,20 +1,16 @@
 // countingMessages.js
 // All Discord-facing copy for the counting game lives here so message text,
-// warning variants, and the ruin embed stay in one place.
+// warning variants, and the ruin card stay in one place.
 //
-// NOTE on embeds.js: that module globally monkey-patches EmbedBuilder so that
-// setTitle / setAuthor / addFields / setDescription strip emoji, and
-// setFooter / setTimestamp become near no-ops. The counting notices are
-// specified WITH emoji, so this file writes the embed `data` fields directly
-// instead of going through the patched setters.
+// Every builder returns a Components V2 container: callers must send
+// `flags: MessageFlags.IsComponentsV2` and must not add `content` or `embeds`.
+// Emoji are written directly into the Text Display copy.
 //
-// NOTE on mentions: Discord does not render or ping user mentions inside an
-// embed, so no `<@id>` ever appears in embed copy. The mention is returned by
-// `buildMention` and sent as the message `content` alongside the embed, and the
-// embed itself refers to the offender in the second person.
+// NOTE on mentions: mentions inside a Text Display ping exactly like message
+// content, so no `<@id>` appears in the card copy itself. The mention is
+// returned by `buildMention` and sent as a leading Text Display ahead of the
+// card, and the card refers to the offender in the second person.
 
-import { EmbedBuilder } from 'discord.js';
-import { getColor } from '../../config/bot.js';
 import {
   COUNTING_COMMENT_EXAMPLE,
   COUNTING_COMMENT_PREFIX,
@@ -22,32 +18,16 @@ import {
   COUNTING_SHIELD,
   COUNTING_TIMERS,
 } from '../../config/countingGameConfig.js';
+import { container, text } from '../../utils/componentsV2.js';
 
-const RUIN_COLOR = '#ED4245';
-const NOTICE_COLOR = '#FEE75C';
-const SHIELD_COLOR = '#5865F2';
-const SUCCESS_COLOR = '#57F287';
-
-/**
- * Builds an embed while preserving emoji in the title, description, and
- * fields. `embed.data` is assigned post-construction so the sanitizing
- * setters never see the text.
- */
-function buildRawEmbed({ color, title, description, fields = [] }) {
-  const embed = new EmbedBuilder();
-  embed.setColor(getColor(color));
-
-  embed.data.title = title;
-  embed.data.description = description;
-  embed.data.fields = fields.map((field) => ({ ...field }));
-
-  return embed;
-}
+// Semantic accents. Only these three are ever used here.
+const FAILURE_ACCENT = 16711680; // #FF0000
+const COOLDOWN_ACCENT = 16705372; // #FEE75C
+const SUCCESS_ACCENT = 3066993; // #2ECC71
 
 /**
- * Builds the message `content` that accompanies an embed. Discord only pings a
- * user from message content, never from embed fields, so the offender is always
- * mentioned here rather than inside the embed.
+ * Builds the leading Text Display that accompanies a card. The offender is
+ * always mentioned here rather than inside the card copy.
  */
 export function buildMention(userId, text = '') {
   return `<@${userId}>${text ? ` ${text}` : ''}`;
@@ -61,15 +41,17 @@ export function buildMultiNumberNotice({ content, numbers, attempt, strikeLimit 
     ? `This is offence **${attempt}** of ${strikeLimit}.`
     : `Next offence will break the count.`;
 
-  return buildRawEmbed({
-    color: NOTICE_COLOR,
-    title: `${COUNTING_EMOJI.warning} Multiple numbers detected!`,
-    description: [
-      `Your message contained both ${listed}${remaining}.`,
-      `To add chat text next to a number, write \`[count number] ${COUNTING_COMMENT_PREFIX} [text]\` — e.g. \`${COUNTING_COMMENT_EXAMPLE}\`.`,
-      attemptLine,
-    ].filter(Boolean).join('\n'),
-    fields: [{ name: 'Your message', value: `\`${truncate(content, 180)}\``, inline: false }],
+  return container({
+    accentColor: COOLDOWN_ACCENT,
+    parts: [
+      text(`### ${COUNTING_EMOJI.warning} Multiple numbers detected!`),
+      text([
+        `Your message contained both ${listed}${remaining}.`,
+        `To add chat text next to a number, write \`[count number] ${COUNTING_COMMENT_PREFIX} [text]\` — e.g. \`${COUNTING_COMMENT_EXAMPLE}\`.`,
+        attemptLine,
+      ].filter(Boolean).join('\n')),
+      text(`**Your message:** \`${truncate(content, 180)}\``),
+    ],
   });
 }
 
@@ -82,19 +64,21 @@ export function buildRemovedNotice({ content, reason = REMOVED_REASON_CHAT, atte
     ? `This is offence **${attempt}** of ${strikeLimit}.`
     : '';
 
-  return buildRawEmbed({
-    color: RUIN_COLOR,
-    title: `${COUNTING_EMOJI.removed} Message Removed`,
-    description: [
-      `Your message: \`${truncate(content, 180)}\``,
-      `**Reason:** ${reason}`,
-      attemptLine,
-    ].filter(Boolean).join('\n'),
+  return container({
+    accentColor: FAILURE_ACCENT,
+    parts: [
+      text(`### ${COUNTING_EMOJI.removed} Message Removed`),
+      text([
+        `Your message: \`${truncate(content, 180)}\``,
+        `**Reason:** ${reason}`,
+        attemptLine,
+      ].filter(Boolean).join('\n')),
+    ],
   });
 }
 
 /**
- * Permanent ruin embed. Unlike the temporary notices this one is never
+ * Permanent ruin card. Unlike the temporary notices this one is never
  * deleted — the community restore vote lives on it.
  *
  * `countAtBreak` is the last number that counted successfully (so restoring
@@ -133,34 +117,38 @@ export function buildRuinEmbed({
 
   const restored = voteState === 'restored';
 
-  return buildRawEmbed({
-    color: restored ? SUCCESS_COLOR : RUIN_COLOR,
-    title: restored
-      ? `${COUNTING_EMOJI.restore} Count Restored!`
-      : `Count broken at ${countAtBreak}!`,
-    description: [
-      ...(leadingText ? [leadingText.trimEnd()] : []),
-      `Sent: \`${truncate(String(sentValue), 60)}\` (Expected: ${expectedValue})`,
-      `Next expected number: ${nextExpected}`,
-      `Highest Record for this channel: ${highestRecord}`,
-      '',
-      `*Reason: ${reason}*`,
-      '',
-      voteBlock,
-    ].join('\n'),
+  return container({
+    accentColor: restored ? SUCCESS_ACCENT : FAILURE_ACCENT,
+    parts: [
+      text(restored
+        ? `### ${COUNTING_EMOJI.restore} Count Restored!`
+        : `### Count broken at ${countAtBreak}!`),
+      text([
+        ...(leadingText ? [leadingText.trimEnd()] : []),
+        `Sent: \`${truncate(String(sentValue), 60)}\` (Expected: ${expectedValue})`,
+        `Next expected number: ${nextExpected}`,
+        `Highest Record for this channel: ${highestRecord}`,
+        '',
+        `*Reason: ${reason}*`,
+        '',
+        voteBlock,
+      ].join('\n')),
+    ],
   });
 }
 
 /** Permanent notice shown when a shield absorbs a mistake. */
 export function buildShieldSavedEmbed({ mistakeValue, safeValue, nextExpected, shieldsRemaining }) {
-  return buildRawEmbed({
-    color: SHIELD_COLOR,
-    title: `${COUNTING_EMOJI.shield} Count Saved!`,
-    description: [
-      `You made a mistake at ${mistakeValue}, but consumed 1 ${COUNTING_EMOJI.shield} Shield!`,
-      `The count remains safe at ${safeValue}. Next expected number is ${nextExpected}.`,
-      `Shields remaining: ${shieldsRemaining}/${COUNTING_SHIELD.max}.`,
-    ].join('\n'),
+  return container({
+    accentColor: SUCCESS_ACCENT,
+    parts: [
+      text(`### ${COUNTING_EMOJI.shield} Count Saved!`),
+      text([
+        `You made a mistake at ${mistakeValue}, but consumed 1 ${COUNTING_EMOJI.shield} Shield!`,
+        `The count remains safe at ${safeValue}. Next expected number is ${nextExpected}.`,
+        `Shields remaining: ${shieldsRemaining}/${COUNTING_SHIELD.max}.`,
+      ].join('\n')),
+    ],
   });
 }
 
@@ -171,21 +159,21 @@ export function buildShieldSavedEmbed({ mistakeValue, safeValue, nextExpected, s
  * stale the moment anyone else counts.
  */
 export function buildCooldownNotice({ remainingSeconds, requiredCounts }) {
-  return buildRawEmbed({
-    color: NOTICE_COLOR,
-    title: 'Counting Cooldown Active',
-    description: [
-      'You are on a counting cooldown for breaking the sequence.',
-      `It unlocks after **${requiredCounts}** valid counts by other members, or in **${remainingSeconds}s**.`,
-      'Your message was removed and was not counted.',
-    ].join('\n'),
+  return container({
+    accentColor: COOLDOWN_ACCENT,
+    parts: [
+      text('### Counting Cooldown Active'),
+      text([
+        'You are on a counting cooldown for breaking the sequence.',
+        `It unlocks after **${requiredCounts}** valid counts by other members, or in **${remainingSeconds}s**.`,
+        'Your message was removed and was not counted.',
+      ].join('\n')),
+    ],
   });
 }
 
 function truncate(value, maxLength) {
-  const text = String(value ?? '');
-  if (text.length <= maxLength) return text;
-  return `${text.slice(0, maxLength - 3)}...`;
+  const str = String(value ?? '');
+  if (str.length <= maxLength) return str;
+  return `${str.slice(0, maxLength - 3)}...`;
 }
-
-export { buildRawEmbed };

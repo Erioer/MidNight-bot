@@ -15,6 +15,6 @@ export default {
     async execute(interaction, config, client) {
         await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
         const result = await playQuery(client, interaction, interaction.options.getString('query'));
-        await replyMusicSuccess(interaction, result.embed);
+        await replyMusicSuccess(interaction, result.container);
     },
 };

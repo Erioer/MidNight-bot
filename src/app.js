@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Client, Collection, GatewayIntentBits } from 'discord.js';
+import { Client, Collection, GatewayIntentBits, Partials } from 'discord.js';
 import { REST } from '@discordjs/rest';
 import express from 'express';
 import cron from 'node-cron';
@@ -18,9 +18,19 @@ import { shutdownMusic } from './services/music/playerHandler.js';
 import pkg from '../package.json' with { type: 'json' };
 import { EXPECTED_SCHEMA_VERSION, EXPECTED_SCHEMA_LABEL } from './config/database/schemaVersion.js';
 
+// Identical Lavalink REST failures (one per reconnect attempt while a node is
+// down) are logged at most once per interval so a dead node cannot flood logs.
+const lavalinkRejectionLog = new Map();
+const LAVALINK_REJECTION_LOG_INTERVAL_MS = 5 * 60 * 1000;
+
 class MidNight extends Client {
   constructor() {
     super({
+      // Partials are what let reaction events on OLD (uncached) messages
+      // resolve: without them, reactions added while the bot was offline (or
+      // on messages outside cache) arrive hollow — no count, no content — and
+      // the starboard silently ignores them.
+      partials: [Partials.Message, Partials.Reaction, Partials.User, Partials.Channel],
       intents: [
         
         GatewayIntentBits.Guilds,                        
@@ -51,7 +61,7 @@ class MidNight extends Client {
 
   async start() {
     try {
-      startupLog('Starting MidNight...');
+      startupLog(`▶ Starting MidNight${pkg.version ? ` v${pkg.version}` : ''}…`);
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       startupLog('Initializing database...');
@@ -67,8 +77,8 @@ class MidNight extends Client {
         logger.warn('║ ⚠️  DATABASE RUNNING IN DEGRADED MODE                 ║');
         logger.warn('║                                                       ║');
         logger.warn('║ Connection: In-Memory Storage (PostgreSQL unavailable)║');
-        logger.warn('║ Data Persistence: DISABLED - data lost on restart    ║');
-        logger.warn('║ Action Required: Fix PostgreSQL and restart bot      ║');
+        logger.warn('║ Data Persistence: DISABLED - data lost on restart     ║');
+        logger.warn('║ Action Required: Fix PostgreSQL and restart bot       ║');
         logger.warn('╚═══════════════════════════════════════════════════════╝');
         logger.warn('');
       } else {
@@ -81,8 +91,8 @@ class MidNight extends Client {
       startupLog('Loading commands...');
       await loadCommands(this);
       startupLog(`Commands loaded: ${this.commands.size}`);
-      
-      startupLog('Loading handlers...');
+
+      // loadHandlers() announces itself; logging it here too printed the line twice.
       await this.loadHandlers();
       startupLog('Handlers loaded');
 
@@ -100,9 +110,13 @@ class MidNight extends Client {
         ? 'Optional in-memory mode (data resets after restart)'
         : 'Connected (persistent data enabled)';
       const handlerSummary = `${this.buttons.size} buttons, ${this.selectMenus.size} menus, ${this.modals.size} modals`;
+      // Width matches the summary line below so both rules bracket it evenly.
+      const bannerWidth = `ONLINE ✅ | ${this.commands.size} commands loaded | ${handlerSummary} | Database: ${databaseMode}`.length;
+      startupLog('─'.repeat(bannerWidth));
       startupLog(
         `ONLINE ✅ | ${this.commands.size} commands loaded | ${handlerSummary} | Database: ${databaseMode}`
       );
+      startupLog('─'.repeat(bannerWidth));
       
       this.setupCronJobs();
     } catch (error) {
@@ -280,8 +294,7 @@ class MidNight extends Client {
           }
         }
         
-        // Save cleaned counters if any were orphaned
-        // Save cleaned counters if any were orphaned
+        // Save cleaned counters if any were orphaned7
         if (orphanedCounters.length > 0) {
           await saveServerCounters(this, guildId, validCounters);
           logger.info(`Cleaned up ${orphanedCounters.length} orphaned counter(s) from guild ${guildId} during scheduled update`);
@@ -412,10 +425,27 @@ try {
         return;
       }
 
+      const message = reason?.message || String(reason);
+      // Riffy's REST layer throws without a catch when a Lavalink node is
+      // down (e.g. the session PATCH on every reconnect attempt). Those are
+      // node faults, not app bugs: classify them as such, and log repeats at
+      // most once per interval instead of once per reconnect.
+      const isLavalink = /lavalink|making node request|riffy/i.test(message);
+      if (isLavalink) {
+        // Session IDs rotate on every reconnect, so redact them before
+        // comparing — otherwise every repeat looks "new".
+        const signature = message.replace(/\/sessions\/[A-Za-z0-9_-]+/, '/sessions/<id>').slice(0, 120);
+        const lastLogged = lavalinkRejectionLog.get(signature) || 0;
+        if (Date.now() - lastLogged < LAVALINK_REJECTION_LOG_INTERVAL_MS) {
+          return;
+        }
+        lavalinkRejectionLog.set(signature, Date.now());
+      }
+
       // A stray rejection is a bug to fix, not a reason to take the bot down.
       // Log loudly with full context; the central task handler categorizes it.
       handleTaskError('unhandled_rejection', reason instanceof Error ? reason : new Error(String(reason)), {
-        errorCode: ErrorCodes.UNHANDLED_REJECTION,
+        errorCode: isLavalink ? ErrorCodes.LAVALINK_ERROR : ErrorCodes.UNHANDLED_REJECTION,
       });
     });
   };

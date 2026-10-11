@@ -1,9 +1,10 @@
-import { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
+import { NO_PINGS, container, text, v2Flags } from '../../utils/componentsV2.js';
+import { failureContainer } from '../../services/economy/economyViews.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-const SUPPORT_SERVER_URL = "https://discord.gg/QnWNz2dKCE";
+const SUPPORT_SERVER_URL = "https://discord.gg/mMMr46zywH";
 export default {
     data: new SlashCommandBuilder()
     .setName("support")
@@ -19,19 +20,28 @@ export default {
       const actionRow = new ActionRowBuilder().addComponents(supportButton);
 
       await InteractionHelper.safeReply(interaction, {
-        embeds: [
-          createEmbed({ title: "Need Help?", description: "Join our official support server for assistance, report bugs, or suggest features. If you are customizing this bot, remember to change the link in the code!" }),
+        components: [
+          container({
+            parts: [
+              text('### Need Help?'),
+              text('Join our official support server for assistance, report bugs, or suggest features.'),
+            ],
+          }),
+          actionRow,
         ],
-        components: [actionRow],
-        flags: MessageFlags.Ephemeral,
+        flags: v2Flags({ ephemeral: true }),
+        allowedMentions: NO_PINGS,
       });
     } catch (error) {
       logger.error('Support command error:', error);
-      
+
       try {
         return await InteractionHelper.safeReply(interaction, {
-          embeds: [createEmbed({ title: 'System Error', description: 'Could not display support information.', color: 'error' })],
-          flags: MessageFlags.Ephemeral,
+          components: [
+            failureContainer({ title: 'System Error', body: 'Could not display support information.' }),
+          ],
+          flags: v2Flags({ ephemeral: true }),
+          allowedMentions: NO_PINGS,
         });
       } catch (replyError) {
         logger.error('Failed to send error reply:', replyError);

@@ -86,9 +86,13 @@ const LOG_SCHEMA_DEFAULTS = Object.freeze({
   traceId: null,
 });
 
-const logFormat = printf(({ level, message, timestamp, stack, displayLevel }) => {
+const logFormat = printf(({ level, message, timestamp, displayLevel }) => {
+  // Console stays a one-line-per-event summary: full stacks live in the
+  // rolling log files (the json file format keeps the stack field). Printing
+  // `${stack || message}` here used to dump naked stack traces with no
+  // message prefix, making every system error look unhandled.
   const visibleLevel = displayLevel || level;
-  const logMessage = `[${timestamp}] [${visibleLevel}]: ${stack || message}`;
+  const logMessage = `[${timestamp}] [${visibleLevel}]: ${message}`;
   return logMessage;
 });
 
@@ -156,6 +160,12 @@ const enforceLogSchema = format((info) => {
 
 const logger = createLogger({
   level: resolvedLogLevel,
+  // Never let logging kill the process: an unhandled rejection must not take
+  // the bot down (proven: a dead Lavalink node rejects once per reconnect and
+  // the default `exitOnError: true` exited on the first one). Crash decisions
+  // belong to app.js's process handlers, which classify first and only shut
+  // down on genuinely uncaught exceptions.
+  exitOnError: false,
   format: combine(
     attachTraceContext(),
     enforceLogSchema(),
@@ -187,14 +197,10 @@ const logger = createLogger({
       zippedArchive: true,
     }),
   ],
-  rejectionHandlers: [
-    new transports.DailyRotateFile({
-      filename: path.join(__dirname, '../../logs/rejections-%DATE%.log'),
-      maxSize: '20m',
-      maxFiles: '14d',
-      zippedArchive: true,
-    }),
-  ],
+  // NOTE: no rejectionHandlers on purpose. Unhandled rejections are owned by
+  // app.js's process handler, which classifies them (LAVALINK_ERROR etc.),
+  // throttles repeats, and never exits. A winston rejection handler would
+  // print every repeat to console with no throttle.
 });
 
 if (process.env.NODE_ENV !== 'production') {

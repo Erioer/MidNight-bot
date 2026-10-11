@@ -1,12 +1,5 @@
 [
   {
-    "host": "lavalinkv4.serenetia.com",
-    "port": 443,
-    "password": "https://seretia.link/discord",
-    "secure": true,
-    "name": "Serenetia"
-  },
-  {
     "host": "lavalink.jirayu.net",
     "port": 443,
     "password": "youshallnotpass",
@@ -28,10 +21,24 @@
     "name": "TriniumHost"
   },
     {
-   "host": "lavalinkv4.serenetia.com",
-  "password": "https://dsc.gg/ajidevserver",
-  "port": 443,
-  "secure": true,
-  "name": "Serenetia V2"
-}
+    "host": "lavalinkv4.serenetia.com",
+    "password": "https://dsc.gg/ajidevserver",
+    "port": 443,
+    "secure": true,
+    "name": "Serenetia"
+  },
+  {
+    "host": "us1.lavalink.creavite.co",
+    "port": 20080,
+    "password": "auto.creavite.co",
+    "secure": false,
+    "name": "Creavite"
+  },
+  {
+    "host": "lava-v4.ajieblogs.eu.org",
+    "port": 80,
+    "password": "https://dsc.gg/ajidevserver",
+    "secure": false,
+    "name": "AjieDev EU"
+  }
 ]

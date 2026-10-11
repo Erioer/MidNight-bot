@@ -1,8 +1,9 @@
-import { EmbedBuilder, MessageFlags } from 'discord.js';
+import { MessageFlags } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { logger } from '../../utils/logger.js';
 import { handleInteractionError, createError, ErrorTypes } from '../../utils/errorHandler.js';
-import { getColor } from '../../config/bot.js';
+import { NO_PINGS } from '../../utils/componentsV2.js';
+import { failureContainer, successContainer } from '../../services/economy/economyViews.js';
 import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
 import { getReactionRoleMessage } from '../../services/reactionRoleService.js';
 
@@ -27,11 +28,14 @@ export async function handleReactionRolesSelectMenu(interaction, client) {
         if (!reactionRoleData) {
             logger.warn(`Reaction role data not found for message ${interaction.message.id} in guild ${interaction.guildId}`);
             return interaction.editReply({
-                embeds: [
-                    new EmbedBuilder()
-                        .setDescription('❌ This reaction role message is no longer active.')
-                        .setColor(getColor('error'))
-                ]
+                components: [
+                    failureContainer({
+                        title: 'Panel Inactive',
+                        body: '❌ This reaction role message is no longer active.',
+                    }),
+                ],
+                flags: MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
         }
 
@@ -153,12 +157,16 @@ export async function handleReactionRolesSelectMenu(interaction, client) {
             description += `\n⚠️ **Skipped:** ${skippedRoles.length} role${skippedRoles.length !== 1 ? 's' : ''} (permission issues)`;
         }
 
-        const responseEmbed = new EmbedBuilder()
-            .setDescription(description)
-            .setColor(getColor('success'))
-            .setTimestamp();
+        const card = successContainer({
+            title: 'Roles Updated',
+            body: description,
+        });
 
-        await interaction.editReply({ embeds: [responseEmbed] });
+        await interaction.editReply({
+            components: [card],
+            flags: MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
+        });
 
         if (addedRoles.length > 0 || removedRoles.length > 0) {
             try {

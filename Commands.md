@@ -1,4 +1,4 @@
-## All 168 commands with description
+﻿## All 169 commands with description
 
 ### — Applications —
 
@@ -76,9 +76,9 @@
 60. react — Send a reaction GIF (hug, kiss, cuddle, etc.) to someone. Valid reactions angry, baka, bite, bleh, blowkiss, blush, bonk, bored, carry, clap, confused, cry, cuddle, dance, facepalm, feed, handhold, handshake, happy, highfive, husbando, kabedon, kick, kiss, kitsune, lappillow, laugh, love, lurk, neko, nod, nom, nope, nya, pat, peck, poke, pout, punch, run, salute, shake, shocked, shoot, shrug, sip, sleep, smile, smug, spin, stare, tableflip, teehee, think, thumbsup, tickle, wag, waifu, wave, wink, yawn, yeet (a prefix only command)
 61. roll — Roll dice using standard notation (e.g., 2d20, 1d6 + 5)
 62. search define — Look up a word definition
-63. search google — Search Google
+63. search duckduckgo — Search DuckDuckGo
 64. search urban — Search Urban Dictionary for definitions
-65. shorten — Shorten a URL using is.gd
+65. shorten — Shorten a URL using spoo.me
 66. time — Get the current time in different time zones
 67. unixtime — Get the current Unix timestamp
 68. weather — Get real-time weather information for a location
@@ -102,107 +102,109 @@
 
 78. leaderboard — Show the server's level leaderboard
 79. level dashboard — Open the interactive leveling configuration dashboard
-80. level setup — Set up the leveling system; this also enables it
-81. leveladd — Add levels to a user
-82. levelremove — Remove levels from a user
-83. levelset — Set a user's level to a specific value
-84. rank — Check your or another user's rank and level
+80. leveladd — Add levels to a user
+81. levelremove — Remove levels from a user
+82. levelset — Set a user's level to a specific value
+83. rank — Check your or another user's rank and level
 
 ### — Moderation —
 
-85. ban — Ban a user from the server
-86. cases — View moderation cases and audit logs
-87. dm — Send a direct message to a user (staff only)
-88. kick — Kick a user from the server
-89. lock — Lock the current channel (prevents @everyone from sending messages)
-90. logging channel — Quick-set a log channel without opening the dashboard
-91. logging dashboard — Open the logging dashboard; set the channel, filters, and category toggles
-92. massban — Ban multiple users from the server at once
-93. masskick — Kick multiple users from the server at once
-94. purge — Delete a specific amount of messages
-95. say — Send a plain message as the bot
-96. timeout — Timeout a user for a specific duration
-97. unban — Unban a user from the server
-98. unlock — Unlock the current channel (allows @everyone to send messages again)
-99. untimeout — Remove timeout from a user
-100. warn — Warn a user
-101. warnings — View all warnings for a user
+84. ban — Ban a user from the server (slash only)
+85. cases — View moderation cases and audit logs (slash only)
+86. dm — Send a direct message to a user (staff only) (slash only)
+87. kick — Kick a user from the server (slash only)
+88. lock — Lock the current channel (prevents @everyone from sending messages) (slash only)
+89. logging channel — Quick-set a log channel without opening the dashboard
+90. logging dashboard — Open the logging dashboard; set the channel, filters, and category toggles
+91. massban — Ban multiple users from the server at once (slash only)
+92. masskick — Kick multiple users from the server at once (slash only)
+93. purge — Delete a specific amount of messages (slash only)
+94. say — Send a plain message as the bot (slash only)
+95. timeout — Timeout a user for a specific duration (slash only)
+96. unban — Unban a user from the server (slash only)
+97. unlock — Unlock the current channel (allows @everyone to send messages again) (slash only)
+98. untimeout — Remove timeout from a user (slash only)
+99. warn — Warn a user (slash only)
+100. warnings — View all warnings for a user (slash only)
 
 ### — Music —
 
-102. join — Join your voice channel without starting playback
-103. music 247 — Toggle 247 mode (stay in voice channel when idle)
+101. join — Join your voice channel without starting playback
+102. music 247 — Toggle 247 mode (stay in voice channel when idle)
+103. music autoplay — Toggle autoplay recommendations
 104. music clear — Clear the queue
-105. music leave — Disconnect the bot from the voice channel
-106. music likes add — Save the currently playing track to your liked songs
-107. music likes list — Show your liked songs
-108. music likes play — Play a song from your liked songs
-109. music likes remove — Remove a song from your liked songs
-110. music loop — Set loop mode
-111. music move — Move a track in the queue
-112. music pause — Pause playback
-113. music ping — Show Lavalink node status and ping
-114. music remove — Remove a track from the queue
-115. music resume — Resume playback
-116. music seek — Seek to a position in the current track
-117. music shuffle — Shuffle the queue
-118. music skip — Skip the current track
-119. music stop — Stop playback and clear the queue
-120. music volume — Set playback volume
-121. nowplaying — Show the currently playing track
-122. play — Play a song or add it to the queue
-123. queue — Show the current music queue
+105. music filter — Apply a Lavalink audio filter preset
+106. music leave — Disconnect the bot from the voice channel
+107. music likes add — Save the currently playing track to your liked songs
+108. music likes list — Show your liked songs
+109. music likes play — Play a song from your liked songs
+110. music likes remove — Remove a song from your liked songs
+111. music loop — Set loop mode
+112. music move — Move a track in the queue
+113. music pause — Pause playback
+114. music ping — Show Lavalink node status and ping
+115. music remove — Remove a track from the queue
+116. music resume — Resume playback
+117. music search — Search for tracks and pick one to enqueue
+118. music seek — Seek to a position in the current track
+119. music shuffle — Shuffle the queue
+120. music skip — Skip the current track
+121. music stop — Stop playback and clear the queue
+122. music volume — Set playback volume
+123. nowplaying — Show the currently playing track
+124. play — Play a song or add it to the queue
+125. queue — Show the current music queue
 
 ### — Productivity & Notes —
 
-124. commands dashboard — Open the interactive command access dashboard
-125. commands disable — Disable a command or entire category
-126. commands enable — Enable a command or entire category
-127. configwizard — Open the server configuration dashboard and setup wizard
-128. todo add — Add a task to your to-do list
-129. todo complete — Mark a task as complete
-130. todo list — View your to-do list
-131. todo remove — Remove a task from your to-do list
-132. todo share add — Add a member to a shared list
-133. todo share addtask — Add a task to a shared to-do list
-134. todo share create — Create a new shared to-do list
-135. todo share remove — Remove a task from a shared to-do list
-136. todo share view — View a shared to-do list
-137. uptime — Check how long the bot has been online
-138. usernotes add — Add a note to a user
-139. usernotes clear — Clear all notes for a user
-140. usernotes remove — Remove a specific note from a user
-141. usernotes view — View notes for a user
-142. wipedata — Delete all your personal data from the bot (irreversible)
+126. commands dashboard — Open the interactive command access dashboard
+127. commands disable — Disable a command or entire category
+128. commands enable — Enable a command or entire category
+129. configwizard — Open the server configuration dashboard and setup wizard
+130. todo add — Add a task to your to-do list
+131. todo complete — Mark a task as complete
+132. todo list — View your to-do list
+133. todo remove — Remove a task from your to-do list
+134. todo share add — Add a member to a shared list
+135. todo share addtask — Add a task to a shared to-do list
+136. todo share create — Create a new shared to-do list
+137. todo share remove — Remove a task from a shared to-do list
+138. todo share view — View a shared to-do list
+139. usernotes add — Add a note to a user
+140. usernotes clear — Clear all notes for a user
+141. usernotes remove — Remove a specific note from a user
+142. usernotes view — View notes for a user
+143. wipedata — Delete all your personal data from the bot (irreversible)
 
 ### — Server Features —
 
-143. count disable — Disable the counting game for this server
-144. count leaderboard — Show the counting game leaderboard
-145. count rank — Show your position on the counting leaderboard
-146. count reset — Reset the current counting sequence
-147. count restore — Instantly revert a broken count to its pre-ruin value
-148. count setup — Start a counting game in a text channel
-149. count stats — Show your counting statistics
-150. count status — View the current counting game status
-151. jointocreate dashboard — Configure an existing Join to Create system
-152. jointocreate setup — Set up a new Join to Create voice channel
-153. reactroles dashboard — Manage and configure your reaction role panels
-154. reactroles setup — Set up a new reaction role panel
-155. removestarboard — Remove the current starboard (a prefix only command)
-156. serverstats create — Create a new statistics tracker channel in a category
-157. serverstats delete — Delete an existing statistics tracker
-158. serverstats list — List all statistics trackers for this server
-159. serverstats update — Update an existing statistics tracker
-160. setchannelstarboard — Set a specified channel to starboard, set the emoji and threshold (can't create more than one) (a prefix only command)
+144. count disable — Disable the counting game for this server
+145. count leaderboard — Show the counting game leaderboard
+146. count rank — Show your position on the counting leaderboard
+147. count reset — Reset the current counting sequence
+148. count restore — Instantly revert a broken count to its pre-ruin value
+149. count setup — Start a counting game in a text channel
+150. count stats — Show your counting statistics
+151. count status — View the current counting game status
+152. jointocreate dashboard — Configure an existing Join to Create system
+153. jointocreate setup — Set up a new Join to Create voice channel
+154. reactroles dashboard — Manage and configure your reaction role panels
+155. reactroles setup — Set up a new reaction role panel
+156. removestarboard — Remove the current starboard (a prefix only command)
+157. serverstats create — Create a new statistics tracker channel in a category
+158. serverstats delete — Delete an existing statistics tracker
+159. serverstats list — List all statistics trackers for this server
+160. serverstats update — Update an existing statistics tracker
+161. setchannelstarboard — Set a specified channel to starboard, set the emoji and threshold (can't create more than one) (a prefix only command)
 
 ### — Support & Tickets —
 
-161. claim — Claim an open ticket, assigning it to you
-162. close — Close the current ticket
-163. priority — Set the priority level for the current support ticket
-164. report file — Report a user to the server moderation team
-165. report setchannel — Set the channel where user reports are sent (Manage server required)
-166. support — Get a link to the support server
-167. ticket dashboard — Open the interactive ticket system dashboard
-168. ticket setup — Set up the ticket creation panel in a specified channel
+162. claim — Claim an open ticket, assigning it to you
+163. close — Close the current ticket
+164. priority — Set the priority level for the current support ticket
+165. report file — Report a user to the server moderation team
+166. report setchannel — Set the channel where user reports are sent (Manage server required)
+167. support — Get a link to the support server
+168. ticket dashboard — Open the interactive ticket system dashboard
+169. ticket setup — Set up the ticket creation panel in a specified channel
+

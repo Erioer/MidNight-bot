@@ -1,5 +1,6 @@
-import { EmbedBuilder } from 'discord.js';
 import { deleteBirthday } from '../../../services/birthdayService.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { failureContainer, successContainer } from '../../../services/economy/economyViews.js';
 
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 export default {
@@ -12,22 +13,26 @@ export default {
         const result = await deleteBirthday(client, guildId, userId);
 
         if (result.status === 'not_found') {
-            const embed = new EmbedBuilder()
-                .setColor(0xFF0000)
-                .setTitle('No Birthday Found')
-                .setDescription('You don\'t have a birthday set to remove.');
+            const card = failureContainer({
+                title: 'No Birthday Found',
+                body: 'You don\'t have a birthday set to remove.',
+            });
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [embed]
+                components: [card],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
             return;
         }
 
-        const embed = new EmbedBuilder()
-            .setColor(0x00FF00)
-            .setTitle('Birthday Removed')
-            .setDescription('Your birthday has been successfully removed from the server.');
+        const card = successContainer({
+            title: 'Birthday Removed',
+            body: 'Your birthday has been successfully removed from the server.',
+        });
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [embed]
+            components: [card],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
     }
 };

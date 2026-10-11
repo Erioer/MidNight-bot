@@ -1,5 +1,4 @@
-import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ComponentType, LabelBuilder, RoleSelectMenuBuilder } from 'discord.js';
-import { createEmbed, successEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, ComponentType, LabelBuilder, RoleSelectMenuBuilder } from 'discord.js';
 import { getColor, getApplicationStatusColor } from '../../config/bot.js';
 import { logger } from '../../utils/logger.js';
 import { withErrorHandling, createError, ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
@@ -18,6 +17,8 @@ import {
 } from '../../utils/database.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import appDashboard from './modules/app_dashboard.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../utils/componentsV2.js';
+import { noticeContainer, successContainer } from '../../services/economy/economyViews.js';
 
 function getApplicationStatusPresentation(statusValue) {
     const normalized = typeof statusValue === 'string' ? statusValue.trim().toLowerCase() : 'unknown';
@@ -258,11 +259,14 @@ async function handleSetup(interaction) {
     await saveApplicationRoleSettings(interaction.client, interaction.guild.id, roleId, { questions });
 
     await submitted.reply({
-        embeds: [successEmbed(
-            '✅ Application Created',
-            `**${appName}** application has been created for ${role}.\n\nYou can customize the log channel, manager roles, questions, and retention period in the dashboard.`,
-        )],
-        flags: ['Ephemeral'],
+        components: [
+            successContainer({
+                title: 'Application Created',
+                body: `**${appName}** application has been created for ${role}.\n\nYou can customize the log channel, manager roles, questions, and retention period in the dashboard.`,
+            }),
+        ],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     setTimeout(() => {
@@ -286,21 +290,24 @@ async function handleReview(interaction) {
         return await replyUserError(interaction, { type: ErrorTypes.UNKNOWN, message: 'This application has already been processed.' });
     }
 
-    const appEmbed = createEmbed({
-        title: `Review Application`,
-        description: `**User:** <@${application.userId}>\n**Application:** ${application.roleName}\n**Application ID:** \`${appId}\``,
-        color: 'info',
-    });
-
+    const reviewLines = [
+        `**User:** <@${application.userId}>`,
+        `**Application:** ${application.roleName}`,
+        `**Application ID:** \`${appId}\``,
+    ];
     if (application.answers && application.answers.length > 0) {
         application.answers.forEach((item, index) => {
-            appEmbed.addFields({
-                name: `Q${index + 1}: ${item.question}`,
-                value: item.answer || '*No answer provided*',
-                inline: false
-            });
+            reviewLines.push(`**Q${index + 1}: ${item.question}**\n${item.answer || '*No answer provided*'}`);
         });
     }
+    const reviewPanel = container({
+        parts: [
+            text('### Review Application'),
+            text(reviewLines.slice(0, 3).join('\n')),
+            divider(),
+            text(reviewLines.slice(3).join('\n\n') || '*No answers provided*'),
+        ],
+    });
 
     const buttonRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -314,9 +321,9 @@ async function handleReview(interaction) {
     );
 
     await InteractionHelper.safeEditReply(interaction, {
-        embeds: [appEmbed],
-        components: [buttonRow],
-        flags: ["Ephemeral"],
+        components: [reviewPanel, buttonRow],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 
     const collector = interaction.channel.createMessageComponentCollector({
@@ -379,14 +386,19 @@ async function handleReview(interaction) {
                 const user = await reasonSubmit.client.users.fetch(application.userId);
                 const statusColor = getApplicationStatusColor(status);
                 const reviewStatus = getApplicationStatusPresentation(status);
-                const dmEmbed = createEmbed({
-                    title: `${reviewStatus.statusEmoji} Application ${reviewStatus.statusLabel}`,
-                    description: `Your application for **${application.roleName}** has been **${status}**\n` +
-                        `**Note:** ${reason}\n\n` +
-                        `Use \`/apply status id:${appId}\` to view details.`
-                }).setColor(statusColor);
+                const dmPanel = container({
+                    accentColor: statusColor,
+                    parts: [
+                        text(`### Application ${reviewStatus.statusLabel}`),
+                        text(
+                            `Your application for **${application.roleName}** has been **${status}**\n` +
+                            `**Note:** ${reason}\n\n` +
+                            `Use \`/apply status id:${appId}\` to view details.`
+                        ),
+                    ],
+                });
 
-                await user.send({ embeds: [dmEmbed] });
+                await user.send({ components: [dmPanel], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
             } catch (error) {
                 logger.warn('Failed to send DM to user for application review', {
                     error: error.message,
@@ -406,19 +418,22 @@ async function handleReview(interaction) {
                             application.logMessageId,
                         );
                         if (logMessage) {
-                            const embed = logMessage.embeds[0];
-                            if (embed) {
+                            const source = logMessage.embeds[0];
+                            if (source) {
                                 const reviewStatus = getApplicationStatusPresentation(status);
-                                const newEmbed = EmbedBuilder.from(embed)
-                                    .setColor(statusColor)
-                                    .spliceFields(0, 1, {
-                                        name: "Status",
-                                        value: `${reviewStatus.statusEmoji} ${reviewStatus.statusLabel}`,
-                                    });
+                                const fieldLines = (source.fields ?? []).map((field, index) =>
+                                    index === 0
+                                        ? `**Status**\n${reviewStatus.statusEmoji} ${reviewStatus.statusLabel}`
+                                        : `**${field.name}**\n${field.value}`
+                                );
+                                const logParts = [text(`### ${source.title || 'Application Log'}`)];
+                                if (source.description) logParts.push(text(source.description));
+                                if (fieldLines.length > 0) logParts.push(divider(), text(fieldLines.join('\n\n')));
 
                                 await logMessage.edit({
-                                    embeds: [newEmbed],
-                                    components: [],
+                                    components: [container({ accentColor: statusColor, parts: logParts })],
+                                    flags: MessageFlags.IsComponentsV2,
+                                    allowedMentions: NO_PINGS,
                                 });
                             }
                         }
@@ -449,13 +464,14 @@ async function handleReview(interaction) {
             }
 
             await reasonSubmit.reply({
-                embeds: [
-                    successEmbed(
-                        `Application ${status}`,
-                        `The application has been **${status}**.`,
-                    ),
+                components: [
+                    successContainer({
+                        title: `Application ${status}`,
+                        body: `The application has been **${status}**.`,
+                    }),
                 ],
-                flags: ["Ephemeral"],
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
 
         } catch (error) {
@@ -466,15 +482,15 @@ async function handleReview(interaction) {
 
     collector.on('end', async (collected, reason) => {
         if (reason === 'time') {
-            const timeoutEmbed = createEmbed({
-                title: 'Review Timeout',
-                description: 'The review buttons have timed out.',
-                color: 'warning',
-            });
-
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [timeoutEmbed],
-                components: [],
+                components: [
+                    noticeContainer({
+                        title: 'Review Timeout',
+                        body: 'The review buttons have timed out.',
+                    }),
+                ],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             }).catch(() => {});
         }
     });
@@ -522,25 +538,28 @@ async function handleList(interaction) {
         const applicationRoles = await getApplicationRoles(interaction.client, interaction.guild.id);
         
         if (applicationRoles.length > 0) {
-            const embed = createEmbed({ 
-                title: "No Applications Found", 
-                description: "No submitted applications found matching the specified criteria.\n\nHowever, the following application roles are configured:" 
-            });
-
-            applicationRoles.forEach((appRole, index) => {
+            const roleLines = applicationRoles.map((appRole, index) => {
                 const role = interaction.guild.roles.cache.get(appRole.roleId);
-                embed.addFields({
-                    name: `${index + 1}. ${appRole.name}`,
-                    value: `**Role:** ${role ?`<@&${appRole.roleId}>`: 'Role not found'}\n**Available for applications:** Yes`,
-                    inline: false
-                });
+                return (
+                    `**${index + 1}. ${appRole.name}**\n` +
+                    `**Role:** ${role ?`<@&${appRole.roleId}>`: 'Role not found'}\n**Available for applications:** Yes`
+                );
             });
 
-            embed.setFooter({
-                text: "Users can apply with /apply submit or see available roles with /apply list"
+            return InteractionHelper.safeEditReply(interaction, {
+                components: [
+                    container({
+                        parts: [
+                            text('### No Applications Found'),
+                            text('No submitted applications found matching the specified criteria.\n\nHowever, the following application roles are configured:'),
+                            divider(),
+                            text(roleLines.join('\n\n')),
+                        ],
+                    }),
+                ],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
-
-            return InteractionHelper.safeEditReply(interaction, { embeds: [embed], flags: ["Ephemeral"] });
         } else {
             return await replyUserError(interaction, {
                 type: ErrorTypes.CONFIGURATION,
@@ -554,9 +573,7 @@ async function handleList(interaction) {
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, limit);
 
-    const embed = createEmbed({ title: "Submitted Applications", description: `Showing ${applications.length} applications.`, });
-
-    applications.forEach((app) => {
+    const appLines = applications.map((app) => {
         const statusView = getApplicationStatusPresentation(app?.status);
         const roleName = app?.roleName || 'Unknown Role';
         const username = app?.username || 'Unknown User';
@@ -565,19 +582,27 @@ async function handleList(interaction) {
             ? createdAt.toLocaleString()
             : 'Unknown date';
 
-        embed.addFields({
-            name: `${statusView.statusEmoji} ${roleName} - ${username}`,
-            value:
-                `**ID:** \`${app.id}\`\n` +
-                `**Status:** ${statusView.statusEmoji} ${statusView.statusLabel}\n` +
-                `**Date:** ${createdAtDisplay}`,
-            inline: true,
-        });
+        return (
+            `**${statusView.statusEmoji} ${roleName} - ${username}**\n` +
+            `**ID:** \`${app.id}\`\n` +
+            `**Status:** ${statusView.statusEmoji} ${statusView.statusLabel}\n` +
+            `**Date:** ${createdAtDisplay}`
+        );
     });
 
     await InteractionHelper.safeEditReply(interaction, {
-        embeds: [embed],
-        flags: ["Ephemeral"],
+        components: [
+            container({
+                parts: [
+                    text('### Submitted Applications'),
+                    text(`Showing ${applications.length} applications.`),
+                    divider(),
+                    text(appLines.join('\n\n')),
+                ],
+            }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     });
 }
 

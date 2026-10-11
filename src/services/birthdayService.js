@@ -1,9 +1,11 @@
 // birthdayService.js
 
+import { MessageFlags } from 'discord.js';
 import { getGuildConfig } from './config/guildConfig.js';
 import { getGuildBirthdays, setBirthday as dbSetBirthday, deleteBirthday as dbDeleteBirthday, getMonthName, getBirthdayTrackingKey } from '../utils/database.js';
 import { logger } from '../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../utils/errorHandler.js';
+import { NO_PINGS, container, text } from '../utils/componentsV2.js';
 
 export function validateBirthday(month, day) {
   
@@ -343,13 +345,17 @@ export async function checkBirthdays(client) {
         const mentionList = birthdayMembers.map(m => m.toString()).join(', ');
         
         await channel.send({
-          embeds: [{
-            title: '🎉 Happy Birthday! 🎂',
-            description: `A very happy birthday to ${mentionList}! Wishing you an amazing day! 🎈`,
-            color: 0xff69b4,
-            footer: { text: 'Birthday Bot' },
-            timestamp: new Date()
-          }]
+          components: [
+            container({
+              parts: [
+                text('### 🎉 Happy Birthday! 🎂'),
+                text(`A very happy birthday to ${mentionList}! Wishing you an amazing day! 🎈`),
+                text('-# Birthday Bot'),
+              ],
+            }),
+          ],
+          flags: MessageFlags.IsComponentsV2,
+          allowedMentions: NO_PINGS,
         });
       }
     } catch (error) {

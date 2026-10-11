@@ -195,7 +195,7 @@ export function dataErrorContainer({ command, message } = {}) {
 
 /** Identical premium line for every premium-aware command. */
 export function premiumBonusLine(bonusAmount) {
-  return `✨ **Premium Bonus:** +${code(`$${(Number(bonusAmount) || 0).toLocaleString()}`)}`;
+  return `**Premium Bonus:** +${code(`$${(Number(bonusAmount) || 0).toLocaleString()}`)}`;
 }
 
 /**

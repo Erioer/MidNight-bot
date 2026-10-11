@@ -1,5 +1,5 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } from 'discord.js';
-import { successEmbed } from '../utils/embeds.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, PermissionFlagsBits } from 'discord.js';
+import { successContainer } from '../services/economy/economyViews.js';
 import { logger } from '../utils/logger.js';
 
 import { replyUserError, ErrorTypes } from '../utils/errorHandler.js';
@@ -30,6 +30,17 @@ function formatTime(seconds) {
         .join(":");
 }
 
+/**
+ * Components V2 countdown card. The tick/pause/resume paths rebuild this from
+ * the live countdown state because a V2 message exposes no `embeds[0]` to reuse.
+ */
+function buildCountdownContainer(title, remainingSeconds) {
+    return successContainer({
+        title: `⏱️ ${title}`,
+        body: `Time remaining: **${formatTime(remainingSeconds)}**`,
+    });
+}
+
 function startCountdown(countdownId, countdownData, activeCountdowns) {
     if (countdownData.interval) {
         clearInterval(countdownData.interval);
@@ -49,20 +60,18 @@ function startCountdown(countdownId, countdownData, activeCountdowns) {
             if (now - countdownData.lastUpdate >= 1000) {
                 countdownData.lastUpdate = now;
 
-                const embed = successEmbed(
-                    `⏱️ ${countdownData.title}`,
-                    `Time remaining: **${formatTime(Math.ceil(remaining / 1000))}**`,
-                );
+                const tickContainer = buildCountdownContainer(countdownData.title, Math.ceil(remaining / 1000));
 
                 try {
                     await countdownData.message.edit({
-                        embeds: [embed],
                         components: [
+                            tickContainer,
                             createControlButtons(
                                 countdownId,
                                 countdownData.isPaused,
                             ),
                         ],
+                        flags: MessageFlags.IsComponentsV2,
                     });
                 } catch (error) {
                     logger.error("Error updating countdown message:", error);
@@ -72,14 +81,14 @@ function startCountdown(countdownId, countdownData, activeCountdowns) {
             if (remaining <= 0) {
                 clearInterval(countdownData.interval);
 
-                const finishedEmbed = successEmbed(
-                    `⏱️ ${countdownData.title} (Finished!)`,
-                    "⏰ Time's up!",
-                );
+                const finishedContainer = successContainer({
+                    title: `⏱️ ${countdownData.title} (Finished!)`,
+                    body: "⏰ Time's up!",
+                });
 
                 await countdownData.message.edit({
-                    embeds: [finishedEmbed],
-                    components: [],
+                    components: [finishedContainer],
+                    flags: MessageFlags.IsComponentsV2,
                 });
 
                 cleanupCountdown(countdownId, activeCountdowns);
@@ -127,10 +136,10 @@ async function countdownButtonHandler(interaction, client, args) {
                     countdownData.endTime = Date.now() + countdownData.remainingTime;
                     startCountdown(countdownId, countdownData, activeCountdowns);
 
-                    const currentEmbed = countdownData.message.embeds[0];
+                    const resumedContainer = buildCountdownContainer(countdownData.title, Math.ceil(countdownData.remainingTime / 1000));
                     await countdownData.message.edit({
-                        embeds: [currentEmbed],
-                        components: [createControlButtons(countdownId, false)],
+                        components: [resumedContainer, createControlButtons(countdownId, false)],
+                        flags: MessageFlags.IsComponentsV2,
                     });
 
                     await interaction.reply({
@@ -142,10 +151,10 @@ async function countdownButtonHandler(interaction, client, args) {
                     countdownData.isPaused = true;
                     countdownData.remainingTime = countdownData.endTime - Date.now();
 
-                    const currentEmbed = countdownData.message.embeds[0];
+                    const pausedContainer = buildCountdownContainer(countdownData.title, Math.ceil(countdownData.remainingTime / 1000));
                     await countdownData.message.edit({
-                        embeds: [currentEmbed],
-                        components: [createControlButtons(countdownId, true)],
+                        components: [pausedContainer, createControlButtons(countdownId, true)],
+                        flags: MessageFlags.IsComponentsV2,
                     });
 
                     await interaction.reply({
@@ -158,14 +167,14 @@ async function countdownButtonHandler(interaction, client, args) {
             case "cancel":
                 clearInterval(countdownData.interval);
 
-                const embed = successEmbed(
-                    `⏱️ ${countdownData.title} (Cancelled)`,
-                    "The countdown was cancelled.",
-                );
+                const cancelledContainer = successContainer({
+                    title: `⏱️ ${countdownData.title} (Cancelled)`,
+                    body: 'The countdown was cancelled.',
+                });
 
                 await countdownData.message.edit({
-                    embeds: [embed],
-                    components: [],
+                    components: [cancelledContainer],
+                    flags: MessageFlags.IsComponentsV2,
                 });
 
                 cleanupCountdown(countdownId, activeCountdowns);
@@ -188,5 +197,5 @@ async function countdownButtonHandler(interaction, client, args) {
     }
 }
 
-export { createControlButtons, formatTime, startCountdown, cleanupCountdown, countdownButtonHandler };
+export { buildCountdownContainer, createControlButtons, formatTime, startCountdown, cleanupCountdown, countdownButtonHandler };
 export default countdownButtonHandler;

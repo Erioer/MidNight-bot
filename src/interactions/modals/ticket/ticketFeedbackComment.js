@@ -1,16 +1,9 @@
-import { EmbedBuilder, MessageFlags } from 'discord.js';
 import { getTicketData, saveTicketData } from '../../../utils/database.js';
 import { logger } from '../../../utils/logger.js';
-import { getColor } from '../../../config/bot.js';
 import { logTicketFeedback } from '../../../utils/ticket/ticketLogging.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
-
-function buildEmbed(title, description, color) {
-    return new EmbedBuilder()
-        .setTitle(title)
-        .setDescription(description)
-        .setColor(color);
-}
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { failureContainer, noticeContainer, successContainer } from '../../../services/economy/economyViews.js';
 
 export default {
     name: 'ticket_feedback_comment_modal',
@@ -20,12 +13,12 @@ export default {
 
         if (!guildId || !channelId) {
             await InteractionHelper.safeReply(interaction, {
-                embeds: [buildEmbed(
-                    '⚠️ Invalid Feedback Submission',
-                    'This feedback form appears to be malformed.',
-                    getColor('error'),
-                )],
-                flags: MessageFlags.Ephemeral,
+                components: [failureContainer({
+                    title: '⚠️ Invalid Feedback Submission',
+                    body: 'This feedback form appears to be malformed.',
+                })],
+                flags: v2Flags({ ephemeral: true }),
+                allowedMentions: NO_PINGS,
             });
             return;
         }
@@ -33,17 +26,17 @@ export default {
         const comment = interaction.fields.getTextInputValue('feedback_comment')?.trim();
         if (!comment) {
             await InteractionHelper.safeReply(interaction, {
-                embeds: [buildEmbed(
-                    '⚠️ Empty Feedback',
-                    'Please enter a comment before submitting your feedback.',
-                    getColor('warning'),
-                )],
-                flags: MessageFlags.Ephemeral,
+                components: [noticeContainer({
+                    title: '⚠️ Empty Feedback',
+                    body: 'Please enter a comment before submitting your feedback.',
+                })],
+                flags: v2Flags({ ephemeral: true }),
+                allowedMentions: NO_PINGS,
             });
             return;
         }
 
-        const deferred = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+        const deferred = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
         if (!deferred) {
             return;
         }
@@ -57,22 +50,24 @@ export default {
 
         if (!ticketData) {
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [buildEmbed(
-                    '⚠️ Ticket Not Found',
-                    'Could not find the ticket associated with this feedback.',
-                    getColor('error'),
-                )],
+                components: [failureContainer({
+                    title: '⚠️ Ticket Not Found',
+                    body: 'Could not find the ticket associated with this feedback.',
+                })],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
             return;
         }
 
         if (interaction.user.id !== ticketData.userId) {
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [buildEmbed(
-                    '❌ Not Allowed',
-                    'Only the ticket creator can submit feedback for this ticket.',
-                    getColor('error'),
-                )],
+                components: [failureContainer({
+                    title: '❌ Not Allowed',
+                    body: 'Only the ticket creator can submit feedback for this ticket.',
+                })],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
             return;
         }
@@ -104,11 +99,12 @@ export default {
         }
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [buildEmbed(
-                '✅ Feedback Submitted',
-                'Your written feedback has been recorded. Thank you for helping us improve!',
-                getColor('success'),
-            )],
+            components: [successContainer({
+                title: '✅ Feedback Submitted',
+                body: 'Your written feedback has been recorded. Thank you for helping us improve!',
+            })],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
 
         logger.info('Ticket feedback comment submitted', {

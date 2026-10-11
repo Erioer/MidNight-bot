@@ -1,5 +1,7 @@
 import { MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed } from '../utils/embeds.js';
+import { NO_PINGS, container, divider, text } from '../utils/componentsV2.js';
+import { successContainer } from '../services/economy/economyViews.js';
+import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { performDeletionByCounterId } from '../commands/ServerStats/modules/serverstats_delete.js';
 import { logger } from '../utils/logger.js';
 import { ErrorTypes, replyUserError, handleInteractionError } from '../utils/errorHandler.js';
@@ -35,12 +37,15 @@ export const counterDeleteActionHandler = {
 
       if (action === 'cancel') {
         await interaction.editReply({
-          embeds: [createEmbed({
-            title: '❌ Cancelled',
-            description: 'Counter deletion cancelled.',
-            color: 'error'
-          })],
-          components: []
+          components: [
+            container({
+              parts: [
+                text('### Cancelled'),
+                text('Counter deletion cancelled.'),
+              ],
+            }),
+          ],
+          flags: MessageFlags.IsComponentsV2,
         }).catch(logger.error);
         return;
       }
@@ -52,9 +57,35 @@ export const counterDeleteActionHandler = {
 
       const { message } = await performDeletionByCounterId(client, interaction.guild, counterId);
 
+      await logEvent({
+        client,
+        guildId: interaction.guild.id,
+        eventType: EVENT_TYPES.COUNTER_CONFIG,
+        data: {
+          title: 'Counter Deleted',
+          lines: [
+            `**Counter ID:** \`${counterId}\``,
+          ],
+          actor: {
+            id: interaction.user.id,
+            displayName: interaction.member?.displayName || interaction.user.username,
+            avatarUrl: interaction.user.displayAvatarURL(),
+          },
+        },
+      }).catch(() => null);
+
+      const detailBody = message
+        .replace(/^✅\s*\*\*Counter Deleted Successfully!\*\*/, '')
+        .trim();
       await interaction.editReply({
-        embeds: [successEmbed(message)],
-        components: []
+        components: [
+          successContainer({
+            title: 'Counter Deleted',
+            body: detailBody,
+          }),
+        ],
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
       }).catch(logger.error);
     } catch (error) {
       await handleInteractionError(interaction, error, {

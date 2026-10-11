@@ -1,5 +1,6 @@
-import { EmbedBuilder } from 'discord.js';
 import { setBirthday } from '../../../services/birthdayService.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer } from '../../../services/economy/economyViews.js';
 
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 export default {
@@ -13,13 +14,15 @@ export default {
 
         const result = await setBirthday(client, guildId, userId, month, day);
 
-        const embed = new EmbedBuilder()
-            .setColor(0x00FF00)
-            .setTitle('Birthday Set!')
-            .setDescription(`Your birthday has been set to **${result.data.monthName} ${result.data.day}**!`);
+        const card = successContainer({
+            title: 'Birthday Set!',
+            body: `Your birthday has been set to **${result.data.monthName} ${result.data.day}**!`,
+        });
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [embed]
+            components: [card],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
     }
 };

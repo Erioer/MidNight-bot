@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, MessageFlags } from 'discord.js';
-import { errorEmbed, successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { saveGiveaway } from '../../utils/giveaways.js';
@@ -7,7 +8,7 @@ import {
     parseDuration, 
     validatePrize, 
     validateWinnerCount,
-    createGiveawayEmbed, 
+    buildGiveawayContainer, 
     createGiveawayButtons 
 } from '../../services/giveawayService.js';
 import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
@@ -112,13 +113,13 @@ export default {
             createdAt: new Date().toISOString()
         };
 
-        const embed = createGiveawayEmbed(initialGiveawayData, "active");
+        const card = buildGiveawayContainer(initialGiveawayData, "active");
         const row = createGiveawayButtons(false);
 
         const giveawayMessage = await targetChannel.send({
-            content: "🎉 **NEW GIVEAWAY** 🎉",
-            embeds: [embed],
-            components: [row],
+            components: [card, row],
+            flags: MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         initialGiveawayData.messageId = giveawayMessage.id;
@@ -141,6 +142,7 @@ export default {
                     description: `Giveaway created: ${prizeName}`,
                     channelId: targetChannel.id,
                     userId: interaction.user.id,
+                    actor: { id: interaction.user.id },
                     fields: [
                         {
                             name: 'Prize',
@@ -172,13 +174,14 @@ export default {
         logger.info(`Giveaway created successfully: ${giveawayMessage.id} in ${targetChannel.name}`);
 
         await InteractionHelper.safeReply(interaction, {
-            embeds: [
-                successEmbed(
-                    `Giveaway Started! 🎉`,
-                    `A new giveaway for **${prizeName}** has been started in ${targetChannel} and will end in **${durationString}**.`,
-                ),
+            components: [
+                successContainer({
+                    title: 'Giveaway Started',
+                    body: `A new giveaway for **${prizeName}** has been started in ${targetChannel} and will end in **${durationString}**.`,
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
     },
 };

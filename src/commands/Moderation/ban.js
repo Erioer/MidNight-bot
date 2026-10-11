@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { ModerationService } from '../../services/moderation/moderationService.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
@@ -56,12 +57,14 @@ export default {
         });
 
         await InteractionHelper.universalReply(interaction, {
-            embeds: [
-                successEmbed(
-                    `🚫 **Banned** ${user.tag}`,
-                    `**Reason:** ${reason}\n**Case ID:** #${result.caseId}`,
-                ),
+            components: [
+                successContainer({
+                    title: `🚫 **Banned** ${user.tag}`,
+                    body: `**Reason:** ${reason}\n**Case ID:** #${result.caseId}`,
+                }),
             ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
     },
 };

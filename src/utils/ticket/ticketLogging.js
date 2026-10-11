@@ -1,10 +1,10 @@
 // ticketLogging.js
 
-import { ChannelType } from 'discord.js';
+import { ChannelType, MessageFlags } from 'discord.js';
 import { getGuildConfig } from '../../services/config/guildConfig.js';
 import { logger } from '../logger.js';
+import { NO_PINGS, container, divider, text } from '../componentsV2.js';
 import {
-  buildStandardLogEmbed,
   formatRatingStars,
   resolveUserAuthor,
 } from '../logging/logEmbeds.js';
@@ -36,9 +36,9 @@ export async function logTicketEvent({ client, guildId, event }) {
       return;
     }
 
-    const embed = await createTicketLogEmbed(guild, event);
+    const card = await createTicketLogEmbed(guild, event);
 
-    const messageOptions = { embeds: [embed] };
+    const messageOptions = { components: [card], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS };
 
     if (event.attachments && event.attachments.length > 0) {
       messageOptions.files = event.attachments;
@@ -236,13 +236,24 @@ async function createTicketLogEmbed(guild, event) {
   }
 
   const titlePrefix = event.type === 'feedback' ? '⭐ ' : '';
-  return buildStandardLogEmbed({
-    color: style.color,
-    title: `${titlePrefix}${style.title}`,
-    inlineFields,
-    fields,
-    author,
-    footer,
+  const title = `${titlePrefix}${style.title}`;
+  const lines = [];
+  if (author?.name) {
+    lines.push(`**Author:** ${author.name}`);
+  }
+  for (const field of [...inlineFields, ...fields]) {
+    if (!field?.name || field.value === undefined || field.value === null) continue;
+    lines.push(`**${field.name}:** ${field.value}`);
+  }
+  const footerText = footer?.text || 'MidNight Ticketing';
+  return container({
+    accentColor: style.color,
+    parts: [
+      text(`### ${title}`),
+      ...(lines.length > 0 ? [text(lines.join('\n'))] : []),
+      divider(),
+      text(`-# ${footerText}`),
+    ],
   });
 }
 

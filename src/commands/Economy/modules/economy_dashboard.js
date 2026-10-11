@@ -1,4 +1,4 @@
-import {
+﻿import {
     ActionRowBuilder,
     StringSelectMenuBuilder,
     StringSelectMenuOptionBuilder,
@@ -20,6 +20,7 @@ import { logger } from '../../../utils/logger.js';
 import { MidNightError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
 import { getEconomyPrefix } from '../../../utils/database.js';
 import { getEconomyData, addMoney, removeMoney, getMaxBankCapacity } from '../../../utils/economy.js';
+import { getGuildConfig, setGuildConfig } from '../../../services/config/guildConfig.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -103,7 +104,32 @@ function buildSelectMenu(guildId) {
                 .setDescription('Change the currency name (e.g., coins, credits)')
                 .setValue('change_name')
                 .setEmoji('📝'),
+            new StringSelectMenuOptionBuilder()
+                .setLabel('Remove Premium Role')
+                .setDescription('Unset the premium shop role')
+                .setValue('remove_premium_role')
+                .setEmoji('👑'),
+            new StringSelectMenuOptionBuilder()
+                .setLabel('Remove Member Premium')
+                .setDescription('Strip the premium role from a member')
+                .setValue('remove_member_premium')
+                .setEmoji('👑'),
         );
+}
+
+/**
+ * Shows a dashboard modal. Returns false when the select interaction went
+ * stale (unknown interaction / already acknowledged) so callers bail out
+ * instead of throwing 10062 into the collector.
+ */
+async function showDashboardModal(selectInteraction, modal) {
+    try {
+        await selectInteraction.showModal(modal);
+        return true;
+    } catch (error) {
+        if (error?.code === 10062 || error?.code === 40060) return false;
+        throw error;
+    }
 }
 
 async function refreshDashboard(rootInteraction, guild, client) {
@@ -183,6 +209,12 @@ export default {
                             break;
                         case 'change_name':
                             await handleChangeName(selectInteraction, interaction, guild);
+                            break;
+                        case 'remove_premium_role':
+                            await handleRemovePremiumRole(selectInteraction, interaction, guild, client);
+                            break;
+                        case 'remove_member_premium':
+                            await handleRemoveMemberPremium(selectInteraction, interaction, guild, client);
                             break;
                     }
                 } catch (error) {
@@ -273,7 +305,8 @@ async function handleAddCurrency(selectInteraction, rootInteraction, guild, clie
         new ActionRowBuilder().addComponents(typeInput),
     );
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -376,7 +409,8 @@ async function handleRemoveCurrency(selectInteraction, rootInteraction, guild, c
         new ActionRowBuilder().addComponents(typeInput),
     );
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -455,7 +489,8 @@ async function handleChangeCurrency(selectInteraction, rootInteraction, guild) {
 
     modal.addComponents(new ActionRowBuilder().addComponents(symbolInput));
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -484,7 +519,6 @@ async function handleChangeCurrency(selectInteraction, rootInteraction, guild) {
         components: [successContainer({ title: 'Currency Symbol Updated', body: `Currency symbol changed to **${newSymbol}**.\n\n**Note:** The bot needs to be restarted for changes to take effect.` })],
         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
         allowedMentions: NO_PINGS,
-        flags: MessageFlags.Ephemeral,
     });
 
     logger.info(`[ECONOMY_DASHBOARD] Currency symbol changed`, {
@@ -511,7 +545,8 @@ async function handleChangeName(selectInteraction, rootInteraction, guild) {
 
     modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
 
-    await selectInteraction.showModal(modal);
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
 
     const submitted = await selectInteraction
         .awaitModalSubmit({
@@ -540,7 +575,6 @@ async function handleChangeName(selectInteraction, rootInteraction, guild) {
         components: [successContainer({ title: 'Currency Name Updated', body: `Currency name changed to **${newName}**.\n\n**Note:** The bot needs to be restarted for changes to take effect.` })],
         flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
         allowedMentions: NO_PINGS,
-        flags: MessageFlags.Ephemeral,
     });
 
     logger.info(`[ECONOMY_DASHBOARD] Currency name changed`, {
@@ -548,4 +582,140 @@ async function handleChangeName(selectInteraction, rootInteraction, guild) {
         oldName: BotConfig.economy.currency.name,
         newName
     });
+}
+
+async function handleRemovePremiumRole(selectInteraction, rootInteraction, guild, client) {
+    const deferred = await InteractionHelper.safeDefer(selectInteraction, {
+        flags: v2Flags({ ephemeral: true }),
+    });
+    if (!deferred) return;
+
+    const reply = (components) => InteractionHelper.safeEditReply(selectInteraction, {
+        components: Array.isArray(components) ? components : [components],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
+    });
+
+    const guildId = guild.id;
+    const guildConfig = await getGuildConfig(client, guildId);
+
+    if (!guildConfig?.premiumRoleId) {
+        return reply(failureContainer({
+            title: 'No Premium Role',
+            body: 'No premium shop role is currently configured for this server.',
+        }));
+    }
+
+    const removedRoleId = guildConfig.premiumRoleId;
+    guildConfig.premiumRoleId = null;
+    await setGuildConfig(client, guildId, guildConfig);
+
+    logger.info('[ECONOMY_DASHBOARD] Premium role removed', {
+        adminId: selectInteraction.user.id,
+        guildId,
+        removedRoleId,
+    });
+
+    return reply(successContainer({
+        title: 'Premium Role Removed',
+        body: `The premium shop role (<@&${removedRoleId}>) has been unset. Members can no longer purchase premium bonuses until a new role is configured.`,
+    }));
+}
+
+async function handleRemoveMemberPremium(selectInteraction, rootInteraction, guild, client) {
+    const modal = new ModalBuilder()
+        .setCustomId(`economy_remove_member_premium_${guild.id}`)
+        .setTitle('Remove Member Premium');
+
+    const userSelect = new UserSelectMenuBuilder()
+        .setCustomId('target_user')
+        .setPlaceholder('Select a user...')
+        .setMinValues(1)
+        .setMaxValues(1)
+        .setRequired(true);
+
+    const userLabel = new LabelBuilder()
+        .setLabel('Target User')
+        .setDescription('Member to strip the premium role from')
+        .setUserSelectMenuComponent(userSelect);
+
+    modal.addLabelComponents(userLabel);
+
+    const modalShown = await showDashboardModal(selectInteraction, modal);
+    if (!modalShown) return;
+
+    const submitted = await selectInteraction
+        .awaitModalSubmit({
+            filter: i => i.customId === `economy_remove_member_premium_${guild.id}` && i.user.id === selectInteraction.user.id,
+            time: 120_000,
+        })
+        .catch(() => null);
+
+    if (!submitted) return;
+
+    const deferred = await InteractionHelper.safeDefer(submitted, {
+        flags: v2Flags({ ephemeral: true }),
+    });
+    if (!deferred) return;
+
+    const reply = (components) => InteractionHelper.safeEditReply(submitted, {
+        components: Array.isArray(components) ? components : [components],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
+    });
+
+    const userId = submitted.fields.getField('target_user').values[0];
+    const guildConfig = await getGuildConfig(client, guild.id);
+
+    if (!guildConfig?.premiumRoleId) {
+        return reply(failureContainer({
+            title: 'No Premium Role',
+            body: 'No premium shop role is currently configured for this server.',
+        }));
+    }
+
+    const member = await guild.members.fetch(userId).catch(() => null);
+    if (!member) {
+        return reply(failureContainer({
+            title: 'Member Not Found',
+            body: 'The specified user is not in this server.',
+        }));
+    }
+
+    if (!member.roles.cache.has(guildConfig.premiumRoleId)) {
+        return reply(failureContainer({
+            title: 'No Premium to Remove',
+            body: `${member.displayName} does not have the premium role.`,
+        }));
+    }
+
+    try {
+        await member.roles.remove(
+            guildConfig.premiumRoleId,
+            `Premium removed by ${selectInteraction.user.tag} via economy dashboard`,
+        );
+    } catch (error) {
+        logger.error('[ECONOMY_DASHBOARD] Failed to remove premium role from member', {
+            adminId: selectInteraction.user.id,
+            guildId: guild.id,
+            userId,
+            roleId: guildConfig.premiumRoleId,
+            error: error.message,
+        });
+        return reply(failureContainer({
+            title: 'Removal Failed',
+            body: 'I could not remove the role. Check my role position and permissions, then try again.',
+        }));
+    }
+
+    logger.info('[ECONOMY_DASHBOARD] Member premium removed', {
+        adminId: selectInteraction.user.id,
+        guildId: guild.id,
+        userId,
+    });
+
+    return reply(successContainer({
+        title: 'Premium Removed',
+        body: `Removed the premium role from **${member.displayName}**. Their premium bonuses no longer apply.`,
+    }));
 }

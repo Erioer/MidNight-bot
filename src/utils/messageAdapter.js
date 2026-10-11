@@ -1,7 +1,6 @@
 // messageAdapter.js
 
 import { mapArgumentsToOptions } from './prefixParser.js';
-import { createEmbed } from './embeds.js';
 import { handleInteractionError } from './errorHandler.js';
 import { logger } from './logger.js';
 import { InteractionHelper } from './interactionHelper.js';

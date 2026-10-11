@@ -1,5 +1,5 @@
-import { createEmbed } from '../../utils/embeds.js';
 import { createButton, getPaginationRow } from '../../utils/components.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../utils/componentsV2.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -169,72 +169,47 @@ async function createCategoryCommandsMenu(category, client) {
         logger.error('Error fetching registered commands:', error);
     }
 
-    const embed = createEmbed({
-        title: `${icon} ${categoryName} Commands`,
-        description: categoryCommands.length > 0
-            ? `Click any command mention below to use it.`
-            : `No commands found in the **${categoryName}** category.`
-    });
-
-    if (categoryCommands.length > 0) {
-        const commandMentions = categoryCommands
-            .map((cmd) => {
-                const registeredCmd = registeredCommands.get(cmd.baseName);
-                if (registeredCmd && registeredCmd.id) {
-                    return `</${cmd.displayName}:${registeredCmd.id}> · ${cmd.description}`;
-                }
-                return `\`/${cmd.displayName}\` · ${cmd.description}`;
-            })
-            .join("\n");
-
-        const maxLength = 1000;
-        if (commandMentions.length <= maxLength) {
-            embed.addFields({
-                name: "Commands",
-                value: commandMentions,
-                inline: false,
-            });
-        } else {
-            const chunks = [];
-            let currentChunk = "";
-            const lines = commandMentions.split("\n");
-
-            for (const line of lines) {
-                if ((currentChunk + "\n" + line).length > maxLength) {
-                    if (currentChunk) chunks.push(currentChunk);
-                    currentChunk = line;
-                } else {
-                    currentChunk += (currentChunk ? "\n" : "") + line;
-                }
-            }
-            if (currentChunk) chunks.push(currentChunk);
-
-            chunks.forEach((chunk, index) => {
-                embed.addFields({
-                    name: `Commands (Part ${index + 1})`,
-                    value: chunk,
-                    inline: false,
-                });
-            });
-        }
-    }
-
-    embed.setFooter({ text: FOOTER_TEXT });
-    embed.setTimestamp();
-
     const backButton = createButton(
         BACK_BUTTON_ID,
         "Back",
         "primary",
-        "⬅️",
+        null,
         false,
     );
 
     const buttonRow = new ActionRowBuilder().addComponents(backButton);
 
+    const lines = categoryCommands.length > 0
+        ? categoryCommands.map((cmd) => {
+            const registeredCmd = registeredCommands.get(cmd.baseName);
+            if (registeredCmd && registeredCmd.id) {
+                return `</${cmd.displayName}:${registeredCmd.id}> · ${cmd.description}`;
+            }
+            return `\`/${cmd.displayName}\` · ${cmd.description}`;
+        })
+        : [`No commands found in the **${categoryName}** category.`];
+
+    // V2 total text budget is 4,000 characters; slice the listing to fit it
+    // with the title and footer to spare.
+    const listing = lines.join("\n").slice(0, 3600);
+
     return {
-        embeds: [embed],
-        components: [buttonRow],
+        components: [
+            container({
+                parts: [
+                    text(`### ${categoryName} Commands`),
+                    text('Click any command mention below to use it.'),
+                    divider(),
+                    text(listing),
+                    divider(),
+                    text('-# Made with love'),
+                ],
+            }),
+            buttonRow,
+        ],
+        flags: v2Flags(),
+        currentPage: 1,
+        totalPages: 1,
     };
 }
 
@@ -306,42 +281,32 @@ export async function createAllCommandsMenu(page = 1, client) {
     const endIndex = startIndex + commandsPerPage;
     const pageCommands = allCommands.slice(startIndex, endIndex);
 
-    const embed = createEmbed({
-        title: "📋 All Commands",
-        description: `Browse every available command in one list. Use the page buttons below to move through the full set.`
+    const commandLines = pageCommands.map((cmd) => {
+        const registeredCmd = registeredCommands.get(cmd.baseName);
+        if (registeredCmd && registeredCmd.id) {
+            return `</${cmd.displayName}:${registeredCmd.id}> · ${cmd.category}`;
+        }
+        return `\`/${cmd.displayName}\` · ${cmd.category}`;
     });
 
-    embed.setFooter({ text: FOOTER_TEXT });
-    embed.setTimestamp();
-
-    if (pageCommands.length > 0) {
-        const commandMentions = pageCommands.map((cmd) => {
-            const registeredCmd = registeredCommands.get(cmd.baseName);
-            if (registeredCmd && registeredCmd.id) {
-                return `</${cmd.displayName}:${registeredCmd.id}> · ${cmd.category}`;
-            }
-            return `\`/${cmd.displayName}\` · ${cmd.category}`;
-        });
-
-        const columnCount = pageCommands.length > 20 ? 3 : (pageCommands.length > 10 ? 2 : 1);
-        const chunkSize = Math.ceil(commandMentions.length / columnCount);
-
-        for (let i = 0; i < columnCount; i++) {
-            const chunk = commandMentions
-                .slice(i * chunkSize, (i + 1) * chunkSize)
-                .join("\n");
-
-            if (!chunk) continue;
-
-            embed.addFields({
-                name: i === 0 ? `Commands (Page ${page})` : "Commands (cont.)",
-                value: chunk,
-                inline: columnCount > 1,
-            });
-        }
-    }
+    // One stacked list instead of side-by-side columns: Discord renders
+    // markdown in a proportional font, so columns drift no matter how padded.
+    const listing = commandLines.join("\n").slice(0, 3400);
 
     const components = [];
+
+    components.push(
+        container({
+            parts: [
+                text('### All Commands'),
+                text('Browse every available command in one list. Use the page buttons below to move through the full set.'),
+                divider(),
+                text(listing || '*No commands found*'),
+                divider(),
+                text(`-# Page ${page}/${Math.max(totalPages, 1)} • Made with love`),
+            ],
+        }),
+    );
 
     if (totalPages > 1) {
         const paginationRow = getPaginationRow(
@@ -356,7 +321,7 @@ export async function createAllCommandsMenu(page = 1, client) {
         BACK_BUTTON_ID,
         "Back",
         "primary",
-        "⬅️",
+        null,
         false,
     );
 
@@ -364,8 +329,8 @@ export async function createAllCommandsMenu(page = 1, client) {
     components.push(buttonRow);
 
     return {
-        embeds: [embed],
         components,
+        flags: v2Flags(),
         currentPage: page,
         totalPages,
     };
@@ -382,16 +347,16 @@ export const helpCategorySelectMenu = {
             const selectedCategory = interaction.values[0];
 
             if (selectedCategory === ALL_COMMANDS_ID) {
-                const { embeds, components } = await createAllCommandsMenu(1, client);
+                const { components } = await createAllCommandsMenu(1, client);
                 await interaction.editReply({
-                    embeds,
                     components,
+                    flags: MessageFlags.IsComponentsV2,
                 });
             } else {
-                const { embeds, components } = await createCategoryCommandsMenu(selectedCategory, client);
+                const { components } = await createCategoryCommandsMenu(selectedCategory, client);
                 await interaction.editReply({
-                    embeds,
                     components,
+                    flags: MessageFlags.IsComponentsV2,
                 });
             }
         } catch (error) {

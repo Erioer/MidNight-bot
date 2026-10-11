@@ -32,7 +32,7 @@ const USABLE_EFFECTS = {
             const duration = effect.duration || 6 * 60 * 60 * 1000;
             userData.xpBoostExpiresAt = now + duration;
             userData.xpBoostCooldownUntil = now + XP_BOOST_USE_COOLDOWN;
-            return { success: true, message: `⚡ XP Boost activated! You'll earn 10% more XP for 6 hours.` };
+            return { success: true, message: `XP Boost activated! You'll earn 10% more XP for 6 hours.` };
         },
     },
 };
@@ -54,7 +54,11 @@ export const useItemHandler = {
             const userId = interaction.user.id;
             const guildId = interaction.guildId;
 
-            const deferred = await InteractionHelper.safeDefer(interaction, { flags: v2Flags() });
+            // Ephemeral: using an item answers privately so the public
+            // inventory message stays intact for everyone else.
+            const deferred = await InteractionHelper.safeDefer(interaction, {
+                flags: v2Flags({ ephemeral: true }),
+            });
             if (!deferred) return;
 
             const reply = (components) => InteractionHelper.safeEditReply(interaction, {

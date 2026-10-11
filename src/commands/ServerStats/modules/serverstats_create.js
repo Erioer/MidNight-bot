@@ -1,6 +1,8 @@
 import { PermissionFlagsBits, ChannelType } from 'discord.js';
-import { createEmbed, successEmbed } from '../../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer } from '../../../services/economy/economyViews.js';
 import { getServerCounters, saveServerCounters, updateCounter, getCounterBaseName, getCounterTypeLabel } from '../../../services/serverstatsService.js';
+import { logEvent, EVENT_TYPES } from '../../../services/loggingService.js';
 import { logger } from '../../../utils/logger.js';
 
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
@@ -79,8 +81,45 @@ export async function handleCreate(interaction, client) {
             return;
         }
 
+        await logEvent({
+            client,
+            guildId: guild.id,
+            eventType: EVENT_TYPES.COUNTER_CONFIG,
+            data: {
+                title: 'Counter Created',
+                lines: [
+                    `**Type:** ${getCounterTypeLabel(type)}`,
+                    `**Channel:** ${targetChannel}`,
+                    `**Counter ID:** \`${newCounter.id}\``,
+                ],
+                actor: {
+                    id: interaction.user.id,
+                    displayName: interaction.member?.displayName || interaction.user.username,
+                    avatarUrl: interaction.user.displayAvatarURL(),
+                },
+            },
+        }).catch(() => null);
+
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [successEmbed(`**Counter Created Successfully!**\n\n**Type:** ${getCounterTypeLabel(type)}\n**Channel Type:** ${targetChannel.type === ChannelType.GuildVoice ? 'voice' : 'text'}\n**Category:** ${category}\n**Channel:** ${targetChannel}\n**Channel Name:** ${targetChannel.name}\n**Counter ID:** \`${newCounter.id}\`\n\nThe counter will automatically update every 15 minutes.\n\nUse \`/serverstats list\` to view all counters.`)]
+            components: [
+                successContainer({
+                    title: 'Counter Created',
+                    body: [
+                        `**Type:** ${getCounterTypeLabel(type)}`,
+                        `**Channel Type:** ${targetChannel.type === ChannelType.GuildVoice ? 'voice' : 'text'}`,
+                        `**Category:** ${category}`,
+                        `**Channel:** ${targetChannel}`,
+                        `**Channel Name:** ${targetChannel.name}`,
+                        `**Counter ID:** \`${newCounter.id}\``,
+                        '',
+                        'The counter will automatically update every 15 minutes.',
+                        '',
+                        'Use `/serverstats list` to view all counters.',
+                    ].join('\n'),
+                }),
+            ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         }).catch(logger.error);
 
     } catch (error) {

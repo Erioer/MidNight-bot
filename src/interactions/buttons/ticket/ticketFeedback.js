@@ -1,9 +1,10 @@
-import { EmbedBuilder, ModalBuilder, ActionRowBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import { ModalBuilder, ActionRowBuilder, TextInputBuilder, TextInputStyle, MessageFlags } from 'discord.js';
 import { getTicketData, saveTicketData } from '../../../utils/database.js';
 import { logger } from '../../../utils/logger.js';
-import { getColor } from '../../../config/bot.js';
 import { logTicketFeedback } from '../../../utils/ticket/ticketLogging.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
+import { NO_PINGS, container, text, v2Flags } from '../../../utils/componentsV2.js';
+import { failureContainer, successContainer } from '../../../services/economy/economyViews.js';
 
 const STAR_LABELS = {
     '1': '⭐ 1 — Poor',
@@ -17,18 +18,19 @@ const feedbackHandler = {
     name: 'ticket_feedback',
 
     async execute(interaction, client, args) {
-        
+
         const [guildId, channelId, ratingStr] = args;
 
         if (!guildId || !channelId || !ratingStr) {
             await InteractionHelper.safeReply(interaction, {
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle('⚠️ Invalid Feedback Link')
-                        .setDescription('This feedback link appears to be malformed.')
-                        .setColor(getColor('error')),
+                components: [
+                    failureContainer({
+                        title: '⚠️ Invalid Feedback Link',
+                        body: 'This feedback link appears to be malformed.',
+                    }),
                 ],
-                components: [],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
             return;
         }
@@ -49,39 +51,42 @@ const feedbackHandler = {
 
         if (!ticketData) {
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle('⚠️ Ticket Not Found')
-                        .setDescription('Could not find the ticket associated with this survey.')
-                        .setColor(getColor('error')),
+                components: [
+                    failureContainer({
+                        title: '⚠️ Ticket Not Found',
+                        body: 'Could not find the ticket associated with this survey.',
+                    }),
                 ],
-                components: [],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
             return;
         }
 
         if (interaction.user.id !== ticketData.userId) {
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle('❌ Not Allowed')
-                        .setDescription('Only the ticket creator can submit feedback for this ticket.')
-                        .setColor(getColor('error')),
+                components: [
+                    failureContainer({
+                        title: '❌ Not Allowed',
+                        body: 'Only the ticket creator can submit feedback for this ticket.',
+                    }),
                 ],
-                components: [],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
             return;
         }
 
         if (ticketData.feedback?.rating) {
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle('✅ Already Submitted')
-                        .setDescription(`You already rated this ticket **${STAR_LABELS[String(ticketData.feedback.rating)]}**.\nThank you for your feedback!`)
-                        .setColor(getColor('success')),
+                components: [
+                    successContainer({
+                        title: '✅ Already Submitted',
+                        body: `You already rated this ticket **${STAR_LABELS[String(ticketData.feedback.rating)]}**.\nThank you for your feedback!`,
+                    }),
                 ],
-                components: [],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
             return;
         }
@@ -113,15 +118,15 @@ const feedbackHandler = {
         }
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle('✅ Thanks for your feedback!')
-                    .setDescription(`You rated your support experience **${ratingLabel}**.\n\nYour feedback has been recorded and helps us improve!`)
-                    .setColor(getColor('success'))
-                    .setFooter({ text: 'Thank you for using our support system.' })
-                    .setTimestamp(),
+            components: [
+                successContainer({
+                    title: '✅ Thanks for your feedback!',
+                    body: `You rated your support experience **${ratingLabel}**.\n\nYour feedback has been recorded and helps us improve!`,
+                    footer: 'Thank you for using our support system.',
+                }),
             ],
-            components: [],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
 
         logger.info('Ticket feedback submitted', {
@@ -141,13 +146,14 @@ const commentHandler = {
 
         if (!guildId || !channelId) {
             await interaction.update({
-                embeds: [
-                    new EmbedBuilder()
-                        .setTitle('⚠️ Invalid Feedback Link')
-                        .setDescription('This feedback action appears to be malformed.')
-                        .setColor(getColor('error')),
+                components: [
+                    failureContainer({
+                        title: '⚠️ Invalid Feedback Link',
+                        body: 'This feedback action appears to be malformed.',
+                    }),
                 ],
-                components: [],
+                flags: MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
             return;
         }
@@ -175,13 +181,16 @@ const declineHandler = {
 
     async execute(interaction) {
         await interaction.update({
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle('👋 No problem!')
-                    .setDescription('You can always reach out again if you need further support.')
-                    .setColor(getColor('default')),
+            components: [
+                container({
+                    parts: [
+                        text('### 👋 No problem!'),
+                        text('You can always reach out again if you need further support.'),
+                    ],
+                }),
             ],
-            components: [],
+            flags: MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
     },
 };

@@ -1,11 +1,12 @@
-import {
+﻿import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } from 'discord.js';
-import { createEmbed } from '../../../utils/embeds.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../../utils/componentsV2.js';
 import {
   getCommandAccessSnapshot,
   disableCategory,
@@ -52,82 +53,40 @@ function formatCommandLabel(command) {
   return `\`${command.name}\``;
 }
 
-function chunkLines(lines, maxLength = 980) {
-  const chunks = [];
-  let current = '';
-
-  for (const line of lines) {
-    const next = current ? `${current}\n${line}` : line;
-    if (next.length > maxLength && current) {
-      chunks.push(current);
-      current = line;
-    } else {
-      current = next;
-    }
-  }
-
-  if (current) {
-    chunks.push(current);
-  }
-
-  return chunks;
-}
-
-export function buildOverviewEmbed(snapshot, guild) {
+export function buildOverviewContainer(snapshot, guild) {
   const fullyEnabled = snapshot.categories.filter((c) => !c.categoryDisabled && c.disabledCount === 0).length;
   const partial = snapshot.categories.filter((c) => !c.categoryDisabled && c.disabledCount > 0).length;
   const disabled = snapshot.categories.filter((c) => c.categoryDisabled).length;
 
-  const categoryLines = snapshot.categories.map((category) => {
-    const icon = getCategoryStatus(category);
-    const subcommandNote = category.commands.some((c) => c.isSubcommand) ? ' · incl. subcommands' : '';
-    return `${icon} ${category.icon} **${category.displayName}** — ${category.enabledCount}/${category.totalCount}${subcommandNote}`;
-  });
-
-  const fields = [
-    {
-      name: '📊 Summary',
-      value: [
-        `**${snapshot.enabledTotal}/${snapshot.totalCommands}** entries enabled`,
-        `${STATUS.enabled} ${fullyEnabled} fully on · ${STATUS.partial} ${partial} partial · ${STATUS.disabled} ${disabled} off`,
-      ].join('\n'),
-      inline: false,
-    },
-    {
-      name: '🔑 Legend',
-      value: `${STATUS.enabled} All enabled · ${STATUS.partial} Some disabled · ${STATUS.disabled} Category off`,
-      inline: false,
-    },
+  const lines = [
+    `**${snapshot.enabledTotal}/${snapshot.totalCommands}** entries enabled`,
+    `${STATUS.enabled} ${fullyEnabled} fully on · ${STATUS.partial} ${partial} partial · ${STATUS.disabled} ${disabled} off`,
+    `-# ${STATUS.enabled} all enabled · ${STATUS.partial} some disabled · ${STATUS.disabled} category off`,
+    '',
+    ...snapshot.categories.map((category) => {
+      const icon = getCategoryStatus(category);
+      const subcommandNote = category.commands.some((c) => c.isSubcommand) ? ' · incl. subcommands' : '';
+      return `${icon} ${category.icon} **${category.displayName}** — ${category.enabledCount}/${category.totalCount}${subcommandNote}`;
+    }),
+    '',
+    '• Select a category below to manage commands and subcommands',
+    '• `/commands disable` — turn off a category or specific command',
+    '• `/commands enable` — turn something back on',
   ];
 
-  const chunks = chunkLines(categoryLines);
-  chunks.forEach((chunk, index) => {
-    fields.push({
-      name: index === 0 ? '📁 Categories' : '📁 Categories (cont.)',
-      value: chunk,
-      inline: false,
-    });
-  });
-
-  fields.push({
-    name: 'How to Use',
-    value: [
-      '• Select a category below to manage commands and subcommands',
-      '• `/commands disable` — turn off a category or specific command',
-      '• `/commands enable` — turn something back on',
-    ].join('\n'),
-  });
-
-  return createEmbed({
-    title: '⚙️ Command Access',
-    description: `Manage slash and prefix commands for **${guild.name}**. Subcommands (e.g. \`birthday list\`) are listed separately.`,
-    color: 'info',
-    fields,
-    footer: '🔒 commands & configwizard always stay available',
+  return container({
+    parts: [
+      text('### ⚙️ Command Access'),
+      text(`Manage slash and prefix commands for **${guild.name}**. Subcommands (e.g. \`birthday list\`) are listed separately.`),
+      divider(),
+      text(lines.join('\n').slice(0, 3600)),
+      divider(),
+      text('-# 🔒 `commands` & `configwizard` always stay available'),
+    ],
   });
 }
 
-export function buildCategoryEmbed(category, guild) {
+export function buildCategoryContainer(category, guild) {
   const statusIcon = getCategoryStatus(category);
   const statusText = category.categoryDisabled
     ? 'Category disabled'
@@ -135,50 +94,31 @@ export function buildCategoryEmbed(category, guild) {
       ? 'All entries enabled'
       : `${category.disabledCount} of ${category.totalCount} disabled`;
 
-  const commandLines = category.commands.map((command) => {
-    const enabled = category.enabledCommands.includes(command.name);
-    const icon = enabled ? STATUS.enabled : STATUS.disabled;
-    const lock = command.protected ? ' 🔒' : '';
-    return `${icon} ${formatCommandLabel(command)}${lock}`;
-  });
-
-  const fields = [
-    {
-      name: `${statusIcon} Status`,
-      value: statusText,
-      inline: true,
-    },
-    {
-      name: '📈 Count',
-      value: `${category.enabledCount}/${category.totalCount} enabled`,
-      inline: true,
-    },
+  const lines = [
+    `**Status:** ${statusIcon} ${statusText}`,
+    `**Count:** \`${category.enabledCount}/${category.totalCount} enabled\``,
+    '',
+    ...category.commands.map((command) => {
+      const enabled = category.enabledCommands.includes(command.name);
+      const icon = enabled ? STATUS.enabled : STATUS.disabled;
+      const lock = command.protected ? ' 🔒' : '';
+      return `${icon} ${formatCommandLabel(command)}${lock}`;
+    }),
+    '',
+    '• Use the dropdown to toggle individual commands or subcommands',
+    '• **Disable All** turns off the whole category',
+    '• **Clear Overrides** re-enables individually disabled entries',
   ];
 
-  const chunks = chunkLines(commandLines);
-  chunks.forEach((chunk, index) => {
-    fields.push({
-      name: index === 0 ? '📋 Commands & Subcommands' : '📋 (cont.)',
-      value: chunk,
-      inline: false,
-    });
-  });
-
-  fields.push({
-    name: 'How to Use',
-    value: [
-      '• Use the dropdown to toggle individual commands or subcommands',
-      '• **Disable All** turns off the whole category',
-      '• **Clear Overrides** re-enables individually disabled entries',
-    ].join('\n'),
-  });
-
-  return createEmbed({
-    title: `${category.icon} ${category.displayName}`,
-    description: `Command access for **${guild.name}**.`,
-    color: category.categoryDisabled ? 'error' : category.disabledCount > 0 ? 'warning' : 'success',
-    fields,
-    footer: '🔒 Protected entries cannot be disabled',
+  return container({
+    parts: [
+      text(`### ${category.icon} ${category.displayName}`),
+      text(`Command access for **${guild.name}**.`),
+      divider(),
+      text(lines.join('\n').slice(0, 3600)),
+      divider(),
+      text('-# 🔒 Protected entries cannot be disabled'),
+    ],
   });
 }
 
@@ -196,14 +136,13 @@ export function buildOverviewComponents(guildId, snapshot) {
     new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId(customId(DASHBOARD_CATEGORY_SELECT, guildId))
-        .setPlaceholder('📁 Select a category...')
+        .setPlaceholder('Select a category...')
         .addOptions(categoryOptions),
     ),
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(customId(DASHBOARD_REFRESH, guildId))
         .setLabel('Refresh')
-        .setEmoji('🔄')
         .setStyle(ButtonStyle.Secondary),
     ),
   ];
@@ -228,27 +167,22 @@ export function buildCategoryComponents(guildId, category) {
       new ButtonBuilder()
         .setCustomId(customId(DASHBOARD_HOME, guildId))
         .setLabel('Back')
-        .setEmoji('◀️')
         .setStyle(ButtonStyle.Secondary),
       new ButtonBuilder()
         .setCustomId(customId(DASHBOARD_TOGGLE_CATEGORY, guildId, category.key))
         .setLabel(category.categoryDisabled ? 'Enable Category' : 'Disable Category')
-        .setEmoji(category.categoryDisabled ? '🟢' : '🔴')
         .setStyle(category.categoryDisabled ? ButtonStyle.Success : ButtonStyle.Danger),
       new ButtonBuilder()
         .setCustomId(customId(DASHBOARD_ENABLE_ALL, guildId, category.key))
         .setLabel('Enable All')
-        .setEmoji('✅')
         .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId(customId(DASHBOARD_DISABLE_ALL, guildId, category.key))
         .setLabel('Disable All')
-        .setEmoji('⛔')
         .setStyle(ButtonStyle.Danger),
       new ButtonBuilder()
         .setCustomId(customId(DASHBOARD_RESET_COMMANDS, guildId, category.key))
         .setLabel('Clear Overrides')
-        .setEmoji('🧹')
         .setStyle(ButtonStyle.Secondary),
     ),
   ];
@@ -275,20 +209,20 @@ export async function buildDashboardView(client, guildId, guild, view = 'overvie
     const category = snapshot.categories.find((entry) => entry.key === categoryKey);
     if (!category) {
       return {
-        embed: buildOverviewEmbed(snapshot, guild),
+        container: buildOverviewContainer(snapshot, guild),
         components: buildOverviewComponents(guildId, snapshot),
       };
     }
 
     return {
-      embed: buildCategoryEmbed(category, guild),
+      container: buildCategoryContainer(category, guild),
       components: buildCategoryComponents(guildId, category),
       categoryKey,
     };
   }
 
   return {
-    embed: buildOverviewEmbed(snapshot, guild),
+    container: buildOverviewContainer(snapshot, guild),
     components: buildOverviewComponents(guildId, snapshot),
   };
 }
@@ -321,20 +255,29 @@ export async function handleDashboardComponent(interaction, client) {
     }
 
     const view = await buildDashboardView(client, guildId, interaction.guild, 'category', categoryKey);
-    return interaction.update({ embeds: [view.embed], components: view.components });
+    return interaction.update({
+      components: [view.container, ...view.components],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 
   if (action === DASHBOARD_CATEGORY_SELECT) {
     const categoryKey = interaction.values[0];
     const view = await buildDashboardView(client, guildId, interaction.guild, 'category', categoryKey);
-    return interaction.update({ embeds: [view.embed], components: view.components });
+    return interaction.update({
+      components: [view.container, ...view.components],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 
   await interaction.deferUpdate();
 
   if (action === DASHBOARD_REFRESH || action === DASHBOARD_HOME) {
     const view = await buildDashboardView(client, guildId, interaction.guild, 'overview');
-    return interaction.editReply({ embeds: [view.embed], components: view.components });
+    return interaction.editReply({
+      components: [view.container, ...view.components],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 
   if (action === DASHBOARD_TOGGLE_CATEGORY) {
@@ -350,30 +293,42 @@ export async function handleDashboardComponent(interaction, client) {
     }
 
     const view = await buildDashboardView(client, guildId, interaction.guild, 'category', categoryKey);
-    return interaction.editReply({ embeds: [view.embed], components: view.components });
+    return interaction.editReply({
+      components: [view.container, ...view.components],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 
   if (action === DASHBOARD_ENABLE_ALL) {
     await enableCategory(client, guildId, suffix);
     await resetCategoryCommands(client, guildId, suffix);
     const view = await buildDashboardView(client, guildId, interaction.guild, 'category', suffix);
-    return interaction.editReply({ embeds: [view.embed], components: view.components });
+    return interaction.editReply({
+      components: [view.container, ...view.components],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 
   if (action === DASHBOARD_DISABLE_ALL) {
     await disableCategory(client, guildId, suffix);
     const view = await buildDashboardView(client, guildId, interaction.guild, 'category', suffix);
-    return interaction.editReply({ embeds: [view.embed], components: view.components });
+    return interaction.editReply({
+      components: [view.container, ...view.components],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 
   if (action === DASHBOARD_RESET_COMMANDS) {
     await enableCategory(client, guildId, suffix);
     await resetCategoryCommands(client, guildId, suffix);
     const view = await buildDashboardView(client, guildId, interaction.guild, 'category', suffix);
-    return interaction.editReply({ embeds: [view.embed], components: view.components });
+    return interaction.editReply({
+      components: [view.container, ...view.components],
+      flags: MessageFlags.IsComponentsV2,
+    });
   }
 
-  return interaction.editReply({ content: 'Unknown dashboard action.', embeds: [], components: [] });
+  return interaction.editReply({ content: 'Unknown dashboard action.' });
 }
 
 export function isCommandAccessCustomId(customIdValue) {

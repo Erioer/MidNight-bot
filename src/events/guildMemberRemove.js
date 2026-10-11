@@ -1,5 +1,5 @@
-import { Events, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
-import { getColor, botConfig } from '../config/bot.js';
+import { Events, MessageFlags, PermissionFlagsBits } from 'discord.js';
+import { botConfig } from '../config/bot.js';
 import { getWelcomeConfig, getUserApplications, deleteApplication } from '../utils/database.js';
 import { formatWelcomeMessage } from '../utils/welcome.js';
 import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
@@ -7,6 +7,15 @@ import { getServerCounters, updateCounter } from '../services/serverstatsService
 import { getGuildBirthdays, deleteBirthday } from '../utils/database.js';
 import { deleteUserLevelData } from '../services/leveling/leveling.js';
 import { logger } from '../utils/logger.js';
+import {
+  NO_PINGS,
+  container,
+  divider,
+  gallery,
+  section,
+  text,
+  thumbnail,
+} from '../utils/componentsV2.js';
 
 export default {
   name: Events.GuildMemberRemove,
@@ -51,28 +60,38 @@ export default {
                         allowedMentions: welcomeConfig?.goodbyePing ? { users: [user.id] } : { parse: [] }
                     });
                 } else {
-                    const embed = new EmbedBuilder()
-                        .setTitle(embedTitle)
-                        .setDescription(goodbyeMessage)
-                        .setColor(welcomeConfig.leaveEmbed?.color || getColor('error'))
-                        .setThumbnail(user.displayAvatarURL())
-                        .addFields(
-                            { name: 'User', value: `${user.tag} (${user.id})`, inline: true },
-                            { name: 'Member Count', value: guild.memberCount.toString(), inline: true }
-                        )
-                        .setTimestamp()
-                        .setFooter({ text: embedFooter });
+                    // Goodbye card (Components V2). The template rendering
+                    // above is untouched: only the structure changed from an
+                    // embed to a container. The ping toggle still decides
+                    // whether the member mention may ping.
+                    const goodbyeMention = welcomeConfig?.goodbyePing ? `<@${user.id}>` : null;
+                    const leaveImageUrl = (typeof welcomeConfig.leaveEmbed?.image === 'string'
+                        ? welcomeConfig.leaveEmbed.image
+                        : welcomeConfig.leaveEmbed?.image?.url)
+                        || null;
 
-                    if (typeof welcomeConfig.leaveEmbed?.image === 'string') {
-                        embed.setImage(welcomeConfig.leaveEmbed.image);
-                    } else if (welcomeConfig.leaveEmbed?.image?.url) {
-                        embed.setImage(welcomeConfig.leaveEmbed.image.url);
+                    const parts = [
+                        section(
+                            [text(`### ${embedTitle}`), text(goodbyeMessage)],
+                            thumbnail(user.displayAvatarURL()),
+                        ),
+                        text(`**User:** ${user.tag} (${user.id})\n**Member Count:** ${guild.memberCount.toString()}`),
+                    ];
+
+                    if (leaveImageUrl) {
+                        parts.push(gallery(leaveImageUrl));
                     }
 
+                    parts.push(divider(), text(`-# ${embedFooter}`));
+
+                    const goodbyeContainer = container({ parts });
+
                     await channel.send({
-                        content: welcomeConfig?.goodbyePing ? `<@${user.id}>` : undefined,
-                        allowedMentions: welcomeConfig?.goodbyePing ? { users: [user.id] } : { parse: [] },
-                        embeds: [embed]
+                        components: goodbyeMention
+                            ? [text(goodbyeMention), goodbyeContainer]
+                            : [goodbyeContainer],
+                        flags: MessageFlags.IsComponentsV2,
+                        allowedMentions: welcomeConfig?.goodbyePing ? { users: [user.id] } : NO_PINGS,
                     });
                 }
             }

@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, container, section, text, thumbnail, v2Flags } from '../../utils/componentsV2.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 
@@ -24,30 +24,21 @@ export default {
 
     const createdTimestamp = Math.floor(guild.createdAt.getTime() / 1000);
 
-    const embed = createEmbed({ title: `Server Info: ${guild.name}`, description: `Server ID: ${guild.id}` })
-      .setThumbnail(guild.iconURL({ size: 256 }))
-      .addFields(
-        { name: "Owner", value: owner.user.tag, inline: true },
-        { name: "Members", value: `${guild.memberCount}`, inline: true },
-        {
-          name: "Channels",
-          value: `${guild.channels.cache.size}`,
-          inline: true,
-        },
-        { name: "Roles", value: `${guild.roles.cache.size}`, inline: true },
-        {
-          name: "Boosts",
-          value: `Level ${guild.premiumTier} (${guild.premiumSubscriptionCount})`,
-          inline: true,
-        },
-        {
-          name: "Creation Date",
-          value: `<t:${createdTimestamp}:R>`,
-          inline: true,
-        },
-      );
+    const serverBody =
+        `Server ID: ${guild.id}\n` +
+        `**Owner:** ${owner.user.tag}\n` +
+        `**Members:** ${guild.memberCount}\n` +
+        `**Channels:** ${guild.channels.cache.size}\n` +
+        `**Roles:** ${guild.roles.cache.size}\n` +
+        `**Boosts:** Level ${guild.premiumTier} (${guild.premiumSubscriptionCount})\n` +
+        `**Creation Date:** <t:${createdTimestamp}:R>`;
 
-    await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+    const guildIcon = guild.iconURL({ size: 256 });
+    const serverContainer = guildIcon
+        ? container({ parts: [section([text(`### Server Info: ${guild.name}`), text(serverBody)], thumbnail(guildIcon))] })
+        : container({ parts: [text(`### Server Info: ${guild.name}`), text(serverBody)] });
+
+    await InteractionHelper.safeEditReply(interaction, { components: [serverContainer], flags: v2Flags(), allowedMentions: NO_PINGS });
     logger.info(`ServerInfo command executed`, {
       userId: interaction.user.id,
       guildId: guild.id,

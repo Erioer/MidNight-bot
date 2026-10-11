@@ -114,8 +114,8 @@ export default {
             `You worked as a **${job}** and earned **$${earned.toLocaleString()}**!`,
             `**New balance:** \`$${userData.wallet.toLocaleString()}\``,
         ];
-        if (hasLaptop > 0) lines.push('💻 **Laptop Bonus: +50% earnings!**');
-        if (usedConsumable) lines.push('⏩ **Extra Work Shift Consumed**');
+        if (hasLaptop > 0) lines.push('**Laptop Bonus: +50% earnings!**');
+        if (usedConsumable) lines.push('**Extra Work Shift Consumed**');
         if (hasPremium) lines.push(premiumBonusLine(bonus));
 
         return sendEconomy(

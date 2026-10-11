@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
-import { successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -100,12 +101,14 @@ export default {
                 ?.name || `${durationMinutes} minutes`;
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [
-                successEmbed(
-                    `⏳ **Timed out** ${targetUser.tag} for ${durationDisplay}.`,
-                    `**Reason:** ${reason}\n**Case ID:** #${result.caseId}`,
-                ),
+            components: [
+                successContainer({
+                    title: `⏳ **Timed out** ${targetUser.tag} for ${durationDisplay}.`,
+                    body: `**Reason:** ${reason}\n**Case ID:** #${result.caseId}`,
+                }),
             ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
     },
 };

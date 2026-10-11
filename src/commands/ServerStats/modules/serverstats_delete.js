@@ -1,6 +1,5 @@
-import { getColor } from '../../../config/bot.js';
-import { PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { createEmbed } from '../../../utils/embeds.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { NO_PINGS, v2Flags, container, divider, text } from '../../../utils/componentsV2.js';
 import { getServerCounters, saveServerCounters, getCounterEmoji, getCounterTypeLabel } from '../../../services/serverstatsService.js';
 import { logger } from '../../../utils/logger.js';
 
@@ -38,10 +37,19 @@ export async function handleDelete(interaction, client) {
 
         const channel = guild.channels.cache.get(counterToDelete.channelId);
 
-        const embed = createEmbed({
-            title: "Delete Counter & Channel",
-            description: `Are you sure you want to delete this counter and its channel?\n\n**ID:** \`${counterToDelete.id}\`\n**Type:** ${getCounterTypeDisplay(counterToDelete.type)}\n**Channel:** ${channel || 'Deleted Channel'}\n\n **The channel will be permanently deleted!**`,
-            color: getColor('error')
+        const card = container({
+            parts: [
+                text('### Delete Counter & Channel'),
+                text([
+                    'Are you sure you want to delete this counter and its channel?',
+                    '',
+                    `**ID:** \`${counterToDelete.id}\``,
+                    `**Type:** ${getCounterTypeDisplay(counterToDelete.type)}`,
+                    `**Channel:** ${channel || 'Deleted Channel'}`,
+                    '',
+                    '**The channel will be permanently deleted!**',
+                ].join('\n')),
+            ],
         });
 
         const row = new ActionRowBuilder().addComponents(
@@ -55,7 +63,11 @@ export async function handleDelete(interaction, client) {
                 .setStyle(ButtonStyle.Secondary)
         );
 
-        await InteractionHelper.safeEditReply(interaction, { embeds: [embed], components: [row] }).catch(logger.error);
+        await InteractionHelper.safeEditReply(interaction, {
+            components: [card, row],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
+        }).catch(logger.error);
 
     } catch (error) {
         logger.error("Error in handleDelete:", error);

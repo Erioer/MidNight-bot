@@ -1,5 +1,6 @@
 import { PermissionsBitField } from 'discord.js';
-import { successEmbed } from '../../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer } from '../../../services/economy/economyViews.js';
 import { setLogChannel } from '../../../services/loggingService.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 import { logger } from '../../../utils/logger.js';
@@ -18,11 +19,12 @@ export default {
             await setLogChannel(client, guildId, 'reports', channel.id);
 
             return InteractionHelper.safeReply(interaction, {
-                embeds: [successEmbed(
-                    'Report Channel Set',
-                    `All new reports will now be sent to ${channel}.\nYou can also manage this from \`/logging dashboard\`.`,
-                )],
-                ephemeral: true,
+                components: [successContainer({
+                    title: 'Report Channel Set',
+                    body: `All new reports will now be sent to ${channel}.\nYou can also manage this from \`/logging dashboard\`.`,
+                })],
+                flags: v2Flags({ ephemeral: true }),
+                allowedMentions: NO_PINGS,
             });
         } catch (error) {
             logger.error('report_setchannel error:', error);

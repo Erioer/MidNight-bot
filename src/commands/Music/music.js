@@ -13,6 +13,8 @@ import {
     moveInQueue,
     clearQueue,
     setTwentyFourSeven,
+    setAutoplayState,
+    setAudioFilter,
     leaveVoiceChannel,
     replyMusicSuccess,
 } from '../../services/music/musicActions.js';
@@ -23,7 +25,8 @@ import {
     removeLikedSong,
     playLikedSong,
 } from '../../services/music/likedSongsService.js';
-import { getNodeStatusEmbed } from '../../services/music/nodeStatus.js';
+import { getNodeStatusContainer } from '../../services/music/nodeStatus.js';
+import { startMusicSearch } from '../../services/music/musicSearchService.js';
 
 export default {
     category: 'Music',
@@ -100,7 +103,48 @@ export default {
             sub.setName('clear').setDescription('Clear the queue'),
         )
         .addSubcommand((sub) =>
+            sub
+                .setName('autoplay')
+                .setDescription('Toggle autoplay recommendations')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('mode')
+                        .setDescription('Autoplay mode (omit to toggle)')
+                        .addChoices(
+                            { name: 'Enable', value: 'enable' },
+                            { name: 'Disable', value: 'disable' },
+                        ),
+                ),
+        )
+        .addSubcommand((sub) =>
+            sub
+                .setName('filter')
+                .setDescription('Apply a Lavalink audio filter preset')
+                .addStringOption((opt) =>
+                    opt
+                        .setName('preset')
+                        .setDescription('Audio filter preset')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Clear', value: 'clear' },
+                            { name: 'Bassboost', value: 'bassboost' },
+                            { name: 'Nightcore', value: 'nightcore' },
+                            { name: 'Vaporwave', value: 'vaporwave' },
+                            { name: '8D', value: '8d' },
+                            { name: 'Karaoke', value: 'karaoke' },
+                        ),
+                ),
+        )
+        .addSubcommand((sub) =>
             sub.setName('ping').setDescription('Show Lavalink node status and ping'),
+        )
+        .addSubcommand((sub) =>
+            sub
+                .setName('search')
+                .setDescription('Search for tracks and pick one to enqueue')
+                .addStringOption((opt) =>
+                    opt.setName('query').setDescription('Song name, artist, or URL').setRequired(true),
+                ),
         )
         .addSubcommand((sub) =>
             sub.setName('leave').setDescription('Disconnect the bot from the voice channel'),
@@ -238,9 +282,23 @@ export default {
                 await replyMusicSuccess(interaction, embed);
                 break;
             }
-            case 'ping': {
-                const embed = await getNodeStatusEmbed(client);
+            case 'autoplay': {
+                const embed = await setAutoplayState(client, interaction, interaction.options.getString('mode'));
                 await replyMusicSuccess(interaction, embed);
+                break;
+            }
+            case 'filter': {
+                const embed = await setAudioFilter(client, interaction, interaction.options.getString('preset'));
+                await replyMusicSuccess(interaction, embed);
+                break;
+            }
+            case 'ping': {
+                const embed = await getNodeStatusContainer(client);
+                await replyMusicSuccess(interaction, embed);
+                break;
+            }
+            case 'search': {
+                await startMusicSearch(client, interaction, interaction.options.getString('query'));
                 break;
             }
             case 'leave': {

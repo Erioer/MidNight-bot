@@ -1,5 +1,6 @@
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
-import { successEmbed } from '../utils/embeds.js';
+import { NO_PINGS } from '../utils/componentsV2.js';
+import { successContainer } from '../services/economy/economyViews.js';
 import { getFromDb, setInDb } from '../utils/database.js';
 import { checkRateLimit } from '../utils/rateLimiter.js';
 import { logger } from '../utils/logger.js';
@@ -18,16 +19,14 @@ function buildSharedTodoViewPayload(listData, listId, guild) {
 
   if (tasks.length === 0) {
     return {
-      embeds: [
-        successEmbed(
-          `📋 **${listData.name}**\n\n` +
+      components: [
+        successContainer({
+          title: `📋 **${listData.name}**\n\n` +
           `👑 **Owner:** ${ownerName}\n` +
           `👥 **Members:** ${memberList}\n\n` +
           '*This list is currently empty. Use the "Add Task" button to add tasks!*',
-          `Shared List (ID: \`${listId}\`)`
-        )
-      ],
-      components: [
+          body: `Shared List (ID: \`${listId}\`)`,
+        }),
         new ActionRowBuilder().addComponents(
           new ButtonBuilder()
             .setCustomId(`shared_todo_add_${listId}`)
@@ -42,7 +41,9 @@ function buildSharedTodoViewPayload(listData, listId, guild) {
             .setLabel('Remove Task')
             .setStyle(ButtonStyle.Danger)
         )
-      ]
+      ],
+      flags: MessageFlags.IsComponentsV2,
+      allowedMentions: NO_PINGS,
     };
   }
 
@@ -55,16 +56,14 @@ function buildSharedTodoViewPayload(listData, listId, guild) {
     .join('\n');
 
   return {
-    embeds: [
-      successEmbed(
-        `📋 **${listData.name}**\n\n` +
+    components: [
+      successContainer({
+        title: `📋 **${listData.name}**\n\n` +
         `👑 **Owner:** ${ownerName}\n` +
         `👥 **Members:** ${memberList}\n\n` +
         `**Tasks:**\n${taskList}`,
-        `Shared List (ID: \`${listId}\`)`
-      )
-    ],
-    components: [
+        body: `Shared List (ID: \`${listId}\`)`,
+      }),
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
           .setCustomId(`shared_todo_add_${listId}`)
@@ -79,7 +78,9 @@ function buildSharedTodoViewPayload(listData, listId, guild) {
           .setLabel('Remove Task')
           .setStyle(ButtonStyle.Danger)
       )
-    ]
+    ],
+    flags: MessageFlags.IsComponentsV2,
+    allowedMentions: NO_PINGS,
   };
 }
 
@@ -250,8 +251,9 @@ const sharedTodoAddModalHandler = {
       await refreshSharedTodoMessage(interaction, listId, sourceMessageId);
 
       return interaction.reply({
-        embeds: [successEmbed("Task Added", `Added "${taskText}" to the shared list.`)],
-        flags: MessageFlags.Ephemeral
+        components: [successContainer({ title: 'Task Added', body: `Added "${taskText}" to the shared list.` })],
+        flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+        allowedMentions: NO_PINGS,
       });
 
     } catch (error) {
@@ -315,8 +317,9 @@ const sharedTodoCompleteModalHandler = {
       await refreshSharedTodoMessage(interaction, listId, sourceMessageId);
       
       return interaction.reply({
-        embeds: [successEmbed("Task Completed", `Marked "${task.text}" as complete!`)],
-        flags: MessageFlags.Ephemeral
+        components: [successContainer({ title: 'Task Completed', body: `Marked "${task.text}" as complete!` })],
+        flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+        allowedMentions: NO_PINGS,
       });
 
     } catch (error) {
@@ -374,8 +377,9 @@ const sharedTodoRemoveModalHandler = {
       await refreshSharedTodoMessage(interaction, listId, sourceMessageId);
 
       return interaction.reply({
-        embeds: [successEmbed('Task Removed', `Removed "${removedTask.text}" from the shared list.`)],
-        flags: MessageFlags.Ephemeral
+        components: [successContainer({ title: 'Task Removed', body: `Removed "${removedTask.text}" from the shared list.` })],
+        flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+        allowedMentions: NO_PINGS,
       });
     } catch (error) {
       logger.error('Error in shared todo remove modal:', error);

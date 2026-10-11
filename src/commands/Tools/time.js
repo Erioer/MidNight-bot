@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -43,14 +44,14 @@ export default {
                 const now = new Date();
                 const unixTimestamp = Math.floor(now.getTime() / 1000);
 
-                const embed = successEmbed(
-                    '🕒 Current Time',
-                    `**${timezone}:** ${timeString}\n` +
+                const timeContainer = successContainer({
+                    title: '🕒 Current Time',
+                    body: `**${timezone}:** ${timeString}\n` +
                     `**Unix Timestamp:** \`${unixTimestamp}\`\n` +
-                    `**ISO String:** \`${now.toISOString()}\``
-                );
+                    `**ISO String:** \`${now.toISOString()}\``,
+                });
 
-                await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+                await InteractionHelper.safeEditReply(interaction, { components: [timeContainer], flags: v2Flags(), allowedMentions: NO_PINGS });
             },
             'Failed to get current time. Please try again.',
             {

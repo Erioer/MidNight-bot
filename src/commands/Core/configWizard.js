@@ -1,4 +1,4 @@
-import {
+﻿import {
     SlashCommandBuilder,
     PermissionFlagsBits,
     ActionRowBuilder,
@@ -16,7 +16,8 @@ import {
     ChannelType,
 } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed, buildUserErrorEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../utils/componentsV2.js';
+import { failureContainer, noticeContainer, successContainer } from '../../services/economy/economyViews.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getGuildConfig, setConfigValue } from '../../services/config/guildConfig.js';
 import ConfigService from '../../services/config/configService.js';
@@ -36,11 +37,16 @@ const DM_DISABLED_HELP = [
 
 async function notifyWizardStarted(buttonInteraction) {
     await buttonInteraction.followUp({
-        embeds: [infoEmbed(
-            'Setup Wizard Started',
-            'Check your DMs — I sent you the first setup question there.\n\nAnswer each question in that DM. Type `skip` to keep the current value.',
-        )],
-        flags: MessageFlags.Ephemeral,
+        components: [
+            container({
+                parts: [
+                    text('### Setup Wizard Started'),
+                    text('Check your DMs — I sent you the first setup question there.\n\nAnswer each question in that DM. Type `skip` to keep the current value.'),
+                ],
+            }),
+        ],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     }).catch(() => {});
 }
 
@@ -85,58 +91,33 @@ function getBotPresenceText() {
 function getThemeColorLines() {
     const colors = botConfig.embeds.colors;
     return [
-        `🎨 Primary \`${colors.primary}\` · Success \`${colors.success}\``,
-        `⚠️ Warning \`${colors.warning}\` · Error \`${colors.error}\``,
+        `Primary \`${colors.primary}\` · Success \`${colors.success}\``,
+        `Warning \`${colors.warning}\` · Error \`${colors.error}\``,
     ].join('\n');
 }
 
-function buildDashboardEmbed(config, guild) {
+function buildDashboardContainer(config, guild) {
     const setupDone = config.setupWizardCompleted;
 
-    return createEmbed({
-        title: '⚙️ Server Configuration',
-        description: `Core settings for **${guild.name}**. Pick an option below or run the setup wizard.`,
-        color: 'info',
-        fields: [
-            {
-                name: '⌨️ Server Prefix',
-                value: `\`${config.prefix || getCommandPrefix()}\``,
-                inline: true,
-            },
-            {
-                name: '🛡️ Moderator Role',
-                value: formatRoleMention(guild, config.modRole),
-                inline: true,
-            },
-            {
-                name: '📋 Log Channel',
-                value: formatChannelMention(guild, config.logging?.channels?.audit),
-                inline: true,
-            },
-            {
-                name: '💚 Bot Status',
-                value: getBotPresenceText(),
-                inline: false,
-            },
-            {
-                name: '🎨 Embed Theme',
-                value: `${getThemeColorLines()}\n-# Colors are set in bot config and apply globally.`,
-                inline: false,
-            },
-            {
-                name: '⚡ Command Access',
-                value: 'Use `/commands dashboard` to enable or disable commands and subcommands.',
-                inline: false,
-            },
-            {
-                name: `${setupDone ? '✅' : '📝'} Setup`,
-                value: setupDone
-                    ? 'Setup wizard completed — re-run anytime to update settings.'
-                    : 'Run the setup wizard to configure your server quickly.',
-                inline: false,
-            },
+    return container({
+        parts: [
+            text('### Server Configuration'),
+            text(`Core settings for **${guild.name}**. Pick an option below or run the setup wizard.`),
+            divider(),
+            text(
+                [
+                    `**Server Prefix:** \`${config.prefix || getCommandPrefix()}\``,
+                    `**Moderator Role:** ${formatRoleMention(guild, config.modRole)}`,
+                    `**Log Channel:** ${formatChannelMention(guild, config.logging?.channels?.audit)}`,
+                    `**Bot Status:** ${getBotPresenceText()}`,
+                    `**Embed Theme:**\n${getThemeColorLines()}\n-# Colors are set in bot config and apply globally.`,
+                    `**Command Access:** Use \`/commands dashboard\` to enable or disable commands and subcommands.`,
+                    `**Setup:** ${setupDone ? 'Setup wizard completed — re-run anytime to update settings.' : 'Run the setup wizard to configure your server quickly.'}`,
+                ].join('\n'),
+            ),
+            divider(),
+            text('-# Dashboard closes after 10 minutes of inactivity'),
         ],
-        footer: 'Dashboard closes after 10 minutes of inactivity',
     });
 }
 
@@ -144,23 +125,20 @@ function buildSettingsSelect(guildId) {
     return new ActionRowBuilder().addComponents(
         new StringSelectMenuBuilder()
             .setCustomId(`${DASHBOARD_CUSTOM_ID}:${guildId}`)
-            .setPlaceholder('⚙️ Select a setting to edit...')
+            .setPlaceholder('Select a setting to edit...')
             .addOptions(
                 new StringSelectMenuOptionBuilder()
                     .setLabel('Server Prefix')
                     .setDescription('Change the text command prefix')
-                    .setValue('prefix')
-                    .setEmoji('⌨️'),
+                    .setValue('prefix'),
                 new StringSelectMenuOptionBuilder()
                     .setLabel('Moderator Role')
                     .setDescription('Role used for moderation commands')
-                    .setValue('modRole')
-                    .setEmoji('🛡️'),
+                    .setValue('modRole'),
                 new StringSelectMenuOptionBuilder()
                     .setLabel('Log Channel')
                     .setDescription('Channel for system log messages')
-                    .setValue('logChannelId')
-                    .setEmoji('📋'),
+                    .setValue('logChannelId'),
             ),
     );
 }
@@ -170,7 +148,6 @@ function buildButtonRow(config, guildId) {
         new ButtonBuilder()
             .setCustomId(`${WIZARD_BUTTON_ID}:${guildId}`)
             .setLabel(config.setupWizardCompleted ? 'Re-run Setup Wizard' : 'Start Setup Wizard')
-            .setEmoji('📝')
             .setStyle(config.setupWizardCompleted ? ButtonStyle.Secondary : ButtonStyle.Success),
     );
 }
@@ -192,11 +169,15 @@ function extractId(value) {
 
 async function askQuestion(dmChannel, userId, prompt, stepNumber, totalSteps) {
     await dmChannel.send({
-        embeds: [createEmbed({
-            title: `Setup Question ${stepNumber}/${totalSteps}`,
-            description: prompt,
-            color: 'primary',
-        })],
+        components: [
+            container({
+                parts: [
+                    text(`### Setup Question ${stepNumber}/${totalSteps}`),
+                    text(prompt),
+                ],
+            }),
+        ],
+        flags: MessageFlags.IsComponentsV2,
     });
 
     const collected = await dmChannel.awaitMessages({
@@ -207,7 +188,13 @@ async function askQuestion(dmChannel, userId, prompt, stepNumber, totalSteps) {
 
     if (!collected || !collected.size) {
         await dmChannel.send({
-            embeds: [buildUserErrorEmbed(ErrorTypes.RATE_LIMIT, 'You did not answer in time. Run the setup wizard again when ready.')],
+            components: [
+                noticeContainer({
+                    title: 'Timed Out',
+                    body: 'You did not answer in time. Run the setup wizard again when ready.',
+                }),
+            ],
+            flags: MessageFlags.IsComponentsV2,
         });
         return null;
     }
@@ -215,7 +202,12 @@ async function askQuestion(dmChannel, userId, prompt, stepNumber, totalSteps) {
     const answer = collected.first().content.trim();
     if (answer.toLowerCase() === 'cancel') {
         await dmChannel.send({
-            embeds: [infoEmbed('Setup Cancelled', 'Setup wizard stopped. Your saved answers are still applied.')],
+            components: [
+                container({
+                    parts: [text('### Setup Cancelled'), text('Setup wizard stopped. Your saved answers are still applied.')],
+                }),
+            ],
+            flags: MessageFlags.IsComponentsV2,
         });
         return { cancelled: true };
     }
@@ -264,9 +256,11 @@ async function validateGuildRoleId(guild, roleId) {
 }
 
 async function refreshDashboard(rootInteraction, config, guild) {
-    const embed = buildDashboardEmbed(config, guild);
-    const components = [buildButtonRow(config, guild.id), buildSettingsSelect(guild.id)];
-    await InteractionHelper.safeEditReply(rootInteraction, { embeds: [embed], components }).catch(() => {});
+    await InteractionHelper.safeEditReply(rootInteraction, {
+        components: [buildDashboardContainer(config, guild), buildButtonRow(config, guild.id), buildSettingsSelect(guild.id)],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
+    }).catch(() => {});
 }
 
 async function runSetupWizard(buttonInteraction, config, guild, client, rootInteraction) {
@@ -274,8 +268,14 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
 
     if (activeWizardSessions.has(user.id)) {
         await buttonInteraction.followUp({
-            embeds: [warningEmbed('Setup Already Running', 'You already have a setup wizard open in your DMs. Reply there to continue, or type `cancel` to stop it.')],
-            flags: MessageFlags.Ephemeral,
+            components: [
+                noticeContainer({
+                    title: 'Setup Already Running',
+                    body: 'You already have a setup wizard open in your DMs. Reply there to continue, or type `cancel` to stop it.',
+                }),
+            ],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         }).catch(() => {});
         return;
     }
@@ -345,11 +345,15 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
     try {
         try {
             await dmChannel.send({
-                embeds: [createEmbed({
-                    title: '📝 Setup Wizard',
-                    description: 'Answer each question in this DM.\n\n• Type `skip` to keep the current value\n• Type `cancel` to stop the wizard',
-                    color: 'info',
-                })],
+                components: [
+                    container({
+                        parts: [
+                            text('### Setup Wizard'),
+                            text('Answer each question in this DM.\n\n• Type `skip` to keep the current value\n• Type `cancel` to stop the wizard'),
+                        ],
+                    }),
+                ],
+                flags: MessageFlags.IsComponentsV2,
             });
         } catch (error) {
             logger.warn('Failed to send setup wizard DM', { userId: user.id, error: error.message });
@@ -389,13 +393,24 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
 
                     if (value === undefined) {
                         await dmChannel.send({
-                            embeds: [infoEmbed('Skipped', prompt.skipMessage)],
+                            components: [
+                                container({
+                                    parts: [text('### Skipped'), text(prompt.skipMessage)],
+                                }),
+                            ],
+                            flags: MessageFlags.IsComponentsV2,
                         });
                     } else {
                         await ConfigService.updateSetting(client, guild.id, prompt.key, value, user.id);
                         changes[prompt.key] = value;
                         await dmChannel.send({
-                            embeds: [successEmbed('Saved', formatSavedAck(prompt.key, value, guild))],
+                            components: [
+                                successContainer({
+                                    title: 'Saved',
+                                    body: formatSavedAck(prompt.key, value, guild),
+                                }),
+                            ],
+                            flags: MessageFlags.IsComponentsV2,
                         });
 
                         try {
@@ -410,7 +425,13 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
                 } catch (error) {
                     errors.push(`• ${prompt.key}: ${error.message}`);
                     await dmChannel.send({
-                        embeds: [buildUserErrorEmbed(ErrorTypes.VALIDATION, `${error.message}\n\nPlease reply again with a valid answer, \`skip\`, or \`cancel\`.`)],
+                        components: [
+                            failureContainer({
+                                title: 'Invalid Answer',
+                                body: `${error.message}\n\nPlease reply again with a valid answer, \`skip\`, or \`cancel\`.`,
+                            }),
+                        ],
+                        flags: MessageFlags.IsComponentsV2,
                     });
                 }
             }
@@ -440,18 +461,24 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
                 ? `Updated **${Object.keys(changes).length}** setting(s).${errors.length > 0 ? ' Some answers needed retries.' : ''}`
                 : 'No changes were applied.');
 
-        const summaryEmbed = createEmbed({
-            title: wizardCancelled ? `⚠️ ${summaryTitle}` : `✅ ${summaryTitle}`,
-            description: summaryBody,
-            color: wizardCancelled ? 'warning' : (errors.length > 0 ? 'warning' : 'success'),
+        const summaryContainer = wizardCancelled
+            ? (Object.keys(changes).length > 0
+                ? noticeContainer({
+                    title: summaryTitle,
+                    body: `${summaryBody}${errors.length > 0 ? `\n\n**Issues:**\n${[...new Set(errors)].join('\n').slice(0, 1024)}` : ''}`,
+                })
+                : noticeContainer({ title: summaryTitle, body: summaryBody }))
+            : (errors.length > 0
+                ? noticeContainer({
+                    title: summaryTitle,
+                    body: `${summaryBody}\n\n**Issues:**\n${[...new Set(errors)].join('\n').slice(0, 1024)}`,
+                })
+                : successContainer({ title: summaryTitle, body: summaryBody }));
+
+        await dmChannel.send({
+            components: [summaryContainer],
+            flags: MessageFlags.IsComponentsV2,
         });
-
-        if (errors.length > 0) {
-            const uniqueErrors = [...new Set(errors)];
-            summaryEmbed.addFields({ name: 'Issues', value: uniqueErrors.join('\n').slice(0, 1024) });
-        }
-
-        await dmChannel.send({ embeds: [summaryEmbed] });
 
         try {
             const updatedConfig = await getGuildConfig(client, guild.id);
@@ -461,6 +488,21 @@ async function runSetupWizard(buttonInteraction, config, guild, client, rootInte
         }
     } finally {
         activeWizardSessions.delete(user.id);
+    }
+}
+
+/**
+ * Shows a dashboard modal. Returns false when the select interaction went
+ * stale (unknown interaction / already acknowledged) so callers bail out
+ * instead of throwing 10062 into the collector.
+ */
+async function showConfigModal(selectInteraction, modal) {
+    try {
+        await selectInteraction.showModal(modal);
+        return true;
+    } catch (error) {
+        if (error?.code === 10062 || error?.code === 40060) return false;
+        throw error;
     }
 }
 
@@ -486,7 +528,8 @@ async function showSettingModal(selectInteraction, guildId, setting) {
             .setChannelSelectMenuComponent(channelSelect);
 
         modal.addLabelComponents(channelLabel);
-        await selectInteraction.showModal(modal);
+        const modalShown = await showConfigModal(selectInteraction, modal);
+        if (!modalShown) return;
         return;
     }
 
@@ -508,7 +551,8 @@ async function showSettingModal(selectInteraction, guildId, setting) {
             .setRoleSelectMenuComponent(roleSelect);
 
         modal.addLabelComponents(roleLabel);
-        await selectInteraction.showModal(modal);
+        const modalShown = await showConfigModal(selectInteraction, modal);
+        if (!modalShown) return;
         return;
     }
 
@@ -525,7 +569,8 @@ async function showSettingModal(selectInteraction, guildId, setting) {
         .setMaxLength(10);
 
     modal.addComponents(new ActionRowBuilder().addComponents(textInput));
-    await selectInteraction.showModal(modal);
+        const modalShown = await showConfigModal(selectInteraction, modal);
+        if (!modalShown) return;
 }
 
 function resolveSettingModalValue(setting, submitted) {
@@ -587,8 +632,14 @@ async function handleSettingModalSubmit(selectInteraction, rootInteraction, sett
         await ConfigService.updateSetting(client, guildId, setting, value, submitted.user.id);
 
         await submitted.reply({
-            embeds: [successEmbed('Configuration Updated', buildSettingSuccessMessage(setting, value, submitted.guild))],
-            flags: MessageFlags.Ephemeral,
+            components: [
+                successContainer({
+                    title: 'Configuration Updated',
+                    body: buildSettingSuccessMessage(setting, value, submitted.guild),
+                }),
+            ],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         const updatedConfig = await getGuildConfig(client, guildId);
@@ -626,10 +677,11 @@ export default {
             }
 
             const guildConfig = await getGuildConfig(interaction.client, interaction.guildId);
-            const embed = buildDashboardEmbed(guildConfig, interaction.guild);
-            const components = [buildButtonRow(guildConfig, interaction.guildId), buildSettingsSelect(interaction.guildId)];
-
-            await InteractionHelper.safeEditReply(interaction, { embeds: [embed], components });
+            await InteractionHelper.safeEditReply(interaction, {
+                components: [buildDashboardContainer(guildConfig, interaction.guild), buildButtonRow(guildConfig, interaction.guildId), buildSettingsSelect(interaction.guildId)],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
+            });
 
             const replyMessage = await interaction.fetchReply().catch(() => null);
             if (!replyMessage) {

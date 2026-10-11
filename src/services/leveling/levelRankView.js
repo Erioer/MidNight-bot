@@ -35,6 +35,7 @@ export function buildLevelRankContainer({
   xp,
   totalXp,
   xpNeeded,
+  boostExpiresAt = 0,
   isSelf = true,
 }) {
   const progress = xpNeeded > 0 ? Math.floor((xp / xpNeeded) * 100) : 0;
@@ -45,11 +46,21 @@ export function buildLevelRankContainer({
     `${code(`${xp.toLocaleString()} / ${xpNeeded.toLocaleString()} XP`)} toward level ${code(level + 1)}`,
     `Total XP: ${code(totalXp.toLocaleString())}`,
     `${createProgressBar(progress)} ${code(`${progress}%`)}`,
-  ].join('\n');
+  ];
+
+  // Purchasable XP boost (economy shop): shown only while active, so the card
+  // renders exactly as before for everyone else. The timestamp renders the
+  // remaining time ("in 6 hours") per the dynamic-timestamp rule — no
+  // hand-computed hour math to drift. No emoji — clean-card rule.
+  if (Number(boostExpiresAt) > Date.now()) {
+    body.push(`**Boost Active** (ends <t:${Math.floor(Number(boostExpiresAt) / 1000)}:R>)`);
+  }
+
+  const bodyText = body.join('\n');
 
   const card = avatarUrl
-    ? section([text(header), text(body)], thumbnail(avatarUrl, `${heading} avatar`))
-    : [text(header), text(body)];
+    ? section([text(header), text(bodyText)], thumbnail(avatarUrl, `${heading} avatar`))
+    : [text(header), text(bodyText)];
 
   return container({
     parts: [

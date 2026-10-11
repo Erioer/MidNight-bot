@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { getFromDb, setInDb } from '../../utils/database.js';
 import { logger } from '../../utils/logger.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
@@ -195,13 +196,15 @@ export default {
                     }
 
                     return await InteractionHelper.safeEditReply(interaction, {
-                        embeds: [
-                            successEmbed(
-                                "Shared List Created",
-                                `Created shared list "${listName}" with ID: \`${listId}\`\n` +
-                                `Use \`/todo share add list_id:${listId} user:@username\` to add members.`
-                            )
-                        ]
+                        components: [
+                            successContainer({
+                                title: 'Shared List Created',
+                                body: `Created shared list "${listName}" with ID: \`${listId}\`\n` +
+                                `Use \`/todo share add list_id:${listId} user:@username\` to add members.`,
+                            })
+                        ],
+                        flags: v2Flags(),
+                        allowedMentions: NO_PINGS,
                     });
                 }
 
@@ -230,11 +233,13 @@ export default {
                         }
 
                         return await InteractionHelper.safeEditReply(interaction, {
-                            embeds: [
-                                successEmbed('Member Added', 
-                                    `Added ${memberToAdd.username} to the shared list "${listData.name}"`
-                                )
-                            ]
+                            components: [
+                                successContainer({ title: 'Member Added',
+                                    body: `Added ${memberToAdd.username} to the shared list "${listData.name}"`,
+                                })
+                            ],
+                            flags: v2Flags(),
+                            allowedMentions: NO_PINGS,
                         });
                     } else {
                         return await replyUserError(interaction, { type: ErrorTypes.UNKNOWN, message: 'User is already a member of this list.' });
@@ -263,16 +268,14 @@ export default {
                         const ownerName = owner ? owner.user.username : `<@${listData.creatorId}>`;
 
                         return await InteractionHelper.safeEditReply(interaction, {
-                                embeds: [
-                                    successEmbed(
-                                        `📋 **${listData.name}**\n\n` +
+                                components: [
+                                    successContainer({
+                                        title: `📋 **${listData.name}**\n\n` +
                                         `👑 **Owner:** ${ownerName}\n` +
                                         `👥 **Members:** ${memberList}\n\n` +
                                         `*This list is currently empty. Use the "Add Task" button to add tasks!*`,
-                                        `Shared List (ID: \`${listId}\`)`
-                                    )
-                                ],
-                                components: [
+                                        body: `Shared List (ID: \`${listId}\`)`,
+                                    }),
                                     new ActionRowBuilder().addComponents(
                                         new ButtonBuilder()
                                             .setCustomId(`shared_todo_add_${listId}`)
@@ -287,7 +290,9 @@ export default {
                                             .setLabel('Remove Task')
                                             .setStyle(ButtonStyle.Danger)
                                     )
-                                ]
+                                ],
+                                flags: v2Flags(),
+                                allowedMentions: NO_PINGS,
                             });
                     }
 
@@ -313,10 +318,8 @@ export default {
                         `**Tasks:**\n${taskList}`;
 
                     return await InteractionHelper.safeEditReply(interaction, {
-                        embeds: [
-                            successEmbed(`Shared List (ID: \`${listId}\`)`, fullListDisplay)
-                        ],
                         components: [
+                            successContainer({ title: `Shared List (ID: \`${listId}\`)`, body: fullListDisplay }),
                             new ActionRowBuilder().addComponents(
                                 new ButtonBuilder()
                                     .setCustomId(`shared_todo_add_${listId}`)
@@ -331,7 +334,9 @@ export default {
                                     .setLabel('Remove Task')
                                     .setStyle(ButtonStyle.Danger)
                             )
-                        ]
+                        ],
+                        flags: v2Flags(),
+                        allowedMentions: NO_PINGS,
                     });
                 }
 
@@ -361,9 +366,11 @@ export default {
                     await setInDb(`shared_todo_${listId}`, listData);
 
                     return await InteractionHelper.safeEditReply(interaction, {
-                        embeds: [
-                            successEmbed('Task Added', `Added "${taskText}" to the shared list "${listData.name}"`)
-                        ]
+                        components: [
+                            successContainer({ title: 'Task Added', body: `Added "${taskText}" to the shared list "${listData.name}"` })
+                        ],
+                        flags: v2Flags(),
+                        allowedMentions: NO_PINGS,
                     });
                 }
 
@@ -390,9 +397,11 @@ export default {
                     await setInDb(`shared_todo_${listId}`, listData);
 
                     return await InteractionHelper.safeEditReply(interaction, {
-                        embeds: [
-                            successEmbed('Task Removed', `Removed "${removedTask.text}" from the shared list "${listData.name}".`)
-                        ]
+                        components: [
+                            successContainer({ title: 'Task Removed', body: `Removed "${removedTask.text}" from the shared list "${listData.name}".` })
+                        ],
+                        flags: v2Flags(),
+                        allowedMentions: NO_PINGS,
                     });
                 }
             }
@@ -424,19 +433,23 @@ export default {
                 await setInDb(dbKey, userData);
 
                 return await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [
-                        successEmbed(
-                            "Task Added",
-                            `Added "${taskText}" to your to-do list.`
-                        ),
+                    components: [
+                        successContainer({
+                            title: "Task Added",
+                            body: `Added "${taskText}" to your to-do list.`,
+                        }),
                     ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
             }
 
             case 'list': {
                 if (userData.tasks.length === 0) {
                     return await InteractionHelper.safeEditReply(interaction, {
-                        embeds: [successEmbed('Your to-do list is empty!', "Your To-Do List")],
+                        components: [successContainer({ title: 'Your to-do list is empty!', body: "Your To-Do List" })],
+                        flags: v2Flags(),
+                        allowedMentions: NO_PINGS,
                     });
                 }
 
@@ -448,9 +461,11 @@ export default {
                     .join('\n');
 
                 return await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [
-                        successEmbed('Your To-Do List', taskList)
+                    components: [
+                        successContainer({ title: 'Your To-Do List', body: taskList })
                     ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
             }
 
@@ -470,9 +485,11 @@ export default {
                 await setInDb(`todo_${userId}`, userData);
 
                 return await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [
-                        successEmbed('Task Completed', `Marked "${task.text}" as complete!`)
+                    components: [
+                        successContainer({ title: 'Task Completed', body: `Marked "${task.text}" as complete!` })
                     ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
             }
 
@@ -488,9 +505,11 @@ export default {
                 await setInDb(`todo_${userId}`, userData);
 
                 return await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [
-                        successEmbed('Task Removed', `Removed "${removedTask.text}" from your to-do list.`)
+                    components: [
+                        successContainer({ title: 'Task Removed', body: `Removed "${removedTask.text}" from your to-do list.` })
                     ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
             }
 

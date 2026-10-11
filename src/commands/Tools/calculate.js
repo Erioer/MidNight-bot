@@ -1,5 +1,6 @@
-import { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } from 'discord.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -142,16 +143,17 @@ export default {
                     .setStyle(ButtonStyle.Secondary),
             );
 
-            const embed = successEmbed(
-                "🧮 Calculation Result",
+            const resultTitle = "🧮 Calculation Result";
+            const resultBody =
                 `**Expression:** \`${expression.replace(/`/g, "\`")}\`\n` +
                     `**Result:** \`${formattedResult}\`\n\n` +
-                    `*Use the buttons below to perform operations with the result.*`,
-            );
+                    `*Use the buttons below to perform operations with the result.*`;
+            const resultContainer = successContainer({ title: resultTitle, body: resultBody });
 
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [embed],
-                components: [row],
+                components: [resultContainer, row],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
 
             const filter = (i) =>
@@ -284,9 +286,16 @@ export default {
 
                     interaction
                         .editReply({
-                            components: [disabledRow],
-                            content:
-                                "⏱️ This calculator has expired. Use the command again to perform more calculations.",
+                            components: [
+                                successContainer({
+                                    title: resultTitle,
+                                    body: resultBody,
+                                    footer: "⏱️ This calculator has expired. Use the command again to perform more calculations.",
+                                }),
+                                disabledRow,
+                            ],
+                            flags: MessageFlags.IsComponentsV2,
+                            allowedMentions: NO_PINGS,
                         })
                         .catch(console.error);
                 } else {
@@ -299,7 +308,11 @@ export default {
                     );
 
                     interaction
-                        .editReply({ components: [disabledRow] })
+                        .editReply({
+                            components: [resultContainer, disabledRow],
+                            flags: MessageFlags.IsComponentsV2,
+                            allowedMentions: NO_PINGS,
+                        })
                         .catch(console.error);
                 }
             });

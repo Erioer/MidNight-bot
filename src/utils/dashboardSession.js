@@ -1,5 +1,6 @@
-import { ComponentType, EmbedBuilder } from 'discord.js';
-import { getColor } from '../config/bot.js';
+import { ComponentType, MessageFlags } from 'discord.js';
+import { NO_PINGS } from './componentsV2.js';
+import { noticeContainer } from '../services/economy/economyViews.js';
 import { MidNightError, ErrorTypes, replyUserError } from './errorHandler.js';
 import { InteractionHelper } from './interactionHelper.js';
 import { logger } from './logger.js';
@@ -100,17 +101,15 @@ export async function startDashboardSession({
                 return;
             }
 
-            const timeoutEmbed = new EmbedBuilder()
-                .setTitle('Dashboard Timed Out')
-                .setDescription(
-                    'This dashboard has been closed due to inactivity. Please run the command again to continue.',
-                )
-                .setColor(getColor('error'));
-
             await InteractionHelper.safeEditReply(interaction, {
-                embeds: [timeoutEmbed],
-                components: [],
-                flags,
+                components: [
+                    noticeContainer({
+                        title: 'Dashboard Timed Out',
+                        body: 'This dashboard has been closed due to inactivity. Please run the command again to continue.',
+                    }),
+                ],
+                flags: MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             }).catch(() => {});
         });
     }

@@ -1,8 +1,9 @@
 import { ChannelType, MessageFlags, PermissionFlagsBits } from 'discord.js';
-import { successEmbed, errorEmbed } from '../../../utils/embeds.js';
 import { logger } from '../../../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../../../utils/errorHandler.js';
 import { addJoinToCreateTrigger, getJoinToCreateConfig } from '../../../utils/database.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer } from '../../../services/economy/economyViews.js';
 
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 export default {
@@ -35,29 +36,31 @@ export default {
                 categoryId: category?.id
             });
 
-            const embed = successEmbed(
-                '✅ Join to Create Setup Complete',
-                `Created trigger channel: ${triggerChannel}\n\n` +
-                `**Settings:**\n` +
-                `• Temporary Channel Name Template: \`${nameTemplate}\`\n` +
-                `• User Limit: ${userLimit === 0 ? 'No limit' : userLimit + ' users'}\n` +
-                `• Bitrate: ${bitrate} kbps\n` +
-                `${category ?`• Category: ${category.name}`: '• Category: None (root level)'}\n\n` +
-                `When users join this channel, a temporary voice channel will be created for them.`
+            const card = successContainer(
+                {
+                    title: '✅ Join to Create Setup Complete',
+                    body: `Created trigger channel: ${triggerChannel}\n\n` +
+                    `**Settings:**\n` +
+                    `• Temporary Channel Name Template: \`${nameTemplate}\`\n` +
+                    `• User Limit: ${userLimit === 0 ? 'No limit' : userLimit + ' users'}\n` +
+                    `• Bitrate: ${bitrate} kbps\n` +
+                    `${category ?`• Category: ${category.name}`: '• Category: None (root level)'}\n\n` +
+                    `When users join this channel, a temporary voice channel will be created for them.`,
+                }
             );
 
             try {
                 if (interaction.deferred) {
-                    await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+                    await InteractionHelper.safeEditReply(interaction, { components: [card], flags: v2Flags(), allowedMentions: NO_PINGS });
                 } else {
-                    await InteractionHelper.safeReply(interaction, { embeds: [embed], flags: MessageFlags.Ephemeral });
+                    await InteractionHelper.safeReply(interaction, { components: [card], flags: v2Flags({ ephemeral: true }), allowedMentions: NO_PINGS });
                 }
             } catch (responseError) {
                 logger.error('Error responding to interaction:', responseError);
                 
                 try {
                     if (!interaction.replied) {
-                        await InteractionHelper.safeReply(interaction, { embeds: [embed], flags: MessageFlags.Ephemeral });
+                        await InteractionHelper.safeReply(interaction, { components: [card], flags: v2Flags({ ephemeral: true }), allowedMentions: NO_PINGS });
                     }
                 } catch (e) {
                     logger.error('All response attempts failed:', e);

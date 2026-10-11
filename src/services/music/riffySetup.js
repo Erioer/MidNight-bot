@@ -22,6 +22,11 @@ export function initializeMusic(client) {
         },
         defaultSearchPlatform: lavalinkConfig.defaultSearchPlatform,
         restVersion: lavalinkConfig.restVersion,
+        migrateOnDisconnect: true,
+        migrateOnFailure: true,
+        reconnectTries: lavalinkConfig.reconnectTries,
+        reconnectTimeout: lavalinkConfig.reconnectTimeout,
+        resumeTimeout: lavalinkConfig.resumeTimeout,
         bypassChecks: {
             nodeFetchInfo: true,
         },

@@ -1,16 +1,15 @@
-import { getColor } from '../../config/bot.js';
-import { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from 'discord.js';
 import { getWelcomeConfig, updateWelcomeConfig } from '../../utils/database.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { getGuildConfig } from '../../services/config/guildConfig.js';
 import { ErrorTypes, replyUserError } from '../../utils/errorHandler.js';
+import { NO_PINGS, container, text, v2Flags } from '../../utils/componentsV2.js';
 
-function createAutoroleInfoEmbed(description) {
-    return new EmbedBuilder()
-        .setColor(getColor('primary'))
-        .setDescription(description)
-        .setFooter({ text: new Date().toLocaleString() });
+function autoroleInfoContainer(description) {
+    return container({
+        parts: [text(description)],
+    });
 }
 
 export default {
@@ -89,12 +88,15 @@ export default {
 
                 logger.info(`[Autorole] Set single auto-role to ${role.name} (${role.id}) in ${guild.name} by ${interaction.user.tag}`);
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [createAutoroleInfoEmbed(
-                        currentRoleId
-                            ? `✅ Auto-role updated to ${role}. Only one auto-role is allowed.`
-                            : `✅ Auto-role set to ${role}.`
-                    )],
-                    flags: MessageFlags.Ephemeral
+                    components: [
+                        autoroleInfoContainer(
+                            currentRoleId
+                                ? `Auto-role updated to ${role}. Only one auto-role is allowed.`
+                                : `Auto-role set to ${role}.`
+                        ),
+                    ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
             } catch (error) {
                 logger.error(`[Autorole] Failed to add role for guild ${guild.id}:`, error);
@@ -122,8 +124,9 @@ export default {
 
                 logger.info(`[Autorole] Removed role ${role.name} (${role.id}) from auto-assign in ${guild.name} by ${interaction.user.tag}`);
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [createAutoroleInfoEmbed(`✅ Removed ${role} from auto-assigned roles.`)],
-                    flags: MessageFlags.Ephemeral
+                    components: [autoroleInfoContainer(`Removed ${role} from auto-assigned roles.`)],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
             } catch (error) {
                 logger.error(`[Autorole] Failed to remove role for guild ${guild.id}:`, error);
@@ -154,8 +157,9 @@ export default {
 
                 if (singleRoleIds.length === 0) {
                     return InteractionHelper.safeEditReply(interaction, {
-                        embeds: [createAutoroleInfoEmbed(`ℹ️ No role is set to be auto-assigned.${conflictSummary ?`\n\n⚠️ Setup blockers:\n${conflictSummary}`: ''}`)],
-                        flags: MessageFlags.Ephemeral
+                        components: [autoroleInfoContainer(`No role is set to be auto-assigned.${conflictSummary ?`\n\nSetup blockers:\n${conflictSummary}`: ''}`)],
+                        flags: v2Flags(),
+                        allowedMentions: NO_PINGS,
                     });
                 }
 
@@ -182,20 +186,23 @@ export default {
 
                 if (validRoles.length === 0) {
                     return InteractionHelper.safeEditReply(interaction, {
-                        embeds: [createAutoroleInfoEmbed(`ℹ️ No valid auto-role found. Any invalid role has been removed.${conflictSummary ?`\n\n⚠️ Setup blockers:\n${conflictSummary}`: ''}`)],
-                        flags: MessageFlags.Ephemeral
+                        components: [autoroleInfoContainer(`No valid auto-role found. Any invalid role has been removed.${conflictSummary ?`\n\nSetup blockers:\n${conflictSummary}`: ''}`)],
+                        flags: v2Flags(),
+                        allowedMentions: NO_PINGS,
                     });
                 }
 
-                const embed = new EmbedBuilder()
-                    .setColor(getColor('info'))
-                    .setTitle('Auto-Assigned Role')
-                    .setDescription(`${validRoles[0]}${conflictSummary ?`\n\n⚠️ Setup blockers:\n${conflictSummary}`: ''}`)
-                    .setFooter({ text: 'Only one auto-role can be configured.' });
-
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [embed],
-                    flags: MessageFlags.Ephemeral
+                    components: [
+                        container({
+                            parts: [
+                                text('### Auto-Assigned Role'),
+                                text(`${validRoles[0]}${conflictSummary ?`\n\nSetup blockers:\n${conflictSummary}`: ''}`),
+                            ],
+                        }),
+                    ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
 
             } catch (error) {

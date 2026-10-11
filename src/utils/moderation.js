@@ -31,8 +31,10 @@ function buildModerationLogData(event) {
   const executorTag = event.executor?.split(' (')[0] || 'Moderator';
 
   const lines = [];
-  if (event.target) {
-    lines.push(formatLogLine('User', event.target));
+  // User victims are rendered by the central attribution line; non-user
+  // targets (channels, counts) keep their explicit line for context.
+  if (event.target && !targetId) {
+    lines.push(formatLogLine('Target', event.target));
   }
   if (event.reason) {
     const reason = event.reason.length > 900
@@ -58,15 +60,17 @@ function buildModerationLogData(event) {
 
   const title = event.caseId ? `${event.action} · Case #${event.caseId}` : event.action;
 
+  const moderatorId = event.metadata?.moderatorId || executorIdMatch?.[1] || null;
+  const victimId = event.metadata?.userId || targetId || null;
+
   return {
     title,
     lines,
     meta,
+    actor: moderatorId ? { id: moderatorId } : null,
+    target: victimId ? { id: victimId } : null,
     userId: event.metadata?.userId || targetId || undefined,
-    thumbnail: targetId ? `https://cdn.discordapp.com/embed/avatars/${Number(targetId) % 5}.png` : undefined,
-    footer: executorIdMatch
-      ? { text: executorTag, iconURL: undefined }
-      : undefined,
+    channelId: undefined,
   };
 }
 

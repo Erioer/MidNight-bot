@@ -14,17 +14,44 @@
 //    (re-exported here) so unknown errors get typed with service/operation context.
 // 3. Background tasks (cron, timers): wrap with handleTaskError / runSafeTask.
 // 4. Set a specific userMessage when you know the cause; use ErrorTypes, don't invent titles.
-// 5. Success/info/warning replies use successEmbed / infoEmbed / warningEmbed.
+// 5. Success/info/warning replies use successContainer / noticeContainer / failureContainer.
 
 import { logger } from './logger.js';
-import { buildUserErrorEmbed } from './embeds.js';
 import { MessageFlags } from 'discord.js';
+import { NO_PINGS, v2Flags } from './componentsV2.js';
+import { failureContainer, noticeContainer } from '../services/economy/economyViews.js';
 import { getErrorMetadata, getDefaultErrorCodeByType, resolveErrorCode, ErrorCodes } from './errorRegistry.js';
 import { InteractionHelper } from './interactionHelper.js';
 
 // Re-export so consumers only ever need to import from errorHandler.js
 export { ErrorCodes, getErrorMetadata, resolveErrorCode, getDefaultErrorCodeByType } from './errorRegistry.js';
 export { ensureTypedServiceError, wrapServiceBoundary, wrapServiceClassMethods } from './serviceErrorBoundary.js';
+
+const USER_ERROR_TITLES = {
+    validation: 'Invalid Input',
+    permission: 'Permission Denied',
+    configuration: 'Configuration Error',
+    database: 'Database Error',
+    network: 'Network Error',
+    discord_api: 'Discord API Error',
+    user_input: 'Input Error',
+    rate_limit: 'Too Fast',
+    unknown: 'Something Went Wrong',
+};
+
+/**
+ * V2 user-facing error card: same titles as before, same yellow
+ * treatment for rate limits, red for everything else.
+ */
+export function buildUserErrorContainer(errorType, description = '', options = {}) {
+    const type = errorType || 'unknown';
+    const title = options.titleOverride || USER_ERROR_TITLES[type] || USER_ERROR_TITLES.unknown;
+    const body = description ? String(description).trim() : '';
+    if (type === 'rate_limit') {
+        return noticeContainer({ title, body });
+    }
+    return failureContainer({ title, body });
+}
 
 export const ErrorTypes = {
     VALIDATION: 'validation',
@@ -248,7 +275,7 @@ function logInteractionError(error, errorType, logData) {
     }
 }
 
-async function sendErrorResponse(interaction, embed, context = {}) {
+async function sendErrorResponse(interaction, card, context = {}) {
     try {
         if (!interaction || !interaction.id) {
             logger.warn('Interaction was null or invalid when handling error', {
@@ -278,7 +305,11 @@ async function sendErrorResponse(interaction, embed, context = {}) {
             return false;
         }
 
-        const errorMessage = { embeds: [embed] };
+        const errorMessage = {
+            components: [card],
+            flags: MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
+        };
 
         if (interaction._isPrefixCommand) {
             if (coordinator?.hasResponded()) {
@@ -293,12 +324,12 @@ async function sendErrorResponse(interaction, embed, context = {}) {
 
         if (interaction.replied) {
             // A visible reply already exists; don't overwrite it — follow up ephemerally.
-            await interaction.followUp({ ...errorMessage, flags: MessageFlags.Ephemeral });
+            await interaction.followUp({ ...errorMessage, flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2 });
         } else if (interaction.deferred) {
             await interaction.editReply(errorMessage);
         } else {
             if (useEphemeral) {
-                errorMessage.flags = MessageFlags.Ephemeral;
+                errorMessage.flags = MessageFlags.Ephemeral | MessageFlags.IsComponentsV2;
             }
             await interaction.reply(errorMessage);
         }
@@ -356,8 +387,8 @@ export async function replyUserError(interaction, {
 
     logInteractionError(syntheticError, errorType, logData);
 
-    const embed = buildUserErrorEmbed(errorType, userMessage);
-    return sendErrorResponse(interaction, embed, { ...context, traceId, ephemeral, subtype });
+    const card = buildUserErrorContainer(errorType, userMessage);
+    return sendErrorResponse(interaction, card, { ...context, traceId, ephemeral, subtype });
 }
 
 const USER_ERROR_TYPES = new Set([
@@ -385,8 +416,8 @@ export async function handleInteractionError(interaction, error, context = {}) {
         ? userMessage
         : `${userMessage}\n\n-# Ref: \`${buildErrorReference(resolvedErrorCode, traceId)}\``;
 
-    const embed = buildUserErrorEmbed(errorType, description);
-    await sendErrorResponse(interaction, embed, { ...context, traceId });
+    const card = buildUserErrorContainer(errorType, description);
+    await sendErrorResponse(interaction, card, { ...context, traceId });
 }
 
 /**

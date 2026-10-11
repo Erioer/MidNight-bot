@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { buildQueueReply } from '../../services/music/musicActions.js';
+import { NO_PINGS } from '../../utils/componentsV2.js';
 
 export default {
     slashOnly: true,
@@ -17,8 +18,9 @@ export default {
         const page = (interaction.options.getInteger('page') || 1) - 1;
         const payload = buildQueueReply(client, interaction.guild.id, page);
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: payload.embeds,
             components: payload.components,
+            flags: payload.flags,
+            allowedMentions: NO_PINGS,
         });
     },
 };

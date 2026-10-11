@@ -1,4 +1,5 @@
-import { createEmbed, successEmbed } from '../utils/embeds.js';
+import { NO_PINGS, container, text } from '../utils/componentsV2.js';
+import { successContainer } from '../services/economy/economyViews.js';
 import { InteractionHelper } from '../utils/interactionHelper.js';
 import { MessageFlags } from 'discord.js';
 import { logger } from '../utils/logger.js';
@@ -120,8 +121,9 @@ const wipedataConfirmHandler = {
         `*All your economy balance, levels, items, and personal data have been removed.*`;
 
       await interaction.editReply({
-        embeds: [successEmbed('Data Wipe Complete', successMessage)],
-        components: []
+        components: [successContainer({ title: 'Data Wipe Complete', body: successMessage })],
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
       });
 
       logger.info(`User ${interaction.user.tag} (${userId}) wiped their data in guild ${guildId} - Deleted ${deletedCount} records`);
@@ -142,14 +144,14 @@ const wipedataCancelHandler = {
   async execute(interaction, client) {
     try {
       await interaction.update({
-        embeds: [
-          createEmbed({
-            title: '❌ Data Wipe Cancelled',
-            description: 'Your data has been preserved. Your account remains unchanged.',
-            color: 'info'
-          })
-        ],
-        components: []
+        components: [container({
+          parts: [
+            text('### ❌ Data Wipe Cancelled'),
+            text('Your data has been preserved. Your account remains unchanged.'),
+          ],
+        })],
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
       });
 
       logger.info(`User ${interaction.user.tag} (${interaction.user.id}) cancelled data wipe in guild ${interaction.guildId}`);

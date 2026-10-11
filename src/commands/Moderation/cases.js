@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, container, divider, text } from '../../utils/componentsV2.js';
 import { getModerationCases } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -74,27 +74,22 @@ export default {
                 const endIndex = startIndex + CASES_PER_PAGE;
                 const pageCases = cases.slice(startIndex, endIndex);
 
-                const embed = createEmbed({
-                    title: 'Moderation Cases',
-                    description: `Showing moderation cases for **${interaction.guild.name}**\n\n**Page ${page} of ${totalPages}**`
-                });
+                const parts = [
+                    text(`### Moderation Cases\nShowing moderation cases for **${interaction.guild.name}**\n\n**Page ${page} of ${totalPages}**`),
+                ];
 
                 pageCases.forEach(case_ => {
                     const date = new Date(case_.createdAt).toLocaleDateString();
                     const time = new Date(case_.createdAt).toLocaleTimeString();
-                    
-                    embed.addFields({
-                        name: `Case #${case_.caseId} - ${case_.action}`,
-                        value: `**Target:** ${case_.target}\n**Moderator:** ${case_.executor}\n**Date:** ${date} at ${time}\n**Reason:** ${case_.reason || 'No reason provided'}`,
-                        inline: false
-                    });
+
+                    parts.push(divider());
+                    parts.push(text(`**Case #${case_.caseId} - ${case_.action}**\n**Target:** ${case_.target}\n**Moderator:** ${case_.executor}\n**Date:** ${date} at ${time}\n**Reason:** ${case_.reason || 'No reason provided'}`));
                 });
 
-                embed.setFooter({
-                    text: `Total cases: ${cases.length} | Filter: ${filterType}${targetUser ?` | User: ${targetUser.tag}`: ''}`
-                });
+                parts.push(divider());
+                parts.push(text(`-# Total cases: ${cases.length} | Filter: ${filterType}${targetUser ?` | User: ${targetUser.tag}`: ''}`));
 
-                return embed;
+                return container({ parts });
             };
 
             const createNavigationRow = (page) => {
@@ -123,8 +118,9 @@ export default {
             };
 
             const message = await interaction.editReply({ 
-                embeds: [createCasesEmbed(currentPage)], 
-                components: [createNavigationRow(currentPage)]
+                components: [createCasesEmbed(currentPage), createNavigationRow(currentPage)],
+                flags: MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
 
             const collector = message.createMessageComponentCollector({
@@ -152,8 +148,9 @@ time: 120000
                 }
 
                 await interaction.editReply({
-                    embeds: [createCasesEmbed(currentPage)],
-                    components: [createNavigationRow(currentPage)]
+                    components: [createCasesEmbed(currentPage), createNavigationRow(currentPage)],
+                    flags: MessageFlags.IsComponentsV2,
+                    allowedMentions: NO_PINGS,
                 });
             });
 
@@ -163,7 +160,8 @@ time: 120000
                 
                 try {
                     await message.edit({
-                        components: [disabledRow]
+                        components: [createCasesEmbed(currentPage), disabledRow],
+                        flags: MessageFlags.IsComponentsV2,
                     });
                 } catch (error) {
                 }

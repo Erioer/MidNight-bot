@@ -1,12 +1,12 @@
 import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { errorEmbed, successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getGuildGiveaways, saveGiveaway } from '../../utils/giveaways.js';
 import { 
     endGiveaway as endGiveawayService,
-    createGiveawayEmbed, 
-    createGiveawayButtons 
+    refreshGiveawayMessage
 } from '../../services/giveawayService.js';
 import { logEvent, EVENT_TYPES } from '../../services/loggingService.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -117,14 +117,7 @@ export default {
             updatedGiveaway,
         );
 
-        const newEmbed = createGiveawayEmbed(updatedGiveaway, "ended", winners);
-        const newRow = createGiveawayButtons(true);
-
-        await message.edit({
-            content: "🎉 **GIVEAWAY ENDED** 🎉",
-            embeds: [newEmbed],
-            components: [newRow],
-        });
+        await refreshGiveawayMessage(interaction.client, interaction.guildId, updatedGiveaway, 'ended', winners);
 
         if (winners.length > 0) {
             const winnerMentions = winners
@@ -147,6 +140,7 @@ export default {
                         description: `Giveaway ended with ${winners.length} winner(s)`,
                         channelId: channel.id,
                         userId: interaction.user.id,
+                        actor: { id: interaction.user.id },
                         fields: [
                             {
                                 name: 'Prize',
@@ -179,13 +173,14 @@ export default {
         logger.info(`Giveaway successfully ended by ${interaction.user.tag}: ${messageId}`);
 
         return InteractionHelper.safeReply(interaction, {
-            embeds: [
-                successEmbed(
-                    "Giveaway Ended ✅",
-                    `Successfully ended the giveaway for **${updatedGiveaway.prize}** in ${channel}. Selected ${winners.length} winner(s) from ${endResult.participantCount} entries.`,
-                ),
+            components: [
+                successContainer({
+                    title: 'Giveaway Ended',
+                    body: `Successfully ended the giveaway for **${updatedGiveaway.prize}** in ${channel}. Selected ${winners.length} winner(s) from ${endResult.participantCount} entries.`,
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
     },
 };

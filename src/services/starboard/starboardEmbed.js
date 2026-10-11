@@ -1,23 +1,27 @@
 // starboardEmbed.js
 // Builds the message payload posted/edited in the starboard channel.
 //
-// NOTE on utils/embeds.js: createEmbed() is built on EmbedBuilder, whose
-// prototype is globally monkey-patched by utils/embeds.js — setTimestamp()
-// is a no-op for every embed in the app, and setDescription/setAuthor/
-// addFields strip emoji from their text (EMOJI_REGEX). That's true for
-// every embed MidNight sends today, not something specific to this file, so
-// this embed is built to match: the dynamic timestamp requirement is met
-// with a `<t:...:F>` field instead of the native embed timestamp, and the
-// reposted message content will have emoji stripped the same way every
-// other embed's text already does.
+// Components V2 layout, following the house card skeleton: section with the
+// author's avatar beside the title, message content, a media gallery for
+// images, then a divider and a metadata footer. No accent: a board post
+// reports no outcome.
+//
+// Text budget: a V2 message carries at most 4,000 characters total, so the
+// reposted content is sliced to leave room for the fixed chrome around it.
 
-import { createEmbed } from '../../utils/embeds.js';
-
-const STARBOARD_COLOR = '#f1c40f'; // gold accent strip — swap to '#3498db' for blue
+import { MessageFlags } from 'discord.js';
+import { container, divider, gallery, text } from '../../utils/componentsV2.js';
 
 // Matches a direct link to an image/GIF (not a page like a Tenor/Giphy share
 // link — those aren't fetchable as a raw image URL without hitting their API).
 const DIRECT_IMAGE_URL_RE = /(https?:\/\/\S+\.(?:png|jpe?g|gif|webp)(?:\?\S*)?)/i;
+
+// Reposted content cap: keeps the whole V2 payload under the 4,000-character
+// total once the title, footer and attachment lines are added.
+const MAX_CONTENT_LENGTH = 3400;
+
+// Non-image attachment lines are capped so a file-dump cannot blow the budget.
+const MAX_ATTACHMENTS_LENGTH = 200;
 
 function collectImageUrls(message) {
   const urls = [];
@@ -38,11 +42,12 @@ function collectImageUrls(message) {
 }
 
 /**
- * Builds { content, embeds } for the starboard channel: a star-count content
- * line, a main embed (author/content/jump link/timestamp), and, for
- * multi-image messages, extra image-only embeds stacked in the same message
- * (Discord allows up to 10 embeds per message — this is how most starboard
- * bots render a multi-image post as a gallery).
+ * Builds { components, flags } for the starboard channel: a star-count title
+ * beside the author's avatar, the message content, a gallery for images, and
+ * a footer carrying the send time, the jump link and any attachments.
+ *
+ * The title carries the guild's configured trigger emoji: it identifies which
+ * reaction starred the message at a glance.
  */
 export function buildStarboardPayload(message, count, emojiDisplay) {
   const images = collectImageUrls(message);
@@ -51,39 +56,43 @@ export function buildStarboardPayload(message, count, emojiDisplay) {
 
   const rawContent =
     message.content && message.content.length > 0
-      ? message.content.slice(0, 3900) // stay well under the 4096 embed description cap
+      ? message.content.slice(0, MAX_CONTENT_LENGTH)
       : '*No message content*';
-  const description = `${rawContent}\n\n**[Jump to Message](${jumpUrl})**`;
 
-  const authorTag = message.author?.tag ?? 'Unknown User';
-  const authorAvatar = message.author?.displayAvatarURL?.() ?? undefined;
+  // Server display name first (member nickname), then the global display
+  // name, then the legacy tag. No avatar: the thumbnail rendered oversized
+  // next to the header and crowded the card.
+  const authorName = message.member?.displayName
+    || message.author?.displayName
+    || message.author?.tag
+    || 'Unknown User';
 
   const nonImageAttachments = [...message.attachments.values()].filter((a) => !images.includes(a.url));
-  const fields = [{ name: 'Sent', value: timestampTag, inline: true }];
-  if (nonImageAttachments.length > 0) {
-    fields.push({
-      name: 'Attachments',
-      value: nonImageAttachments
-        .map((a) => `[${a.name}](${a.url})`)
-        .join('\n')
-        .slice(0, 1024),
-    });
+  const attachmentLine = nonImageAttachments.length > 0
+    ? nonImageAttachments
+      .map((a) => `[${a.name}](${a.url})`)
+      .join(' • ')
+      .slice(0, MAX_ATTACHMENTS_LENGTH)
+    : null;
+
+  const footerParts = [
+    `Sent ${timestampTag}`,
+    `[Jump to Message](${jumpUrl})`,
+  ];
+  if (attachmentLine) footerParts.push(`Attachments: ${attachmentLine}`);
+
+  const head = [text(`### ${count} ${emojiDisplay} | <#${message.channel.id}>`), text(`**Messaged by ${authorName}**`)];
+
+  const parts = [head, text(rawContent)];
+
+  if (images.length > 0) {
+    parts.push(gallery(...images.slice(0, 10)));
   }
 
-  const mainEmbed = createEmbed({
-    description,
-    color: STARBOARD_COLOR,
-    author: { name: `Messaged by ${authorTag}`, iconURL: authorAvatar },
-    fields,
-    image: images[0] || null,
-  });
-
-  const extraImageEmbeds = images
-    .slice(1, 9) // main embed already used image[0]; stay well under Discord's 10-embed cap
-    .map((url) => createEmbed({ color: STARBOARD_COLOR, image: url }));
+  parts.push(divider(), text(`-# ${footerParts.join(' • ')}`));
 
   return {
-    content: `**${count}** ${emojiDisplay} | <#${message.channel.id}>`,
-    embeds: [mainEmbed, ...extraImageEmbeds],
+    components: [container({ parts })],
+    flags: MessageFlags.IsComponentsV2,
   };
 }

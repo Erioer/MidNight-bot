@@ -1,4 +1,6 @@
-import { successEmbed } from '../utils/embeds.js';
+import { MessageFlags } from 'discord.js';
+import { NO_PINGS } from '../utils/componentsV2.js';
+import { successContainer } from '../services/economy/economyViews.js';
 import { logger } from '../utils/logger.js';
 import { evaluateMathExpression } from '../utils/safeMathParser.js';
 
@@ -55,19 +57,21 @@ async function calculateModalHandler(interaction, client, args) {
                 formattedNewResult = String(newResult);
             }
 
-            const updatedEmbed = successEmbed(
-                "🧮 Calculation Result",
-                `**Expression:** \`${newExpression.replace(/`/g, "\`")}\`\n` +
+            const updatedContainer = successContainer({
+                title: "🧮 Calculation Result",
+                body: `**Expression:** \`${newExpression.replace(/`/g, "\`")}\`\n` +
                     `**Result:** \`${formattedNewResult}\`\n\n` +
                     `*Use the buttons in the channel message to perform more operations.*`,
-            );
+            });
 
             try {
                 if (context.messageId && context.channelId) {
                     const channel = await client.channels.fetch(context.channelId);
                     const message = await channel.messages.fetch(context.messageId);
                     await message.edit({
-                        embeds: [updatedEmbed],
+                        components: [updatedContainer],
+                        flags: MessageFlags.IsComponentsV2,
+                        allowedMentions: NO_PINGS,
                     });
                 }
             } catch (editError) {
@@ -77,7 +81,9 @@ async function calculateModalHandler(interaction, client, args) {
             calculationContexts.delete(contextKey);
 
             await interaction.editReply({
-                embeds: [successEmbed('✅ Calculated', `\`${newExpression}\` = \`${formattedNewResult}\``)],
+                components: [successContainer({ title: '✅ Calculated', body: `\`${newExpression}\` = \`${formattedNewResult}\`` })],
+                flags: MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
 
         } catch (calcError) {

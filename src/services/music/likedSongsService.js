@@ -1,7 +1,8 @@
-import { successEmbed } from '../../utils/embeds.js';
+﻿import { success } from './musicEmbeds.js';
 import { MidNightError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getUserLikedSongsKey } from '../../utils/database/keys.js';
-import { getPlayer, ensurePlayer } from './musicActions.js';
+import { getPlayer, ensurePlayer, startPlayback } from './musicActions.js';
+import { scheduleSessionSave } from './musicSessionService.js';
 
 const MAX_LIKED_SONGS = 100;
 const DISPLAY_LIMIT = 25;
@@ -63,7 +64,7 @@ export async function addCurrentSongToLikes(client, interaction, userId) {
     });
     await saveLikedSongs(client, userId, songs);
 
-    return successEmbed(
+    return success(
         'Song Saved',
         `Added **${info.title}** to your liked songs.\nUse **/music likes list** to view it, or **/music likes play 1** to play it.`,
     );
@@ -82,7 +83,7 @@ export async function listLikedSongs(client, userId) {
     const shown = songs.slice(0, DISPLAY_LIMIT);
     const lines = shown.map((song, index) => `**${index + 1}.** ${song.title} — ${song.author}`);
     const extra = songs.length > DISPLAY_LIMIT ? `\n… and ${songs.length - DISPLAY_LIMIT} more.` : '';
-    return successEmbed(`Your Liked Songs (${songs.length})`, lines.join('\n') + extra);
+    return success(`Your Liked Songs (${songs.length})`, lines.join('\n') + extra);
 }
 
 export async function removeLikedSong(client, userId, index) {
@@ -98,7 +99,7 @@ export async function removeLikedSong(client, userId, index) {
 
     const [removed] = songs.splice(songIndex, 1);
     await saveLikedSongs(client, userId, songs);
-    return successEmbed('Song Removed', `Removed **${removed.title}** from your liked songs.`);
+    return success('Song Removed', `Removed **${removed.title}** from your liked songs.`);
 }
 
 export async function playLikedSong(client, interaction, userId, index) {
@@ -126,14 +127,18 @@ export async function playLikedSong(client, interaction, userId, index) {
     }
 
     track.info.requester = interaction.user;
+        track.info.requesterName = interaction.member?.displayName || interaction.user.displayName || interaction.user.username;
     player.queue.add(track);
     const willPlayNow = !player.playing && !player.paused;
     if (willPlayNow) {
-        player.play();
+        startPlayback(client, player, interaction.guild.id);
     }
+    scheduleSessionSave(client, interaction.guild.id);
 
-    return successEmbed(
+    return success(
         willPlayNow ? 'Now Playing' : 'Track Added',
         `**${track.info.title}**\n${track.info.author}\nPosition: #${player.queue.length} in queue`,
     );
 }
+
+

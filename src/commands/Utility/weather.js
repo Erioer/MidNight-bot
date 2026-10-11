@@ -1,8 +1,9 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../utils/componentsV2.js';
 import { logger } from '../../utils/logger.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { BOT_USER_AGENT } from '../../config/bot.js';
 const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const WEATHER_URL = "https://api.open-meteo.com/v1/forecast";
 
@@ -32,6 +33,7 @@ export default {
 
         const geoResponse = await fetch(
             `${GEOCODING_URL}?name=${encodeURIComponent(city)}`,
+            { headers: { 'User-Agent': BOT_USER_AGENT } },
         );
         const geoData = await geoResponse.json();
 
@@ -50,6 +52,7 @@ export default {
 
         const weatherResponse = await fetch(
             `${WEATHER_URL}?latitude=${latitude}&longitude=${longitude}&current_weather=true`,
+            { headers: { 'User-Agent': BOT_USER_AGENT } },
         );
         const weatherData = await weatherResponse.json();
 
@@ -72,29 +75,17 @@ export default {
 
         const condition = getWeatherDescription(weatherCode);
 
-        const embed = createEmbed({ title: `Weather in ${cityDisplay}, ${country}`, description: condition.description })
-            .addFields(
-                {
-                    name: "Temperature",
-                    value: `${temperature}°C`,
-                    inline: true,
-                },
-                {
-                    name: "Humidity",
-                    value: `${humidity}%`,
-                    inline: true,
-                },
-                {
-                    name: "Wind Speed",
-                    value: `${windSpeed} km/h`,
-                    inline: true,
-                },
-            )
-            .setFooter({
-                text: `Latitude: ${latitude.toFixed(2)} | Longitude: ${longitude.toFixed(2)}`,
-            });
+        const weatherContainer = container({
+            parts: [
+                text(`### Weather in ${cityDisplay}, ${country}`),
+                text(condition.description),
+                text(`**Temperature:** ${temperature}°C\n**Humidity:** ${humidity}%\n**Wind Speed:** ${windSpeed} km/h`),
+                divider(),
+                text(`-# Latitude: ${latitude.toFixed(2)} | Longitude: ${longitude.toFixed(2)}`),
+            ],
+        });
 
-        await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+        await InteractionHelper.safeEditReply(interaction, { components: [weatherContainer], flags: v2Flags(), allowedMentions: NO_PINGS });
         logger.info(`Weather command executed`, {
             userId: interaction.user.id,
             city: cityDisplay,

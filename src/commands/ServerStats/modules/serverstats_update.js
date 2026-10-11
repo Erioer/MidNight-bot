@@ -1,6 +1,8 @@
 import { PermissionFlagsBits } from 'discord.js';
-import { createEmbed, successEmbed } from '../../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer } from '../../../services/economy/economyViews.js';
 import { getServerCounters, saveServerCounters, updateCounter, getCounterEmoji, getCounterTypeLabel } from '../../../services/serverstatsService.js';
+import { logEvent, EVENT_TYPES } from '../../../services/loggingService.js';
 import { logger } from '../../../utils/logger.js';
 
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
@@ -73,8 +75,44 @@ export async function handleUpdate(interaction, client) {
 
         const finalChannel = guild.channels.cache.get(updatedCounter.channelId);
 
+        await logEvent({
+            client,
+            guildId: guild.id,
+            eventType: EVENT_TYPES.COUNTER_CONFIG,
+            data: {
+                title: 'Counter Updated',
+                lines: [
+                    `**Counter ID:** \`${counterId}\``,
+                    `**Type Changed:** ${getCounterEmoji(oldType)} ${getCounterTypeLabel(oldType)} → ${getCounterEmoji(newType)} ${getCounterTypeLabel(newType)}`,
+                    `**Channel:** ${finalChannel}`,
+                ],
+                actor: {
+                    id: interaction.user.id,
+                    displayName: interaction.member?.displayName || interaction.user.username,
+                    avatarUrl: interaction.user.displayAvatarURL(),
+                },
+            },
+        }).catch(() => null);
+
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [successEmbed(`**Counter Updated Successfully!**\n\n**Counter ID:** \`${counterId}\`\n**Type Changed:** ${getCounterEmoji(oldType)} ${getCounterTypeLabel(oldType)} → ${getCounterEmoji(newType)} ${getCounterTypeLabel(newType)}\n\n**Current Settings:**\n**Type:** ${getCounterEmoji(updatedCounter.type)} ${getCounterTypeLabel(updatedCounter.type)}\n**Channel:** ${finalChannel}\n**Channel Name:** ${finalChannel.name}\n\nThe counter will automatically update every 15 minutes.`)]
+            components: [
+                successContainer({
+                    title: 'Counter Updated',
+                    body: [
+                        `**Counter ID:** \`${counterId}\``,
+                        `**Type Changed:** ${getCounterEmoji(oldType)} ${getCounterTypeLabel(oldType)} → ${getCounterEmoji(newType)} ${getCounterTypeLabel(newType)}`,
+                        '',
+                        '**Current Settings:**',
+                        `**Type:** ${getCounterEmoji(updatedCounter.type)} ${getCounterTypeLabel(updatedCounter.type)}`,
+                        `**Channel:** ${finalChannel}`,
+                        `**Channel Name:** ${finalChannel.name}`,
+                        '',
+                        'The counter will automatically update every 15 minutes.',
+                    ].join('\n'),
+                }),
+            ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         }).catch(logger.error);
 
     } catch (error) {

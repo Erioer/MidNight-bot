@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, gallery, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
-import { getColor } from '../../config/bot.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
@@ -48,21 +48,16 @@ export default {
 
                 const colorName = getColorName(hexColor);
 
-                const embed = successEmbed(
-                    '🎨 Color Information',
-                    `**Hex:** \`${hexColor}\`\n` +
+                const colorContainer = successContainer({
+                    title: '🎨 Color Information',
+                    body: `**Hex:** \`${hexColor}\`\n` +
                     `**RGB:** \`rgb(${r}, ${g}, ${b})\`\n` +
                     `**HSL:** \`${rgbToHsl(r, g, b)}\`\n` +
-                    `**Name:** ${colorName || 'Custom Color'}`
-                )
-                    .setColor(hexColor)
-                    .setImage(colorPreviewUrl);
+                    `**Name:** ${colorName || 'Custom Color'}`,
+                    footer: isRandom ? 'Randomly generated color' : undefined,
+                });
 
-                if (isRandom) {
-                    embed.setFooter({ text: 'Randomly generated color' });
-                }
-
-                await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+                await InteractionHelper.safeEditReply(interaction, { components: [colorContainer, gallery(colorPreviewUrl)], flags: v2Flags(), allowedMentions: NO_PINGS });
             },
             'Failed to generate color information. Please try again.',
             {

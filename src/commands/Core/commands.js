@@ -4,7 +4,8 @@ import {
   MessageFlags,
 } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import {
@@ -168,8 +169,9 @@ export default {
 
       const view = await buildDashboardView(client, interaction.guildId, interaction.guild, 'overview');
       await InteractionHelper.safeEditReply(interaction, {
-        embeds: [view.embed],
-        components: view.components,
+        components: [view.container, ...view.components],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
 
       const replyMessage = await interaction.fetchReply().catch(() => null);
@@ -203,13 +205,20 @@ export default {
 
       collector.on('end', async () => {
         const finalView = await buildDashboardView(client, interaction.guildId, interaction.guild, 'overview');
-        const disabledComponents = finalView.components.map((row) => {
-          const newRow = row.toJSON();
-          newRow.components = newRow.components.map((component) => ({ ...component, disabled: true }));
-          return newRow;
+        const disabledRows = finalView.components.map((row) => {
+          const rowJson = row.toJSON();
+          rowJson.components = rowJson.components.map((component) => ({ ...component, disabled: true }));
+          return rowJson;
         });
 
-        await replyMessage.edit({ components: disabledComponents }).catch(() => {});
+        // The container must be resent: a V2 message's `components` IS the
+        // whole message, so editing with only the rows would wipe the board.
+        await replyMessage
+          .edit({
+            components: [finalView.container, ...disabledRows],
+            flags: MessageFlags.IsComponentsV2,
+          })
+          .catch(() => {});
       });
 
       return;
@@ -233,18 +242,27 @@ export default {
       if (isDisable) {
         await disableCategory(client, interaction.guildId, category.key);
         return InteractionHelper.safeEditReply(interaction, {
-          embeds: [
-            successEmbed(
-              'Category Disabled',
-              `All **${category.displayName}** commands are now disabled.\nProtected commands remain available.`,
-            ),
+          components: [
+            successContainer({
+              title: 'Category Disabled',
+              body: `All **${category.displayName}** commands are now disabled.\nProtected commands remain available.`,
+            }),
           ],
+          flags: v2Flags(),
+          allowedMentions: NO_PINGS,
         });
       }
 
       await enableCategory(client, interaction.guildId, category.key);
       return InteractionHelper.safeEditReply(interaction, {
-        embeds: [successEmbed('Category Enabled', `**${category.displayName}** commands are now enabled (except individually disabled commands).`)],
+        components: [
+          successContainer({
+            title: 'Category Enabled',
+            body: `**${category.displayName}** commands are now enabled (except individually disabled commands).`,
+          }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
@@ -252,13 +270,27 @@ export default {
     if (isDisable) {
       await disableCommand(client, interaction.guildId, commandName);
       return InteractionHelper.safeEditReply(interaction, {
-        embeds: [successEmbed('Command Disabled', `\`/${commandName}\` is now disabled in this server.`)],
+        components: [
+          successContainer({
+            title: 'Command Disabled',
+            body: `\`/${commandName}\` is now disabled in this server.`,
+          }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
     await enableCommand(client, interaction.guildId, commandName);
     return InteractionHelper.safeEditReply(interaction, {
-      embeds: [successEmbed('Command Enabled', `\`/${commandName}\` is now enabled in this server.`)],
+      components: [
+        successContainer({
+          title: 'Command Enabled',
+          body: `\`/${commandName}\` is now enabled in this server.`,
+        }),
+      ],
+      flags: v2Flags(),
+      allowedMentions: NO_PINGS,
     });
   },
 };

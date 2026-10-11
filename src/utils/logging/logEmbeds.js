@@ -1,7 +1,5 @@
 // logEmbeds.js — shared helpers for clean, scannable log embeds
 
-import { EmbedBuilder } from 'discord.js';
-
 const EMOJI_PREFIX = /^[\p{Extended_Pictographic}\uFE0F\s]+/u;
 
 export function stripFieldLabel(name = '') {
@@ -124,56 +122,6 @@ export async function resolveUserAuthor(client, userId) {
     };
   }
 }
-
-export function buildStandardLogEmbed({
-  color,
-  title,
-  description,
-  thumbnail,
-  image,
-  inlineFields = [],
-  fields = [],
-  author = null,
-  timestamp = true,
-  footer,
-}) {
-  const embed = new EmbedBuilder().setColor(color);
-
-  if (title) embed.setTitle(title.slice(0, 256));
-  if (description) embed.setDescription(description);
-  if (thumbnail) embed.setThumbnail(thumbnail);
-  if (image) embed.setImage(image);
-  if (author?.name) {
-    embed.setAuthor({
-      name: author.name.slice(0, 256),
-      iconURL: author.iconURL || undefined,
-    });
-  }
-
-  const combinedFields = [...inlineFields, ...fields];
-  if (combinedFields.length > 0) {
-    embed.addFields(
-      combinedFields.map((field) => ({
-        name: field.name.slice(0, 256),
-        value: String(field.value).slice(0, 1024),
-        inline: field.inline === true,
-      }))
-    );
-  }
-
-  if (timestamp) embed.setTimestamp();
-
-  if (footer?.text) {
-    embed.setFooter({
-      text: footer.text.slice(0, 2048),
-      iconURL: footer.iconURL || undefined,
-    });
-  }
-
-  return embed;
-}
-
-const MAX_DISPLAYED_ROLE_PERMISSIONS = 5;
 
 export function buildRoleAuditFields(role, { includeMemberCount = false } = {}) {
   const fields = [

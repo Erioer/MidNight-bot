@@ -15,6 +15,8 @@ const buttonIds = [
     MUSIC_BUTTON_IDS.QUEUE_PREV,
     MUSIC_BUTTON_IDS.QUEUE_NEXT,
     MUSIC_BUTTON_IDS.QUEUE_LAST,
+    MUSIC_BUTTON_IDS.AUTOPLAY,
+    MUSIC_BUTTON_IDS.DISMISS,
 ];
 
 export default buttonIds.map((name) => ({

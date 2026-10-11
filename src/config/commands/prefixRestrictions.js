@@ -119,10 +119,19 @@ export function getPrefixRestriction(command, args, resolveSubcommandAlias) {
   }
 
   if (subcommandGroup && resolvedSecondArg && isSubcommandBlocked(commandName, resolvedSecondArg)) {
-    return {
-      blocked: true,
-      reason: 'This subcommand is only available as a slash command.',
-    };
+    // Only treat the second arg as a subcommand when the first arg is actually
+    // a subcommand group (e.g. `$music likes list`). Otherwise the second arg
+    // is a plain value (`$music filter clear`, `$music search foo`) and must
+    // not be matched against the blocked-subcommand list.
+    const groupNames = (commandJson.options?.filter((opt) => opt.type === 2) || [])
+      .map((group) => group.name?.toLowerCase())
+      .filter(Boolean);
+    if (groupNames.includes(resolvedFirstArg)) {
+      return {
+        blocked: true,
+        reason: 'This subcommand is only available as a slash command.',
+      };
+    }
   }
 
   return { blocked: false };

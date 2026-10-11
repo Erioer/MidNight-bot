@@ -1,4 +1,4 @@
-// countingMilestones.js
+﻿// countingMilestones.js
 // Turns raw counter events into milestone announcements, starboard posts,
 // XP/cash rewards, and audit-log entries.
 //
@@ -7,8 +7,7 @@
 // appending a number there and nothing else.
 
 import { logger } from '../../utils/logger.js';
-import { EmbedBuilder } from 'discord.js';
-import { getColor } from '../../config/bot.js';
+import { MessageFlags } from 'discord.js';
 import {
   COUNTING_MILESTONES,
   COUNTING_REWARDS,
@@ -18,6 +17,7 @@ import { getXpForLevel, getUserLevelData } from '../leveling/leveling.js';
 import { addXp } from '../leveling/xpSystem.js';
 import { getEconomyData, setEconomyData, getMaxBankCapacity } from '../../utils/economy.js';
 import { getStarboardConfig } from '../starboard/starboardStore.js';
+import { container, divider, text } from '../../utils/componentsV2.js';
 
 /** Filters out milestones already recorded for a user so rewards never double-fire. */
 function newlyReached(thresholds, alreadyReached) {
@@ -29,20 +29,17 @@ function newlyReached(thresholds, alreadyReached) {
   });
 }
 
-function buildMilestoneEmbed({ title, description, color, fields = [], footer }) {
-  const embed = new EmbedBuilder()
-    .setColor(getColor(color) || 0xF1C40F)
-    .setTitle(title)
-    .setDescription(description);
-
-  if (fields.length > 0) {
-    embed.addFields(fields);
-  }
-  if (footer) {
-    embed.addFields({ name: 'Recorded', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true });
-  }
-
-  return embed;
+/**
+ * Milestone announcement card. No accent: board posts report no outcome.
+ * Titles may carry emoji since these are board posts, but bodies stay clean
+ * per the house rule.
+ */
+export function buildMilestoneContainer({ title, headline, lines = [] }) {
+  const parts = [text(`### ${title}`)];
+  if (headline) parts.push(text(headline));
+  if (lines.length > 0) parts.push(text(lines.join('\n')));
+  parts.push(divider(), text(`-# Recorded <t:${Math.floor(Date.now() / 1000)}:F>`));
+  return container({ parts });
 }
 
 /**
@@ -67,10 +64,18 @@ export async function postToStarboard(guild, payload) {
   }
 }
 
-async function announceStarboard(guild, embed, content) {
-  const sent = await postToStarboard(guild, { content, embeds: [embed] });
+/**
+ * Posts a milestone card to the guild's starboard channel. The payload is a
+ * single V2 container; mentions inside Text Displays ping exactly like
+ * message content, so the old content+embed split is unnecessary.
+ */
+async function announceStarboard(guild, milestoneContainer) {
+  const sent = await postToStarboard(guild, {
+    components: [milestoneContainer],
+    flags: MessageFlags.IsComponentsV2,
+  });
   if (sent) {
-    logger.debug('Counting milestone posted to starboard', { guildId: guild.id, content });
+    logger.debug('Counting milestone posted to starboard', { guildId: guild.id });
   }
   return sent;
 }
@@ -93,19 +98,13 @@ export async function handleServerMilestones({ client, guild, channel, config, p
 
   const fired = [];
   for (const threshold of crossed) {
-    const embed = buildMilestoneEmbed({
-      title: 'Counting Milestone Reached',
-      description: `This server just reached **${threshold}** in the counting game!`,
-      color: 'economy',
-      fields: [
-        { name: 'Milestone', value: `${threshold}`, inline: true },
-        { name: 'Channel', value: channel ? `<#${channel.id}>` : 'Unknown', inline: true },
-      ],
-      footer: true,
+    const milestoneContainer = buildMilestoneContainer({
+      title: '🏆 Counting Milestone Reached',
+      headline: `<#${channel?.id}> reached **${threshold}** counts!`,
+      lines: [`This server just reached **${threshold}** in the counting game!`],
     });
 
-    const content = `🏆 <#${channel?.id}> reached **${threshold}** counts!`;
-    await announceStarboard(guild, embed, content);
+    await announceStarboard(guild, milestoneContainer);
     fired.push({ type: 'server', threshold });
   }
 
@@ -228,40 +227,36 @@ export async function handleUserMilestones({
   }
 
   for (const threshold of countMilestones) {
-    const embed = buildMilestoneEmbed({
-      title: 'Counting Milestone',
-      description: `A member has contributed **${threshold}** valid counts!`,
-      color: 'economy',
-      fields: rewards
+    const milestoneContainer = buildMilestoneContainer({
+      title: '🏆 Counting Milestone',
+      headline: `<@${userId}> hit **${threshold}** counts!`,
+      lines: rewards
         ? [
-          { name: 'Counts', value: `${currentCounts}`, inline: true },
-          { name: 'Daily streak', value: `🔥 ${currentStreak}`, inline: true },
-          { name: 'XP earned', value: `+${rewards.xpReward}`, inline: true },
-          { name: 'Cash earned', value: `$${rewards.cashReward.toLocaleString()}`, inline: true },
+          `**Counts:** \`${currentCounts}\``,
+          `**Daily streak:** \`${currentStreak}\``,
+          `**XP earned:** \`+${rewards.xpReward}\``,
+          `**Cash earned:** \`$${rewards.cashReward.toLocaleString()}\``,
         ]
-        : [{ name: 'Counts', value: `${currentCounts}`, inline: true }],
-      footer: true,
+        : [`**Counts:** \`${currentCounts}\``],
     });
 
-    await announceStarboard(guild, embed, `🏆 <@${userId}> hit **${threshold}** counts!`);
+    await announceStarboard(guild, milestoneContainer);
   }
 
   for (const threshold of streakMilestones) {
-    const embed = buildMilestoneEmbed({
-      title: 'Daily Streak Milestone',
-      description: `A member has counted for **${threshold}** consecutive days!`,
-      color: 'warning',
-      fields: rewards
+    const milestoneContainer = buildMilestoneContainer({
+      title: '🔥 Daily Streak Milestone',
+      headline: `<@${userId}> counted **${threshold} days in a row**!`,
+      lines: rewards
         ? [
-          { name: 'Streak', value: `🔥 ${threshold} days`, inline: true },
-          { name: 'XP earned', value: `+${rewards.xpReward}`, inline: true },
-          { name: 'Cash earned', value: `$${rewards.cashReward.toLocaleString()}`, inline: true },
+          `**Streak:** \`${threshold} days\``,
+          `**XP earned:** \`+${rewards.xpReward}\``,
+          `**Cash earned:** \`$${rewards.cashReward.toLocaleString()}\``,
         ]
-        : [{ name: 'Streak', value: `🔥 ${threshold} days`, inline: true }],
-      footer: true,
+        : [`**Streak:** \`${threshold} days\``],
     });
 
-    await announceStarboard(guild, embed, `🔥 <@${userId}> counted **${threshold} days in a row**!`);
+    await announceStarboard(guild, milestoneContainer);
   }
 
   return {
@@ -303,18 +298,16 @@ export async function handleMistakeMilestones({ guild, config, userId, currentRu
   };
 
   for (const threshold of crossed) {
-    const embed = buildMilestoneEmbed({
-      title: 'Counting Blunder Milestone',
-      description: `A member has broken the count **${threshold}** time${threshold === 1 ? '' : 's'}.`,
-      color: 'error',
-      fields: [
-        { name: 'Total ruins', value: `${currentRuins}`, inline: true },
-        { name: 'Accuracy', value: `${formatAccuracy(config, userId)}%`, inline: true },
+    const milestoneContainer = buildMilestoneContainer({
+      title: '💥 Counting Blunder Milestone',
+      headline: `<@${userId}> reached **${threshold}** counting blunders.`,
+      lines: [
+        `**Total ruins:** \`${currentRuins}\``,
+        `**Accuracy:** \`${formatAccuracy(config, userId)}%\``,
       ],
-      footer: true,
     });
 
-    await announceStarboard(guild, embed, `💥 <@${userId}> reached **${threshold}** counting blunders.`);
+    await announceStarboard(guild, milestoneContainer);
   }
 
   return { config: updatedConfig, milestones: crossed };

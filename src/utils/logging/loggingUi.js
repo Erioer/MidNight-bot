@@ -27,6 +27,8 @@ export const DASHBOARD_CATEGORIES = [
   'reactionrole',
   'giveaway',
   'counter',
+  'counting',
+  'logging',
   'application',
   'report',
 ];
@@ -40,6 +42,8 @@ const DASHBOARD_CATEGORY_EMOJIS = {
   reactionrole: '🎭',
   giveaway: '🎁',
   counter: '📊',
+  counting: '🔢',
+  logging: '⚙️',
   application: '📝',
   report: '🚨',
 };
@@ -53,6 +57,8 @@ export const DASHBOARD_CATEGORY_LABELS = {
   reactionrole: 'Reaction Roles',
   giveaway: 'Giveaways',
   counter: 'Counters',
+  counting: 'Counting',
+  logging: 'Logging',
   application: 'Applications',
   report: 'Reports',
 };

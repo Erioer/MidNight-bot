@@ -1,9 +1,9 @@
 import { SlashCommandBuilder } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { getColor } from '../../config/bot.js';
 
 const BASE_ALPHABETS = {
     'BIN': { base: 2, prefix: '0b', name: 'Binary', alphabet: '01' },
@@ -184,15 +184,14 @@ export default {
             try {
                 result = formatBigIntToBase(decimalValue, toBase);
 
-                const embed = successEmbed(
-                    '🔄 Base Conversion Result',
-                    `**From ${fromName} (${fromBase}):** \`${fromPrefix}${cleanNumber}\`\n` +
+                const resultContainer = successContainer({
+                    title: '🔄 Base Conversion Result',
+                    body: `**From ${fromName} (${fromBase}):** \`${fromPrefix}${cleanNumber}\`\n` +
                     `**To ${toName} (${toBase}):** \`${toPrefix}${result}\`\n` +
-                    `**Decimal:** \`${decimalValue.toLocaleString()}\``
-                );
-                embed.setColor(getColor('success'));
+                    `**Decimal:** \`${decimalValue.toLocaleString()}\``,
+                });
 
-                await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+                await InteractionHelper.safeEditReply(interaction, { components: [resultContainer], flags: v2Flags(), allowedMentions: NO_PINGS });
 
             } catch (error) {
                 logger.error(`Base conversion error to ${toName}:`, error);
@@ -218,13 +217,12 @@ export default {
                 }
             }
 
-            const embed = successEmbed(
-                '🔄 Base Conversion Results',
-                description
-            );
-            embed.setColor(getColor('primary'));
+            const resultsContainer = successContainer({
+                title: '🔄 Base Conversion Results',
+                body: description,
+            });
 
-            await InteractionHelper.safeEditReply(interaction, { embeds: [embed] });
+            await InteractionHelper.safeEditReply(interaction, { components: [resultsContainer], flags: v2Flags(), allowedMentions: NO_PINGS });
         }
     },
 };

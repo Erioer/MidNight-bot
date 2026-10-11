@@ -1,6 +1,7 @@
 import { getColor } from '../../config/bot.js';
 import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, container, text, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { getGuildConfig, setGuildConfig } from '../../services/config/guildConfig.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
 import { logger } from '../../utils/logger.js';
@@ -94,7 +95,7 @@ export default {
     category: "ticket",
 
     async execute(interaction, config, client) {
-        const deferred = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+        const deferred = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
         if (!deferred) {
             return;
         }
@@ -136,10 +137,11 @@ const panelMessage = interaction.options.getString("panel_message") || "Click th
             const maxTicketsPerUser = interaction.options.getInteger("max_tickets_per_user") || 3;
 const dmOnClose = interaction.options.getBoolean("dm_on_close") !== false;
 
-            const setupEmbed = createEmbed({ 
-                title: "Support Tickets", 
-description: panelMessage,
-                color: getColor('info')
+            const setupContainer = container({
+                parts: [
+                    text(`### Support Tickets`),
+                    text(panelMessage),
+                ],
             });
 
             const ticketButton = new ActionRowBuilder().addComponents(
@@ -152,8 +154,9 @@ description: panelMessage,
 
             try {
                 const sentPanel = await panelChannel.send({
-                    embeds: [setupEmbed],
-                    components: [ticketButton],
+                    components: [setupContainer, ticketButton],
+                    flags: MessageFlags.IsComponentsV2,
+                    allowedMentions: NO_PINGS,
                 });
 
                 if (client.db && interaction.guildId) {
@@ -202,12 +205,14 @@ description: panelMessage,
                 successMessage += `\n\n**Max Tickets Per User:** ${maxTicketsPerUser}\n**DM on Close:** ${dmOnClose ? 'Enabled' : 'Disabled'}`;
 
                 await InteractionHelper.safeEditReply(interaction, {
-                    embeds: [
-                        successEmbed(
-                            "Ticket Panel Set Up",
-                            successMessage,
-                        ),
+                    components: [
+                        successContainer({
+                            title: "Ticket Panel Set Up",
+                            body: successMessage,
+                        }),
                     ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 });
 
                 logger.info('Ticket panel setup completed', {
@@ -223,54 +228,12 @@ description: panelMessage,
                     commandName: 'ticket_setup'
                 });
 
-                const logEmbed = createEmbed({
-                    title: "Ticket System Setup (Configuration Log)",
-                    description: `The ticket panel was set up in ${panelChannel} by ${interaction.user}.`,
-                    color: getColor('warning')
-                })
-                    .addFields(
-                        {
-                            name: "Panel Channel",
-                            value: panelChannel.toString(),
-                            inline: true,
-                        },
-                        {
-                            name: "Ticket Category",
-                            value: categoryChannel
-                                ? categoryChannel.toString()
-                                : "None specified.",
-                            inline: true,
-                        },
-                        {
-                            name: "Closed Category",
-                            value: closedCategoryChannel
-                                ? closedCategoryChannel.toString()
-                                : "None specified.",
-                            inline: true,
-                        },
-                        {
-                            name: "Staff Role",
-                            value: staffRole
-                                ? staffRole.toString()
-                                : "None specified.",
-                            inline: true,
-                        },
-                        {
-                            name: "Max Tickets Per User",
-                            value: maxTicketsPerUser.toString(),
-                            inline: true,
-                        },
-                        {
-                            name: "DM on Close",
-                            value: dmOnClose ? 'Enabled' : 'Disabled',
-                            inline: true,
-                        },
-                        {
-                            name: "Moderator",
-                            value: `${interaction.user.tag} (${interaction.user.id})`,
-                            inline: false,
-                        },
-                    );
+                const logContainer = container({
+                    parts: [
+                        text(`### Ticket System Setup (Configuration Log)\nThe ticket panel was set up in ${panelChannel} by ${interaction.user}.`),
+                        text(`**Panel Channel:** ${panelChannel.toString()}\n**Ticket Category:** ${categoryChannel ? categoryChannel.toString() : "None specified."}\n**Closed Category:** ${closedCategoryChannel ? closedCategoryChannel.toString() : "None specified."}\n**Staff Role:** ${staffRole ? staffRole.toString() : "None specified."}\n**Max Tickets Per User:** ${maxTicketsPerUser.toString()}\n**DM on Close:** ${dmOnClose ? 'Enabled' : 'Disabled'}\n**Moderator:** ${interaction.user.tag} (${interaction.user.id})`),
+                    ],
+                });
 
             } catch (error) {
                 logger.error('Ticket setup error', {

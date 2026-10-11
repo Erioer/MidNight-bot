@@ -1,12 +1,13 @@
-import { botConfig, getColor } from '../../../config/bot.js';
-import { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { createEmbed, errorEmbed, successEmbed, infoEmbed } from '../../../utils/embeds.js';
+import { botConfig } from '../../../config/bot.js';
+import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import { getGuildConfig, setGuildConfig } from '../../../services/config/guildConfig.js';
 import { withErrorHandling, createError, ErrorTypes } from '../../../utils/errorHandler.js';
 import { validateAutoVerifyCriteria } from '../../../services/verificationService.js';
 import { logger } from '../../../utils/logger.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 import { getWelcomeConfig } from '../../../utils/database.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer } from '../../../services/economy/economyViews.js';
 import autoVerifyDashboard from './autoVerifyDashboard.js';
 
 const autoVerifyDefaults = botConfig.verification?.autoVerify || {};
@@ -177,10 +178,14 @@ async function handleSetup(interaction, guild, client) {
         });
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [successEmbed(
-                "Auto-Verification Configured",
-                `Automatic verification has been configured!\n\n**Role:** ${targetRole}\n**Criteria:** ${criteriaDescription}\n\nUsers who meet these criteria will receive this role when they join the server.`
-            )]
+            components: [
+                successContainer({
+                    title: 'Auto-Verification Configured',
+                    body: `Automatic verification has been configured!\n\n**Role:** ${targetRole}\n**Criteria:** ${criteriaDescription}\n\nUsers who meet these criteria will receive this role when they join the server.`,
+                }),
+            ],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
 
     } catch (error) {

@@ -1,8 +1,9 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { infoEmbed, successEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder } from 'discord.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { verifyUser } from '../../services/verificationService.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { NO_PINGS, container, text, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -19,17 +20,28 @@ export default {
 
         if (result.status === 'already_verified') {
             return await InteractionHelper.safeReply(interaction, {
-                embeds: [infoEmbed('Already Verified', "You are already verified.")],
-                flags: MessageFlags.Ephemeral
+                components: [
+                    container({
+                        parts: [
+                            text('### Already Verified'),
+                            text('You are already verified.'),
+                        ],
+                    }),
+                ],
+                flags: v2Flags({ ephemeral: true }),
+                allowedMentions: NO_PINGS,
             });
         }
 
         await InteractionHelper.safeReply(interaction, {
-            embeds: [successEmbed(
-                "Verification Complete",
-                `You have been verified and given the **${result.roleName}** role! Welcome to the server! 🎉`
-            )],
-            flags: MessageFlags.Ephemeral
+            components: [
+                successContainer({
+                    title: 'Verification Complete',
+                    body: `You have been verified and given the **${result.roleName}** role! Welcome to the server! 🎉`,
+                }),
+            ],
+            flags: v2Flags({ ephemeral: true }),
+            allowedMentions: NO_PINGS,
         });
     }
 };

@@ -94,11 +94,11 @@ export default {
         if (clovers > 0) {
             userData.inventory['lucky_clover'] = clovers - 1;
             winChance += CLOVER_WIN_BONUS;
-            boosterLine = `🍀 **Lucky Clover Consumed:** You have **${clovers - 1}** left.`;
+            boosterLine = `**Lucky Clover Consumed:** You have **${clovers - 1}** left.`;
         } else if (charms > 0) {
             userData.inventory['lucky_charm'] = charms - 1;
             winChance += CHARM_WIN_BONUS;
-            boosterLine = `🍀 **Lucky Charm Used:** You have **${charms - 1}** uses left.`;
+            boosterLine = `**Lucky Charm Used:** You have **${charms - 1}** uses left.`;
         }
 
         const win = Math.random() < Math.min(1, winChance);

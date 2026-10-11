@@ -5,7 +5,7 @@ import { logger } from './logger.js';
 import { MidNightError, ErrorTypes } from './errorHandler.js';
 import { unwrapReplitData } from './database.js';
 import { 
-    createGiveawayEmbed as createGiveawayEmbedService,
+    buildGiveawayContainer as buildGiveawayContainerService,
     createGiveawayButtons as createGiveawayButtonsService,
     selectWinners as selectWinnersService
 } from '../services/giveawayService.js';
@@ -122,15 +122,6 @@ export async function deleteGiveaway(client, guildId, messageId) {
     }
 }
 
-export function createGiveawayEmbed(giveaway, status, winners = []) {
-    try {
-        return createGiveawayEmbedService(giveaway, status, winners);
-    } catch (error) {
-        logger.error('Error creating giveaway embed:', error);
-        throw error;
-    }
-}
-
 export function isGiveawayEnded(giveaway) {
     if (!giveaway) return true;
     const endTime = giveaway.endsAt || giveaway.endTime;
@@ -154,10 +145,6 @@ export function pickWinners(entrants, count) {
     }
 }
 
-export function giveawayEmbed(giveaway, status, winners = []) {
-    return createGiveawayEmbed(giveaway, status, winners);
-}
-
 export function giveawayButtons(ended = false) {
     try {
         return createGiveawayButtonsService(ended);
@@ -169,22 +156,22 @@ export function giveawayButtons(ended = false) {
             row.addComponents(
                 new ButtonBuilder()
                     .setCustomId('giveaway_reroll')
-                    .setLabel('🎲 Reroll')
+                    .setLabel('Reroll')
                     .setStyle(ButtonStyle.Secondary),
                 new ButtonBuilder()
                     .setCustomId('giveaway_view')
-                    .setLabel('👁️ View')
+                    .setLabel('View Winners')
                     .setStyle(ButtonStyle.Primary)
             );
         } else {
             row.addComponents(
                 new ButtonBuilder()
                     .setCustomId('giveaway_join')
-                    .setLabel('🎉 Join')
+                    .setLabel('Join')
                     .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId('giveaway_end')
-                    .setLabel('🛑 End')
+                    .setLabel('End')
                     .setStyle(ButtonStyle.Danger)
             );
         }

@@ -1,9 +1,26 @@
-import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
+import { NO_PINGS, container, section, text, thumbnail } from '../../utils/componentsV2.js';
 import { logger } from '../../utils/logger.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
-import { getColor } from '../../config/bot.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+
+/**
+ * Components V2 random-user card. Embed fields become labeled text lines and
+ * the avatar becomes a section thumbnail; the SUCCESS accent matches the old
+ * success embed (the per-user displayHexColor accent has no V2 equivalent here).
+ */
+function buildRandomUserContainer({ title, body, avatarUrl, username, isBot, rolesLabel, rolesValue }) {
+    return container({
+        accentColor: 3066993,
+        parts: [
+            section(
+                [text(`### ${title}`), text(body)],
+                thumbnail(avatarUrl),
+            ),
+            text(`**Username:** ${username}\n**Bot:** ${isBot ? 'Yes' : 'No'}\n**${rolesLabel}:** ${rolesValue}`),
+        ],
+    });
+}
 
 export default {
     data: new SlashCommandBuilder()
@@ -88,16 +105,15 @@ export default {
             .map(role => role.toString())
             .slice(0, 10);
 
-        const embed = successEmbed(
-            '🎲 Random User Selected',
-            shouldMention ? `${selectedMember}` : `**${user.username}**`
-        )
-        .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 256 }))
-        .addFields(
-            { name: 'Username', value: user.username, inline: true },
-            { name: 'Bot', value: user.bot ? 'Yes' : 'No', inline: true },
-            { name: `Roles (${roles.length})`, value: roles.length > 0 ? roles.slice(0, 5).join('') + (roles.length > 5 ? `+${roles.length - 5} more` : '') : 'No roles', inline: false }
-        );
+        const userContainer = buildRandomUserContainer({
+            title: '🎲 Random User Selected',
+            body: shouldMention ? `${selectedMember}` : `**${user.username}**`,
+            avatarUrl: user.displayAvatarURL({ dynamic: true, size: 256 }),
+            username: user.username,
+            isBot: user.bot,
+            rolesLabel: `Roles (${roles.length})`,
+            rolesValue: roles.length > 0 ? roles.slice(0, 5).join('') + (roles.length > 5 ? `+${roles.length - 5} more` : '') : 'No roles',
+        });
 
         const row = new ActionRowBuilder()
             .addComponents(
@@ -107,11 +123,11 @@ export default {
                     .setStyle(ButtonStyle.Primary)
             );
 
+        let currentContainer = userContainer;
         const response = await interaction.editReply({
-            content: shouldMention ? `${selectedMember}, you've been chosen!` : null,
-            embeds: [embed],
-            components: [row],
-            allowedMentions: { users: shouldMention ? [user.id] : [] }
+            components: [currentContainer, row],
+            flags: MessageFlags.IsComponentsV2,
+            allowedMentions: shouldMention ? { users: [user.id] } : NO_PINGS,
         });
 
         const filter = (i) => i.customId === `randomuser_${interaction.user.id}_again` && i.user.id === interaction.user.id;
@@ -153,23 +169,21 @@ export default {
                     .map(r => r.toString())
                     .slice(0, 10);
 
-                const newEmbed = successEmbed(
-                    '🎲 Random User Selected',
-                    shouldMention ? `${newSelectedMember}` : `**${newUser.username}**`
-                )
-                .setThumbnail(newUser.displayAvatarURL({ dynamic: true, size: 256 }))
-                .addFields(
-                    { name: 'Username', value: newUser.username, inline: true },
-                    { name: 'Bot', value: newUser.bot ? 'Yes' : 'No', inline: true },
-                    { name: `Roles (${newRoles.length})`, value: newRoles.length > 0 ? newRoles.slice(0, 5).join('') + (newRoles.length > 5 ? `+${newRoles.length - 5} more` : '') : 'No roles', inline: false }
-                )
-                .setColor(newSelectedMember.displayHexColor || '#3498db');
+                const newUserContainer = buildRandomUserContainer({
+                    title: '🎲 Random User Selected',
+                    body: shouldMention ? `${newSelectedMember}` : `**${newUser.username}**`,
+                    avatarUrl: newUser.displayAvatarURL({ dynamic: true, size: 256 }),
+                    username: newUser.username,
+                    isBot: newUser.bot,
+                    rolesLabel: `Roles (${newRoles.length})`,
+                    rolesValue: newRoles.length > 0 ? newRoles.slice(0, 5).join('') + (newRoles.length > 5 ? `+${newRoles.length - 5} more` : '') : 'No roles',
+                });
 
+                currentContainer = newUserContainer;
                 await i.update({
-                    content: shouldMention ? `${newSelectedMember}, you've been chosen!` : null,
-                    embeds: [newEmbed],
-                    components: [row],
-                    allowedMentions: { users: shouldMention ? [newUser.id] : [] }
+                    components: [currentContainer, row],
+                    flags: MessageFlags.IsComponentsV2,
+                    allowedMentions: shouldMention ? { users: [newUser.id] } : NO_PINGS,
                 });
 
             } catch (error) {

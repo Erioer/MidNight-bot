@@ -1,7 +1,8 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import { SlashCommandBuilder } from 'discord.js';
 import { logger } from '../../utils/logger.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { failureContainer, successContainer } from '../../services/economy/economyViews.js';
 
 export default {
     data: new SlashCommandBuilder()
@@ -11,31 +12,35 @@ export default {
     async prefixExecute(interaction) {
         try {
             const startTime = Date.now();
-            const pingingMessage = await interaction.reply({ content: 'Pinging...' });
-
+            // No interim message: a V1 reply could never be edited into V2.
             const latency = Date.now() - startTime;
             const apiLatency = Math.max(0, Math.round(interaction.client.ws.ping));
 
-            const embed = createEmbed({ title: 'Pong!', description: null }).addFields(
-                { name: 'Bot Latency', value: `${latency}ms`, inline: true },
-                { name: 'API Latency', value: `${apiLatency}ms`, inline: true },
-            );
-
-            await pingingMessage.edit({ content: null, embeds: [embed] });
+            await interaction.reply({
+                components: [
+                    successContainer({
+                        title: 'Pong!',
+                        body: `**Bot Latency:** \`${latency}ms\`\n**API Latency:** \`${apiLatency}ms\``,
+                    }),
+                ],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
+            });
         } catch (error) {
             logger.error('Ping prefix command error:', error);
             if (!interaction.replied && !interaction._replyMessage) {
                 await interaction.channel.send({
-                    embeds: [createEmbed({ title: 'System Error', description: 'Could not determine latency at this time.', color: 'error' })],
+                    components: [
+                        failureContainer({ title: 'System Error', body: 'Could not determine latency at this time.' }),
+                    ],
+                    flags: v2Flags(),
+                    allowedMentions: NO_PINGS,
                 }).catch(() => {});
             }
         }
     },
 
     async execute(interaction) {
-        logger.info('execute called - checking if slash command or prefix command');
-        logger.info(`execute - has _commandStartTime: ${!!interaction._commandStartTime}, createdTimestamp: ${interaction.createdTimestamp}`);
-        
         const deferSuccess = await InteractionHelper.safeDefer(interaction);
         if (!deferSuccess) {
             logger.warn(`Ping interaction defer failed`, {
@@ -47,31 +52,29 @@ export default {
         }
 
         try {
-            await InteractionHelper.safeEditReply(interaction, {
-                content: "Pinging...",
-            });
-
             const startTime = interaction._commandStartTime || interaction.createdTimestamp;
-            logger.info(`execute - using startTime: ${startTime}, type: ${interaction._commandStartTime ? 'prefix' : 'slash'}`);
             const latency = Math.max(0, Date.now() - startTime);
             const apiLatency = Math.max(0, Math.round(interaction.client.ws.ping));
-            logger.info(`execute - calculated latency: ${latency}ms, apiLatency: ${apiLatency}ms`);
-
-            const embed = createEmbed({ title: "Pong!", description: null }).addFields(
-                { name: "Bot Latency", value: `${latency}ms`, inline: true },
-                { name: "API Latency", value: `${apiLatency}ms`, inline: true },
-            );
 
             await InteractionHelper.safeEditReply(interaction, {
-                content: null,
-                embeds: [embed],
+                components: [
+                    successContainer({
+                        title: 'Pong!',
+                        body: `**Bot Latency:** \`${latency}ms\`\n**API Latency:** \`${apiLatency}ms\``,
+                    }),
+                ],
+                flags: v2Flags(),
+                allowedMentions: NO_PINGS,
             });
         } catch (error) {
             logger.error('Ping command error:', error);
             try {
                 return await InteractionHelper.safeReply(interaction, {
-                    embeds: [createEmbed({ title: 'System Error', description: 'Could not determine latency at this time.', color: 'error' })],
-                    flags: MessageFlags.Ephemeral,
+                    components: [
+                        failureContainer({ title: 'System Error', body: 'Could not determine latency at this time.' }),
+                    ],
+                    flags: v2Flags({ ephemeral: true }),
+                    allowedMentions: NO_PINGS,
                 });
             } catch (replyError) {
                 logger.error('Failed to send error reply:', replyError);

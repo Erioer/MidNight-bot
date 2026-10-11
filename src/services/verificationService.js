@@ -1,12 +1,13 @@
 // verificationService.js
 
-import { PermissionFlagsBits } from 'discord.js';
+import { MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { botConfig } from '../config/bot.js';
 import { logger } from '../utils/logger.js';
 import { getGuildConfig, setGuildConfig } from './config/guildConfig.js';
 import { createError, ErrorTypes } from '../utils/errorHandler.js';
 import { insertVerificationAudit } from '../utils/database.js';
 import { ensureTypedServiceError } from '../utils/serviceErrorBoundary.js';
+import { NO_PINGS, container, divider, text } from '../utils/componentsV2.js';
 
 const verificationCooldowns = new Map();
 const attemptTracker = new Map();
@@ -558,27 +559,18 @@ export async function trackVerificationAttempt(
 
 async function sendAutoVerifyNotification(member, role, guild) {
     try {
-        const { createEmbed } = await import('../utils/embeds.js');
-        
-        const embed = createEmbed({
-            title: "🎉 Welcome to the Server!",
-            description: `You have been automatically verified in **${guild.name}**!`,
-            fields: [
-                {
-                    name: "✅ Role Assigned",
-                    value: `You now have the ${role} role!`,
-                    inline: false
-                },
-                {
-                    name: "📖 What's Next?",
-                    value: "You now have access to all server channels and features. Welcome!",
-                    inline: false
-                }
+        const panel = container({
+            accentColor: 3066993,
+            parts: [
+                text('### Welcome to the Server!'),
+                text(`You have been automatically verified in **${guild.name}**!`),
+                divider(),
+                text(`**Role Assigned**\nYou now have the ${role} role!`),
+                text(`**What's Next?**\nYou now have access to all server channels and features. Welcome!`),
             ],
-            color: 'success'
         });
 
-        await member.send({ embeds: [embed] });
+        await member.send({ components: [panel], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
     } catch (error) {
         logger.debug('Could not send auto-verify DM notification', {
             userId: member.id,

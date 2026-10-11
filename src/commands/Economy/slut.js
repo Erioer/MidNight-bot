@@ -189,11 +189,11 @@ export default {
         const amountLabel = `${outcome.delta >= 0 ? '+' : '-'}$${Math.abs(outcome.delta).toLocaleString()}`;
         const lines = [
             outcome.message,
-            `💸 **Net Result:** ${amountLabel}`,
-            `💳 **Current Balance:** \`$${userData.wallet.toLocaleString()}\``,
-            `📊 **Total Sessions:** ${code(userData.totalSluts)}`,
-            `💵 **Total Earned:** \`$${(userData.totalSlutEarnings || 0).toLocaleString()}\``,
-            `🧾 **Total Lost:** \`$${(userData.totalSlutLosses || 0).toLocaleString()}\``,
+            `**Net Result:** ${amountLabel}`,
+            `**Current Balance:** \`$${userData.wallet.toLocaleString()}\``,
+            `**Total Sessions:** ${code(userData.totalSluts)}`,
+            `**Total Earned:** \`$${(userData.totalSlutEarnings || 0).toLocaleString()}\``,
+            `**Total Lost:** \`$${(userData.totalSlutLosses || 0).toLocaleString()}\``,
         ];
 
         const isPayout = outcome.delta >= 0;

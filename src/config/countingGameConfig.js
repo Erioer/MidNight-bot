@@ -25,8 +25,12 @@ export const COUNTING_MILESTONES = {
 export const COUNTING_SHIELD = {
   // Maximum shields a user may hold at once.
   max: 2,
-  // Granted for each valid count that crosses one of these thresholds.
-  awardThresholds: [20, 25],
+  // A shield is granted every time lifetime valid counts cross a new multiple
+  // of this number (15, 30, 45, ...), unbounded.
+  awardEvery: 15,
+  // A threshold crossed while capped is held for this long: free a slot
+  // within the window and the shield drops in, otherwise it is voided.
+  pendingGraceMs: 30 * 60 * 1000,
   // Shop item id in src/config/shop/items.js, and its price (kept here for
   // display/messages so the two never drift apart silently).
   shopItemId: 'counting_shield',

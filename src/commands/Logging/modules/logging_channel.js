@@ -1,6 +1,7 @@
 import { PermissionsBitField, ChannelType } from 'discord.js';
-import { setLogChannel } from '../../../services/loggingService.js';
-import { successEmbed } from '../../../utils/embeds.js';
+import { setLogChannel, logEvent, EVENT_TYPES } from '../../../services/loggingService.js';
+import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer } from '../../../services/economy/economyViews.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 import { logger } from '../../../utils/logger.js';
 
@@ -27,11 +28,31 @@ export default {
 
       if (disable) {
         await setLogChannel(client, interaction.guildId, destination, null);
+        await logEvent({
+          client,
+          guildId: interaction.guildId,
+          eventType: EVENT_TYPES.LOGGING_CONFIG,
+          data: {
+            title: 'Log Channel Cleared',
+            lines: [
+              `**Destination:** ${DESTINATION_LABELS[destination]}`,
+            ],
+            actor: {
+              id: interaction.user.id,
+              displayName: interaction.member?.displayName || interaction.user.username,
+              avatarUrl: interaction.user.displayAvatarURL(),
+            },
+          },
+        }).catch(() => null);
         return InteractionHelper.safeEditReply(interaction, {
-          embeds: [successEmbed(
-            'Channel Cleared',
-            `The **${DESTINATION_LABELS[destination]}** channel has been removed.`,
-          )],
+          components: [
+            successContainer({
+              title: 'Channel Cleared',
+              body: `The **${DESTINATION_LABELS[destination]}** channel has been removed.`,
+            }),
+          ],
+          flags: v2Flags(),
+          allowedMentions: NO_PINGS,
         });
       }
 
@@ -46,11 +67,33 @@ export default {
 
       await setLogChannel(client, interaction.guildId, destination, channel.id);
 
+      await logEvent({
+        client,
+        guildId: interaction.guildId,
+        eventType: EVENT_TYPES.LOGGING_CONFIG,
+        data: {
+          title: 'Log Channel Updated',
+          lines: [
+            `**Destination:** ${DESTINATION_LABELS[destination]}`,
+            `**Channel:** ${channel}`,
+          ],
+          actor: {
+            id: interaction.user.id,
+            displayName: interaction.member?.displayName || interaction.user.username,
+            avatarUrl: interaction.user.displayAvatarURL(),
+          },
+        },
+      }).catch(() => null);
+
       return InteractionHelper.safeEditReply(interaction, {
-        embeds: [successEmbed(
-          'Channel Updated',
-          `**${DESTINATION_LABELS[destination]}** logs will be sent to ${channel}.\nUse \`/logging dashboard\` to toggle event categories.`,
-        )],
+        components: [
+          successContainer({
+            title: 'Channel Updated',
+            body: `**${DESTINATION_LABELS[destination]}** logs will be sent to ${channel}.\nUse \`/logging dashboard\` to toggle event categories.`,
+          }),
+        ],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     } catch (error) {
       logger.error('logging_channel error:', error);

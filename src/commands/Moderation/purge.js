@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits, PermissionsBitField, ChannelType, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logEvent } from '../../utils/moderation.js';
 import { logger } from '../../utils/logger.js';
 import { getColor } from '../../config/bot.js';
@@ -22,7 +23,7 @@ export default {
 
   async execute(interaction, config, client) {
     const deferSuccess = await InteractionHelper.safeDefer(interaction, {
-      flags: MessageFlags.Ephemeral,
+      flags: v2Flags({ ephemeral: true }),
     });
     if (!deferSuccess) {
       logger.warn(`Purge interaction defer failed`, {
@@ -62,13 +63,14 @@ export default {
       });
 
       await InteractionHelper.safeEditReply(interaction, {
-        embeds: [
-          successEmbed(
-            "Messages Purged",
-            `Deleted ${deletedCount} messages in ${channel}.`,
-          ),
+        components: [
+          successContainer({
+            title: 'Messages Purged',
+            body: `Deleted ${deletedCount} messages in ${channel}.`,
+          }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
 
       setTimeout(() => {

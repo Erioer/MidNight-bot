@@ -18,7 +18,8 @@ import {
     RadioGroupBuilder,
 } from 'discord.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
-import { successEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, container, text } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { MidNightError, replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { getColor } from '../../config/bot.js';
@@ -269,16 +270,17 @@ async function handleSetColor(selectInteraction, rootInteraction, state) {
         );
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('Set Color')
-                .setDescription(
-                    'Select a preset color or choose **Custom Hex** to enter your own `#RRGGBB` value.',
-                )
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text('### Set Color'),
+                    text('Select a preset color or choose **Custom Hex** to enter your own `#RRGGBB` value.'),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(colorSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(colorSelect)],
-        flags: MessageFlags.Ephemeral,
+        flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+        allowedMentions: NO_PINGS,
     });
 
     const colorCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -503,18 +505,17 @@ async function handleSetImages(selectInteraction, rootInteraction, state) {
         );
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('Set Images')
-                .setDescription('Choose which image to set or remove.')
-                .addFields(
-                    { name: 'Thumbnail',    value: state.thumbnail ? `[View](${state.thumbnail})` : '`Not set`', inline: true },
-                    { name: 'Large Image',  value: state.image     ? `[View](${state.image})`     : '`Not set`', inline: true },
-                )
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text('### Set Images'),
+                    text(`Choose which image to set or remove.\n**Thumbnail:** ${state.thumbnail ? `[View](${state.thumbnail})` : '`Not set`'}\n**Large Image:** ${state.image ? `[View](${state.image})` : '`Not set`'}`),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(imageSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(imageSelect)],
-        flags: MessageFlags.Ephemeral,
+        flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+        allowedMentions: NO_PINGS,
     });
 
     const imgMenuCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -683,14 +684,17 @@ async function handleEditField(selectInteraction, rootInteraction, state) {
         );
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('Edit Field')
-                .setDescription('Select the field you want to modify.')
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text('### Edit Field'),
+                    text('Select the field you want to modify.'),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(pickSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(pickSelect)],
-        flags: MessageFlags.Ephemeral,
+        flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+        allowedMentions: NO_PINGS,
     });
 
     const pickCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -800,14 +804,18 @@ async function handleRemoveField(selectInteraction, rootInteraction, state) {
         );
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('Remove Field')
-                .setDescription('Select the field you want to delete.')
-                .setColor(getColor('warning')),
+        components: [
+            container({
+                accentColor: 16705372,
+                parts: [
+                    text('### Remove Field'),
+                    text('Select the field you want to delete.'),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(pickSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(pickSelect)],
-        flags: MessageFlags.Ephemeral,
+        flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+        allowedMentions: NO_PINGS,
     });
 
     const removeCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -845,14 +853,17 @@ async function handleReorderFields(selectInteraction, rootInteraction, state) {
         );
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('Reorder Fields')
-                .setDescription('Select a field, then use the arrows to move it up or down.')
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text('### Reorder Fields'),
+                    text('Select a field, then use the arrows to move it up or down.'),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(pickSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(pickSelect)],
-        flags: MessageFlags.Ephemeral,
+        flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+        allowedMentions: NO_PINGS,
     });
 
     const pickCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -887,16 +898,17 @@ async function handleReorderFields(selectInteraction, rootInteraction, state) {
             .setStyle(ButtonStyle.Secondary);
 
         await pickInter.followUp({
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle('Move Field')
-                    .setDescription(
-                        `Moving **${state.fields[sourceIdx].name}** — currently at position **${sourceIdx + 1}** of **${state.fields.length}**.`,
-                    )
-                    .setColor(getColor('info')),
+            components: [
+                container({
+                    parts: [
+                        text('### Move Field'),
+                        text(`Moving **${state.fields[sourceIdx].name}** — currently at position **${sourceIdx + 1}** of **${state.fields.length}**.`),
+                    ],
+                }),
+                new ActionRowBuilder().addComponents(upBtn, downBtn, cancelBtn),
             ],
-            components: [new ActionRowBuilder().addComponents(upBtn, downBtn, cancelBtn)],
-            flags: MessageFlags.Ephemeral,
+            flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+            allowedMentions: NO_PINGS,
         });
 
         const dirCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -949,14 +961,17 @@ async function handlePostEmbed(selectInteraction, rootInteraction, state, guild)
         .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement);
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('Post Embed')
-                .setDescription('Select the channel where this embed will be sent.')
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text('### Post Embed'),
+                    text('Select the channel where this embed will be sent.'),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(chanSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(chanSelect)],
-        flags: MessageFlags.Ephemeral,
+        flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+        allowedMentions: NO_PINGS,
     });
 
     const chanCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -997,8 +1012,9 @@ async function handlePostEmbed(selectInteraction, rootInteraction, state, guild)
         await channel.send({ embeds: [finalEmbed] });
 
         await chanInter.followUp({
-            embeds: [successEmbed('Embed Sent', `Your embed has been posted to ${channel}.`)],
-            flags: MessageFlags.Ephemeral,
+            components: [successContainer({ title: 'Embed Sent', body: `Your embed has been posted to ${channel}.` })],
+            flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+            allowedMentions: NO_PINGS,
         });
     });
 }
@@ -1011,21 +1027,26 @@ async function handleJsonExport(selectInteraction, rootInteraction, state) {
 
     if (json.length <= 3980) {
         await selectInteraction.followUp({
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle('Embed JSON')
-                    .setDescription(`\`\`\`json\n${json}\n\`\`\``)
-                    .setColor(getColor('info')),
+            components: [
+                container({
+                    parts: [
+                        text('### Embed JSON'),
+                        text(`\`\`\`json\n${json}\n\`\`\``),
+                    ],
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+            allowedMentions: NO_PINGS,
         });
     } else {
         await selectInteraction.followUp({
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle('Embed JSON')
-                    .setDescription('The JSON is too long to display inline — see the attached file.')
-                    .setColor(getColor('info')),
+            components: [
+                container({
+                    parts: [
+                        text('### Embed JSON'),
+                        text('The JSON is too long to display inline — see the attached file.'),
+                    ],
+                }),
             ],
             files: [
                 {
@@ -1033,7 +1054,8 @@ async function handleJsonExport(selectInteraction, rootInteraction, state) {
                     name: 'embed.json',
                 },
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: [MessageFlags.IsComponentsV2, MessageFlags.Ephemeral],
+            allowedMentions: NO_PINGS,
         });
     }
 }

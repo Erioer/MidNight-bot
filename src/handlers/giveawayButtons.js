@@ -1,5 +1,6 @@
 import { MessageFlags, PermissionFlagsBits } from 'discord.js';
-import { successEmbed } from '../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../utils/componentsV2.js';
+import { successContainer } from '../services/economy/economyViews.js';
 import { logger } from '../utils/logger.js';
 import { MidNightError, ErrorTypes, handleInteractionError, replyUserError } from '../utils/errorHandler.js';
 import { 
@@ -12,8 +13,7 @@ import {
     selectWinners,
     isUserRateLimited,
     recordUserInteraction,
-    createGiveawayEmbed,
-    createGiveawayButtons
+    refreshGiveawayMessage
 } from '../services/giveawayService.js';
 import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 
@@ -63,22 +63,17 @@ export const giveawayJoinHandler = {
 
                 logger.debug(`User ${interaction.user.tag} joined giveaway ${interaction.message.id}`);
 
-                const updatedEmbed = createGiveawayEmbed(giveaway, 'active');
-                const updatedRow = createGiveawayButtons(false);
-
-                await interaction.message.edit({
-                    embeds: [updatedEmbed],
-                    components: [updatedRow]
-                });
+                await refreshGiveawayMessage(client, interaction.guildId, giveaway, 'active');
 
                 await interaction.reply({
-                    embeds: [
-                        successEmbed(
-                            'Success! You have entered the giveaway! 🎉',
-                            `Good luck! There are now ${participants.length} entry/entries.`
-                        )
+                    components: [
+                        successContainer({
+                            title: 'Entered',
+                            body: `Good luck! There are now ${participants.length} entry/entries.`,
+                        }),
                     ],
-                    flags: MessageFlags.Ephemeral
+                    flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                    allowedMentions: NO_PINGS,
                 });
             });
         } catch (error) {
@@ -144,14 +139,7 @@ export const giveawayEndHandler = {
 
             logger.info(`Giveaway ended via button by ${interaction.user.tag}: ${interaction.message.id}`);
 
-            const updatedEmbed = createGiveawayEmbed(giveaway, 'ended', winners);
-            const updatedRow = createGiveawayButtons(true);
-
-            await interaction.message.edit({
-                content: '🎉 **GIVEAWAY ENDED** 🎉',
-                embeds: [updatedEmbed],
-                components: [updatedRow]
-            });
+            await refreshGiveawayMessage(client, interaction.guildId, giveaway, 'ended', winners);
 
             try {
                 await logEvent({
@@ -162,6 +150,7 @@ export const giveawayEndHandler = {
                         description: `Giveaway ended with ${winners.length} winner(s)`,
                         channelId: interaction.channelId,
                         userId: interaction.user.id,
+                        actor: { id: interaction.user.id },
                         fields: [
                             {
                                 name: '🎁 Prize',
@@ -188,13 +177,14 @@ export const giveawayEndHandler = {
             }
 
             await interaction.reply({
-                embeds: [
-                    successEmbed(
-                        `Giveaway Ended ✅`,
-                        `The giveaway has been ended and ${winners.length} winner(s) have been selected!`
-                    )
+                components: [
+                    successContainer({
+                        title: 'Giveaway Ended',
+                        body: `The giveaway has been ended and ${winners.length} winner(s) have been selected!`,
+                    }),
                 ],
-                flags: MessageFlags.Ephemeral
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
 
         } catch (error) {
@@ -268,14 +258,7 @@ export const giveawayRerollHandler = {
 
             logger.info(`Giveaway rerolled via button by ${interaction.user.tag}: ${interaction.message.id}`);
 
-            const updatedEmbed = createGiveawayEmbed(giveaway, 'reroll', newWinners);
-            const updatedRow = createGiveawayButtons(true);
-
-            await interaction.message.edit({
-                content: '🔄 **GIVEAWAY REROLLED** 🔄',
-                embeds: [updatedEmbed],
-                components: [updatedRow]
-            });
+            await refreshGiveawayMessage(client, interaction.guildId, giveaway, 'reroll', newWinners);
 
             try {
                 await logEvent({
@@ -286,6 +269,7 @@ export const giveawayRerollHandler = {
                         description: `Giveaway rerolled`,
                         channelId: interaction.channelId,
                         userId: interaction.user.id,
+                        actor: { id: interaction.user.id },
                         fields: [
                             {
                                 name: '🎁 Prize',
@@ -310,13 +294,14 @@ export const giveawayRerollHandler = {
             }
 
             await interaction.reply({
-                embeds: [
-                    successEmbed(
-                        'Giveaway Rerolled ✅',
-                        `New winner(s) have been selected!`
-                    )
+                components: [
+                    successContainer({
+                        title: 'Giveaway Rerolled',
+                        body: 'New winner(s) have been selected!',
+                    }),
                 ],
-                flags: MessageFlags.Ephemeral
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
 
         } catch (error) {
@@ -365,13 +350,14 @@ export const giveawayViewHandler = {
                 : 'No valid winners were selected for this giveaway.';
 
             await interaction.reply({
-                embeds: [
-                    successEmbed(
-                        `Winners for ${giveaway.prize || 'this giveaway'} 🎉`,
-                        winnerMentions
-                    )
+                components: [
+                    successContainer({
+                        title: `Winners for ${giveaway.prize || 'this giveaway'}`,
+                        body: winnerMentions,
+                    }),
                 ],
-                flags: MessageFlags.Ephemeral
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+                allowedMentions: NO_PINGS,
             });
         } catch (error) {
             logger.error('Error in giveaway view handler:', error);

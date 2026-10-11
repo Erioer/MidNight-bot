@@ -1,8 +1,6 @@
 // serverstatsService.js
 
 import { logger } from '../utils/logger.js';
-import { logEvent, EVENT_TYPES } from './loggingService.js';
-import { formatLogLine } from '../utils/logging/logEmbeds.js';
 import { getServerCountersKey } from '../utils/database/keys.js';
 import botConfig from '../config/bot.js';
 
@@ -184,25 +182,10 @@ export async function updateCounter(client, guild, counter) {
           logger.debug(`Updated channel name to: "${newName}"`);
         }
 
-        try {
-          await logEvent({
-            client,
-            guildId: guild.id,
-            eventType: EVENT_TYPES.COUNTER_UPDATE,
-            data: {
-              title: 'Counter Updated',
-              lines: [
-                formatLogLine('Type', getCounterTypeLabel(type)),
-                formatLogLine('Count', count.toString()),
-                formatLogLine('Channel', channel.toString()),
-              ],
-              channelId: channel.id,
-            },
-          });
-        } catch (error) {
-          logger.debug('Error logging counter update:', error);
-        }
-
+        // Deliberately no audit log here: this runs on a 15-minute schedule
+        // for every counter, so logging each rename would flood the log
+        // channel with the bot's own routine actions. Admin creates, updates,
+        // and deletes log their own COUNTER_CONFIG events from the commands.
       } catch (error) {
         logger.error(`Failed to update channel name for ${channel.id}:`, error);
         return false;

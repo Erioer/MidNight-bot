@@ -1,5 +1,6 @@
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder, AttachmentBuilder, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed } from '../utils/embeds.js';
+import { NO_PINGS, container, text, v2Flags } from '../utils/componentsV2.js';
+import { successContainer } from '../services/economy/economyViews.js';
 import { createTicket, closeTicket, claimTicket, updateTicketPriority } from '../services/ticket.js';
 import { getGuildConfig } from '../services/config/guildConfig.js';
 import { logTicketEvent } from '../utils/ticket/ticketLogging.js';
@@ -156,7 +157,7 @@ const createTicketModalHandler = {
     try {
       if (!(await ensureGuildContext(interaction))) return;
 
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
       if (!deferSuccess) return;
       
       const reason = interaction.fields.getTextInputValue('reason');
@@ -170,10 +171,12 @@ const createTicketModalHandler = {
         reason
       );
       await interaction.editReply({
-        embeds: [successEmbed(
-          'Ticket Created',
-          `Your ticket has been created in ${channel}!`
-        )]
+        components: [successContainer({
+          title: 'Ticket Created',
+          body: `Your ticket has been created in ${channel}!`,
+        })],
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
       });
     } catch (error) {
       await handleInteractionError(interaction, error, { type: 'button', handler: 'ticket', customId: interaction.customId });
@@ -223,14 +226,14 @@ const closeTicketModalHandler = {
 
       await assertTicketPermission(interaction, client, 'close this ticket', { allowTicketCreator: true }, 2000);
 
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
       if (!deferSuccess) return;
 
       const providedReason = interaction.fields.getTextInputValue('reason')?.trim();
       const reason = providedReason || 'Closed via ticket button without a specific reason.';
 
       await closeTicket(interaction.channel, interaction.user, reason);
-      await interaction.editReply({ embeds: [successEmbed('Ticket Closed', 'This ticket has been closed.')] });
+      await interaction.editReply({ components: [successContainer({ title: 'Ticket Closed', body: 'This ticket has been closed.' })], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
     } catch (error) {
       logger.error('Error submitting close ticket modal:', error);
       if (!interaction.replied && !interaction.deferred) {
@@ -250,11 +253,11 @@ const claimTicketHandler = {
 
       await assertTicketPermission(interaction, client, 'claim tickets', {}, 2000);
 
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
       if (!deferSuccess) return;
       
       await claimTicket(interaction.channel, interaction.user);
-      await interaction.editReply({ embeds: [successEmbed('Ticket Claimed', 'You have claimed this ticket.')] });
+      await interaction.editReply({ components: [successContainer({ title: 'Ticket Claimed', body: 'You have claimed this ticket.' })], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
     } catch (error) {
       logger.error('Error claiming ticket:', error);
       if (!interaction.replied && !interaction.deferred) {
@@ -274,7 +277,7 @@ const priorityTicketHandler = {
 
       await assertTicketPermission(interaction, client, 'change ticket priority', {}, 2000);
 
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
       if (!deferSuccess) return;
       
       const priority = args?.[0];
@@ -284,7 +287,7 @@ const priorityTicketHandler = {
       }
 
       await updateTicketPriority(interaction.channel, priority, interaction.user);
-      await interaction.editReply({ embeds: [successEmbed('Priority Updated', `Ticket priority set to **${priority.toUpperCase()}**.`)] });
+      await interaction.editReply({ components: [successContainer({ title: 'Priority Updated', body: `Ticket priority set to **${priority.toUpperCase()}**.` })], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
     } catch (error) {
       logger.error('Error updating ticket priority:', error);
       if (!interaction.replied && !interaction.deferred) {
@@ -304,7 +307,7 @@ const pinTicketHandler = {
 
       await assertTicketPermission(interaction, client, 'pin tickets', {}, 2000);
 
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
       if (!deferSuccess) return;
 
       const channel = interaction.channel;
@@ -326,12 +329,14 @@ const pinTicketHandler = {
         });
 
         await interaction.editReply({
-          embeds: [createEmbed({
-            title: '📌 Ticket Unpinned',
-            description: 'This ticket has been unpinned and moved back to normal position.',
-            color: 0x95A5A6
+          components: [container({
+            parts: [
+              text(`### 📌 Ticket Unpinned`),
+              text('This ticket has been unpinned and moved back to normal position.'),
+            ],
           })],
-          flags: MessageFlags.Ephemeral
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+          allowedMentions: NO_PINGS,
         });
 
         logger.info('Ticket unpinned', {
@@ -349,12 +354,14 @@ const pinTicketHandler = {
         });
 
         await interaction.editReply({
-          embeds: [createEmbed({
-            title: '📌 Ticket Pinned',
-            description: 'This ticket has been pinned to the top of the category.',
-            color: 0x3498db
+          components: [container({
+            parts: [
+              text(`### 📌 Ticket Pinned`),
+              text('This ticket has been pinned to the top of the category.'),
+            ],
           })],
-          flags: MessageFlags.Ephemeral
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+          allowedMentions: NO_PINGS,
         });
 
         logger.info('Ticket pinned', {
@@ -400,12 +407,12 @@ const unclaimTicketHandler = {
 
       await assertTicketPermission(interaction, client, 'unclaim tickets', {}, 2000);
 
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
       if (!deferSuccess) return;
       
       const { unclaimTicket } = await import('../services/ticket.js');
       await unclaimTicket(interaction.channel, interaction.member);
-      await interaction.editReply({ embeds: [successEmbed('Ticket Unclaimed', 'This ticket has been unclaimed.')] });
+      await interaction.editReply({ components: [successContainer({ title: 'Ticket Unclaimed', body: 'This ticket has been unclaimed.' })], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
     } catch (error) {
       logger.error('Error unclaiming ticket:', error);
       if (!interaction.replied && !interaction.deferred) {
@@ -425,7 +432,7 @@ const reopenTicketHandler = {
 
       await assertTicketPermission(interaction, client, 'reopen tickets', {}, 2000);
 
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
       if (!deferSuccess) return;
       
       const { reopenTicket } = await import('../services/ticket.js');
@@ -434,7 +441,7 @@ const reopenTicketHandler = {
       if (openCategoryMoveFailed) {
         reopenMessage += ' Note: Could not move the channel back to the open tickets category.';
       }
-      await interaction.editReply({ embeds: [successEmbed('Ticket Reopened', reopenMessage)] });
+      await interaction.editReply({ components: [successContainer({ title: 'Ticket Reopened', body: reopenMessage })], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
     } catch (error) {
       logger.error('Error reopening ticket:', error);
       if (!interaction.replied && !interaction.deferred) {
@@ -454,12 +461,12 @@ const deleteTicketHandler = {
 
       await assertTicketPermission(interaction, client, 'delete tickets', {}, 2000);
 
-      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: MessageFlags.Ephemeral });
+      const deferSuccess = await InteractionHelper.safeDefer(interaction, { flags: v2Flags({ ephemeral: true }) });
       if (!deferSuccess) return;
       
       const { deleteTicket } = await import('../services/ticket.js');
       await deleteTicket(interaction.channel, interaction.member);
-      await interaction.editReply({ embeds: [successEmbed('Ticket Deleted', 'This ticket will be deleted shortly.')] });
+      await interaction.editReply({ components: [successContainer({ title: 'Ticket Deleted', body: 'This ticket will be deleted shortly.' })], flags: MessageFlags.IsComponentsV2, allowedMentions: NO_PINGS });
     } catch (error) {
       logger.error('Error deleting ticket:', error);
       if (!interaction.replied && !interaction.deferred) {

@@ -5,7 +5,8 @@
 // See setChannelStarboard.js for the prefix-only `data`/`prefixOnly` pattern.
 
 import { PermissionFlagsBits } from 'discord.js';
-import { createEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { failureContainer, noticeContainer, successContainer } from '../../services/economy/economyViews.js';
 import {
   getStarboardConfig,
   deleteStarboardConfig,
@@ -25,14 +26,18 @@ export default {
     const guild = interaction.guild;
     if (!guild) {
       return interaction.reply({
-        embeds: [createEmbed({ title: 'Server Only', description: 'This command can only be used in a server.', color: 'error' })],
+        components: [failureContainer({ title: 'Server Only', body: 'This command can only be used in a server.' })],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
     const existingConfig = await getStarboardConfig(guild.id);
     if (!existingConfig) {
       return interaction.reply({
-        embeds: [createEmbed({ title: 'No Starboard Configured', description: 'There is no starboard configured for this server.', color: 'warning' })],
+        components: [noticeContainer({ title: 'No Starboard Configured', body: 'There is no starboard configured for this server.' })],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
       });
     }
 
@@ -40,11 +45,12 @@ export default {
     await clearStarredMessages(guild.id);
 
     return interaction.reply({
-      embeds: [createEmbed({
+      components: [successContainer({
         title: 'Starboard Removed',
-        description: 'Starboard configuration removed. Previously posted starboard messages will stay as-is but will no longer update.',
-        color: 'success',
+        body: 'Starboard configuration removed. Previously posted starboard messages will stay as-is but will no longer update.',
       })],
+      flags: v2Flags(),
+      allowedMentions: NO_PINGS,
     });
   },
 };

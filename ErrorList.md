@@ -121,6 +121,11 @@ this is the code to look up when one appears.
 | --- | --- |
 | `Lavalink node "X" error: AggregateError` | **The node is unreachable.** Every connection attempt failed (refused, timed out, DNS). `AggregateError` with no message is undici reporting that all attempts failed, not a bug in the bot. Check the node host/port, the Lavalink password, firewall rules, and whether the Lavalink server is running. |
 | `Lavalink node "X" disconnected.` | The websocket dropped. During flapping this alternates with `connected` / error lines and the node usually recovers alone. Persistent flapping means the node itself is unstable. |
+| `Music player in guild G migrated from "A" to "B".` | Informational. Riffy moved a live player to a healthier node (`migrateOnDisconnect` / `migrateOnFailure`). Playback continues; the player card refreshes and a temporary notice is posted. |
+| `Music player migration failed in guild G …` / `Lavalink node migration failed for "X" …` | Tagged `LAVALINK_ERROR`. No healthy backup node was available, or the move itself failed. Playback on the affected guild is stuck until a node recovers — check `/music ping`. |
+| `Music voice socket closed in guild G …` | Tagged `LAVALINK_ERROR`. Discord closed the voice connection (code/reason in the message). Usually transient; `playerDisconnect` cleanup follows. |
+| `Music session recovery restored N 24/7 session(s).` / `Music session recovery failed for guild G …` | Startup 24/7 re-hydration outcome. Failures mean the saved voice/text channel is gone, resolve failed, or no node was up after retries — the session stays in `client.db` and is retried on the next node connect. |
+| `Stored audio filter "X" could not be applied/restored …` | Warning only. The saved filter preset failed (node down or preset unsupported) — volume/loop/queue recovery still proceeds. Re-apply with `/music filter` once the node is healthy. |
 | `Riffy not initialized; music player handlers not attached.` | Startup ordering problem: `setupPlayerHandler` ran before `riffySetup`. Music commands will fail until the bot restarts cleanly. |
 | `No Lavalink nodes configured. …` | Fatal at startup. Add `lavalink/nodes.json`, set `LAVALINK_NODES`, or set `LAVALINK_HOST`. This one is a `CONFIGURATION_ERROR`, not a node fault. |
 
@@ -139,3 +144,8 @@ does) also resolves directly, regardless of message text.
   mean the bot retries automatically — there is no automatic retry loop.
 - A command can override any of this by passing `errorCode` in the error context,
   which is why `resolveErrorCode()` checks context first.
+- Riffy REST failures from a dead node (`PATCH …/v4/sessions/…`) arrive as
+  unhandled rejections, one per reconnect attempt. They are classified
+  `LAVALINK_ERROR` (not `UNHANDLED_REJECTION`) and logged at most once per
+  5 minutes per distinct message, so a down node cannot flood the logs. If they
+  keep appearing, the node itself needs attention — see the Lavalink section.

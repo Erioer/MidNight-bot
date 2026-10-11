@@ -1,7 +1,7 @@
 import { webcrypto as crypto } from 'node:crypto';
-import { getColor } from '../../config/bot.js';
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { createEmbed, successEmbed, infoEmbed, warningEmbed } from '../../utils/embeds.js';
+import { NO_PINGS, v2Flags } from '../../utils/componentsV2.js';
+import { successContainer } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 import { replyUserError, ErrorTypes } from '../../utils/errorHandler.js';
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -91,7 +91,6 @@ export default {
 
         let strength = 'Weak';
         let strengthEmoji = '🔴';
-        let strengthColor = getColor('error');
 
         const hasLower = /[a-z]/.test(password);
         const hasUpper = /[A-Z]/.test(password);
@@ -116,31 +115,29 @@ export default {
         if (score > 80) {
             strength = 'Very Strong';
             strengthEmoji = '🟢';
-            strengthColor = getColor('success');
         } else if (score > 60) {
             strength = 'Strong';
             strengthEmoji = '🟢';
-            strengthColor = getColor('success');
         } else if (score > 40) {
             strength = 'Good';
             strengthEmoji = '🟡';
-            strengthColor = getColor('warning');
         } else if (score > 20) {
             strength = 'Weak';
             strengthEmoji = '🟠';
-            strengthColor = getColor('warning');
         }
 
-        const embed = successEmbed(
-            '🔑 Generated Password',
-            `**Password:** ||\`${password}\`||\n` +
+        const passwordContainer = successContainer({
+            title: '🔑 Generated Password',
+            body: `**Password:** ||\`${password}\`||\n` +
             `**Length:** ${password.length} characters\n` +
             `**Strength:** ${strengthEmoji} ${strength}\n` +
-            `**Contains:** ${hasLower ? 'Lowercase' : ''}${hasUpper ? ', Uppercase' : ''}${hasNumber ? ', Numbers' : ''}${hasSymbol ? ', Symbols' : ''}`
-        ).setColor(strengthColor);
+            `**Contains:** ${hasLower ? 'Lowercase' : ''}${hasUpper ? ', Uppercase' : ''}${hasNumber ? ', Numbers' : ''}${hasSymbol ? ', Symbols' : ''}`,
+        });
 
         await InteractionHelper.safeEditReply(interaction, {
-            embeds: [embed],
+            components: [passwordContainer],
+            flags: v2Flags(),
+            allowedMentions: NO_PINGS,
         });
     },
 };

@@ -171,7 +171,7 @@ export default {
 
             try {
                 await interaction.member.roles.add(role, `Purchased role: ${item.name}`);
-                notes.push(`**👑 The role ${role.toString()} has been granted to you!**`);
+                notes.push(`**The role ${role.toString()} has been granted to you!**`);
             } catch (roleError) {
                 // Refund: the cash was taken but the role was never granted.
                 userData.wallet = wallet;
@@ -193,12 +193,12 @@ export default {
         } else if (item.type === 'upgrade') {
             userData.upgrades = userData.upgrades || {};
             userData.upgrades[itemId] = true;
-            notes.push('**✨ Your upgrade is now active!**');
+            notes.push('**Your upgrade is now active!**');
         } else if (item.type === 'consumable' || item.type === 'tool') {
             userData.inventory = userData.inventory || {};
             userData.inventory[itemId] = (userData.inventory[itemId] || 0) + quantity;
             if (item.type === 'tool') {
-                notes.push(`**🛠️ ${item.name} added to your inventory!**`);
+                notes.push(`**${item.name} added to your inventory!**`);
             }
         }
 

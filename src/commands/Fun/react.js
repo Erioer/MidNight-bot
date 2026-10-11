@@ -5,9 +5,10 @@ import { fetchJson } from '../../services/fun/funApi.js';
 import { addActionCount } from '../../services/fun/reactionStore.js';
 import { EMOTIONS, IMAGE_EMOTIONS, buildReactionMessage } from '../../config/commands/reactionEmotions.js';
 import { container, gallery, NO_PINGS, row, text, v2Flags } from '../../utils/componentsV2.js';
+import { BOT_USER_AGENT } from '../../config/bot.js';
 
 const NEKOS_BASE_URL = 'https://nekos.best/api/v2';
-const NEKOS_USER_AGENT = 'MidNight (https://github.com/Erioer/MidNight-bot)';
+const NEKOS_USER_AGENT = BOT_USER_AGENT;
 
 function capitalize(word) {
   return word.charAt(0).toUpperCase() + word.slice(1);

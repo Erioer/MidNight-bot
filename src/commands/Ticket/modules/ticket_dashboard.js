@@ -14,10 +14,10 @@ import {
     ChannelType,
     MessageFlags,
     ComponentType,
-    EmbedBuilder,
 } from 'discord.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../../utils/componentsV2.js';
+import { successContainer } from '../../../services/economy/economyViews.js';
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
-import { successEmbed, infoEmbed } from '../../../utils/embeds.js';
 import { logger } from '../../../utils/logger.js';
 import { MidNightError, ErrorTypes, replyUserError } from '../../../utils/errorHandler.js';
 import { getGuildConfig, setGuildConfig } from '../../../services/config/guildConfig.js';
@@ -80,10 +80,12 @@ async function persistPanelMessageId(client, guildId, guildConfig, messageId) {
 }
 
 function buildPanelEmbed(config) {
-    return new EmbedBuilder()
-        .setTitle('Support Tickets')
-        .setDescription(config.ticketPanelMessage || 'Click the button below to create a support ticket.')
-        .setColor(getColor('info'));
+    return container({
+        parts: [
+            text(`### Support Tickets`),
+            text(config.ticketPanelMessage || 'Click the button below to create a support ticket.'),
+        ],
+    });
 }
 
 function buildPanelButtonRow(config) {
@@ -107,8 +109,9 @@ async function repostTicketPanel(client, guild, guildConfig, guildId) {
     }
 
     const sentPanel = await channel.send({
-        embeds: [buildPanelEmbed(guildConfig)],
-        components: [buildPanelButtonRow(guildConfig)],
+        components: [buildPanelEmbed(guildConfig), buildPanelButtonRow(guildConfig)],
+        flags: MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await persistPanelMessageId(client, guildId, guildConfig, sentPanel.id);
@@ -147,31 +150,20 @@ function buildDashboardEmbed(config, guild, panelStatus = null, ticketStats = nu
         ? `${ticketStats.avgRating}/5 (${ticketStats.feedbackCount} rating${ticketStats.feedbackCount !== 1 ? 's' : ''})`
         : '`No ratings yet`';
 
-    return new EmbedBuilder()
-        .setTitle('🎫 Ticket System Dashboard')
-        .setDescription(`Manage ticket system settings for **${guild.name}**.\nSelect an option below to modify a setting.`)
-        .setColor(getColor('info'))
-        .addFields(
-            { name: 'Panel Status', value: panelStatusValue, inline: false },
-            { name: 'Panel Channel', value: panelChannel, inline: true },
-            { name: 'Staff Role', value: staffRole, inline: true },
-            { name: '\u200B', value: '\u200B', inline: true },
-            { name: 'Open Tickets Category', value: openCategory, inline: true },
-            { name: 'Closed Tickets Category', value: closedCategory, inline: true },
-            { name: '\u200B', value: '\u200B', inline: true },
-            { name: 'Panel Message', value: panelMsg, inline: false },
-            { name: 'Button Label', value: btnLabel, inline: true },
-            { name: 'Max Tickets/User', value: String(config.maxTicketsPerUser || 3), inline: true },
-            { name: 'DM on Close', value: config.dmOnClose !== false ? 'Enabled' : 'Disabled', inline: true },
-            { name: 'Ticket Logs Channel', value: ticketLogsChannel, inline: true },
-            { name: 'Transcript Channel', value: transcriptChannel, inline: true },
-            { name: '\u200B', value: '\u200B', inline: true },
-            { name: 'Open Tickets', value: openTickets, inline: true },
-            { name: 'Avg Close Time', value: avgCloseTime, inline: true },
-            { name: 'Feedback Rating', value: feedbackSummary, inline: true },
-        )
-        .setFooter({ text: 'Select an option below • Dashboard closes after 10 minutes of inactivity' })
-        .setTimestamp();
+    return container({
+        parts: [
+            text(`### 🎫 Ticket System Dashboard\nManage ticket system settings for **${guild.name}**.\nSelect an option below to modify a setting.`),
+            divider(),
+            text(`**Panel Status:**\n${panelStatusValue}`),
+            text(`**Panel Channel:** ${panelChannel}\n**Staff Role:** ${staffRole}`),
+            text(`**Open Tickets Category:** ${openCategory}\n**Closed Tickets Category:** ${closedCategory}`),
+            text(`**Panel Message:** ${panelMsg}\n**Button Label:** ${btnLabel}\n**Max Tickets/User:** ${String(config.maxTicketsPerUser || 3)}\n**DM on Close:** ${config.dmOnClose !== false ? 'Enabled' : 'Disabled'}`),
+            text(`**Ticket Logs Channel:** ${ticketLogsChannel}\n**Transcript Channel:** ${transcriptChannel}`),
+            text(`**Open Tickets:** ${openTickets}\n**Avg Close Time:** ${avgCloseTime}\n**Feedback Rating:** ${feedbackSummary}`),
+            divider(),
+            text(`-# Select an option below • Dashboard closes after 10 minutes of inactivity`),
+        ],
+    });
 }
 
 function buildSelectMenu(guildId) {
@@ -230,8 +222,9 @@ async function refreshDashboard(rootInteraction, guildConfig, guildId, client) {
     const buttonRow = buildButtonRow(guildConfig, guildId, false, panelStatus);
     const selectRow = new ActionRowBuilder().addComponents(buildSelectMenu(guildId));
     await InteractionHelper.safeEditReply(rootInteraction, {
-        embeds: [buildDashboardEmbed(guildConfig, rootInteraction.guild, panelStatus, ticketStats)],
-        components: [buttonRow, selectRow],
+        components: [buildDashboardEmbed(guildConfig, rootInteraction.guild, panelStatus, ticketStats), buttonRow, selectRow],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     }).catch(() => {});
 }
 
@@ -245,8 +238,9 @@ async function updateLivePanel(client, guild, config, guildId) {
         if (!panelStatus.exists || !panelStatus.message) return false;
 
         await panelStatus.message.edit({
-            embeds: [buildPanelEmbed(config)],
-            components: [buildPanelButtonRow(config)],
+            components: [buildPanelEmbed(config), buildPanelButtonRow(config)],
+            flags: MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
         return true;
     } catch (error) {
@@ -282,8 +276,8 @@ export default {
 
             await startDashboardSession({
                 interaction,
-                embeds: [buildDashboardEmbed(guildConfig, interaction.guild, panelStatus, ticketStats)],
-                components: [buttonRow, selectRow],
+                components: [buildDashboardEmbed(guildConfig, interaction.guild, panelStatus, ticketStats), buttonRow, selectRow],
+                flags: v2Flags(),
                 selectMenuId: `ticket_config_${guildId}`,
                 buttonMatcher: (customId) =>
                     customId === `ticket_cfg_repost_${guildId}` ||
@@ -383,17 +377,16 @@ async function handlePanelMessage(selectInteraction, rootInteraction, guildConfi
     const panelUpdated = await updateLivePanel(client, rootInteraction.guild, guildConfig, guildId);
 
     await submitted.reply({
-        embeds: [
-            successEmbed(
-                '✅ Panel Message Updated',
-                `The panel message has been updated.${
-                    panelUpdated
+        components: [
+            successContainer({
+                title: '✅ Panel Message Updated',
+                body: `The panel message has been updated.${panelUpdated
                         ? '\nThe live ticket panel has also been refreshed.'
-                        : '\n> **Note:** The live panel could not be located. Use **Repost Panel** on the dashboard to restore it.'
-                }`,
-            ),
+                        : '\n> **Note:** The live panel could not be located. Use **Repost Panel** on the dashboard to restore it.'}`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -436,17 +429,16 @@ async function handleButtonLabel(selectInteraction, rootInteraction, guildConfig
     const panelUpdated = await updateLivePanel(client, rootInteraction.guild, guildConfig, guildId);
 
     await submitted.reply({
-        embeds: [
-            successEmbed(
-                '✅ Button Label Updated',
-                `Button label changed to \`${newLabel}\`.${
-                    panelUpdated
+        components: [
+            successContainer({
+                title: '✅ Button Label Updated',
+                body: `Button label changed to \`${newLabel}\`.${panelUpdated
                         ? '\nThe live ticket panel button has also been updated.'
-                        : '\n> **Note:** The live panel could not be located. Use **Repost Panel** on the dashboard to restore it.'
-                }`,
-            ),
+                        : '\n> **Note:** The live panel could not be located. Use **Repost Panel** on the dashboard to restore it.'}`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -463,16 +455,17 @@ async function handleStaffRole(selectInteraction, rootInteraction, guildConfig, 
     const row = new ActionRowBuilder().addComponents(roleSelect);
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('🛡️ Change Staff Role')
-                .setDescription(
-                    `**Current:** ${guildConfig.ticketStaffRoleId ? `<@&${guildConfig.ticketStaffRoleId}>` : '`Not set`'}\n\nSelect the role that should have staff access to manage tickets.`,
-                )
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text(`### 🛡️ Change Staff Role`),
+                    text(`**Current:** ${guildConfig.ticketStaffRoleId ? `<@&${guildConfig.ticketStaffRoleId}>` : '`Not set`'}\n\nSelect the role that should have staff access to manage tickets.`),
+                ],
+            }),
+            row,
         ],
-        components: [row],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     const roleCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -491,8 +484,9 @@ async function handleStaffRole(selectInteraction, rootInteraction, guildConfig, 
         await setGuildConfig(client, guildId, guildConfig);
 
         await roleInteraction.followUp({
-            embeds: [successEmbed('Staff Role Updated', `Staff role set to ${role}.`)],
-            flags: MessageFlags.Ephemeral,
+            components: [successContainer({ title: 'Staff Role Updated', body: `Staff role set to ${role}.` })],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -518,16 +512,17 @@ async function handleOpenCategory(selectInteraction, rootInteraction, guildConfi
         .setMaxValues(1);
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('📁 Change Open Tickets Category')
-                .setDescription(
-                    `**Current:** ${guildConfig.ticketCategoryId ? `<#${guildConfig.ticketCategoryId}>` : '`Not set`'}\n\nSelect the category where new tickets will be created.`,
-                )
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text(`### 📁 Change Open Tickets Category`),
+                    text(`**Current:** ${guildConfig.ticketCategoryId ? `<#${guildConfig.ticketCategoryId}>` : '`Not set`'}\n\nSelect the category where new tickets will be created.`),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(channelSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(channelSelect)],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     const catCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -546,13 +541,14 @@ async function handleOpenCategory(selectInteraction, rootInteraction, guildConfi
         await setGuildConfig(client, guildId, guildConfig);
 
         await catInteraction.followUp({
-            embeds: [
-                successEmbed(
-                    'Open Category Updated',
-                    `New tickets will now be created in **${category.name}**.`,
-                ),
+            components: [
+                successContainer({
+                    title: 'Open Category Updated',
+                    body: `New tickets will now be created in **${category.name}**.`,
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -578,16 +574,17 @@ async function handleClosedCategory(selectInteraction, rootInteraction, guildCon
         .setMaxValues(1);
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('📂 Change Closed Tickets Category')
-                .setDescription(
-                    `**Current:** ${guildConfig.ticketClosedCategoryId ? `<#${guildConfig.ticketClosedCategoryId}>` : '`Not set`'}\n\nSelect the category where closed tickets will be moved.`,
-                )
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text(`### 📂 Change Closed Tickets Category`),
+                    text(`**Current:** ${guildConfig.ticketClosedCategoryId ? `<#${guildConfig.ticketClosedCategoryId}>` : '`Not set`'}\n\nSelect the category where closed tickets will be moved.`),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(channelSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(channelSelect)],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     const catCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -606,13 +603,14 @@ async function handleClosedCategory(selectInteraction, rootInteraction, guildCon
         await setGuildConfig(client, guildId, guildConfig);
 
         await catInteraction.followUp({
-            embeds: [
-                successEmbed(
-                    'Closed Category Updated',
-                    `Closed tickets will now be moved to **${category.name}**.`,
-                ),
+            components: [
+                successContainer({
+                    title: 'Closed Category Updated',
+                    body: `Closed tickets will now be moved to **${category.name}**.`,
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -673,13 +671,14 @@ async function handleMaxTickets(selectInteraction, rootInteraction, guildConfig,
     await setGuildConfig(client, guildId, guildConfig);
 
     await submitted.reply({
-        embeds: [
-            successEmbed(
-                'Max Tickets Updated',
-                `Users can now have at most **${newMax}** open ticket${newMax !== 1 ? 's' : ''} at a time.`,
-            ),
+        components: [
+            successContainer({
+                title: 'Max Tickets Updated',
+                body: `Users can now have at most **${newMax}** open ticket${newMax !== 1 ? 's' : ''} at a time.`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -693,13 +692,14 @@ async function handleDmOnClose(btnInteraction, rootInteraction, guildConfig, gui
     await setGuildConfig(client, guildId, guildConfig);
 
     await btnInteraction.followUp({
-        embeds: [
-            successEmbed(
-                'DM on Close Updated',
-                `Users will **${newState ? 'now' : 'no longer'}** receive a DM when their ticket is closed.`,
-            ),
+        components: [
+            successContainer({
+                title: 'DM on Close Updated',
+                body: `Users will **${newState ? 'now' : 'no longer'}** receive a DM when their ticket is closed.`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -715,14 +715,17 @@ async function handleLogsChannel(selectInteraction, rootInteraction, guildConfig
         .setMaxValues(1);
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('🎫 Select Ticket Logs Channel')
-                .setDescription('Choose where ticket feedback, lifecycle events (open, close, claim, etc.), and other logs will be sent.')
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text(`### 🎫 Select Ticket Logs Channel`),
+                    text('Choose where ticket feedback, lifecycle events (open, close, claim, etc.), and other logs will be sent.'),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(channelSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(channelSelect)],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     const collector = rootInteraction.channel.createMessageComponentCollector({
@@ -740,8 +743,9 @@ async function handleLogsChannel(selectInteraction, rootInteraction, guildConfig
         await setGuildConfig(client, guildId, guildConfig);
 
         await channelInteraction.followUp({
-            embeds: [successEmbed('Logs Channel Updated', `Ticket logs will be sent to ${channel}`)],
-            flags: MessageFlags.Ephemeral,
+            components: [successContainer({ title: 'Logs Channel Updated', body: `Ticket logs will be sent to ${channel}` })],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -767,14 +771,17 @@ async function handleTranscriptChannel(selectInteraction, rootInteraction, guild
         .setMaxValues(1);
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('📜 Select Transcript Channel')
-                .setDescription('Choose where auto-generated transcripts will be sent when tickets are deleted.')
-                .setColor(getColor('info'))
+        components: [
+            container({
+                parts: [
+                    text(`### 📜 Select Transcript Channel`),
+                    text('Choose where auto-generated transcripts will be sent when tickets are deleted.'),
+                ],
+            }),
+            new ActionRowBuilder().addComponents(channelSelect),
         ],
-        components: [new ActionRowBuilder().addComponents(channelSelect)],
-        flags: MessageFlags.Ephemeral
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     const collector = rootInteraction.channel.createMessageComponentCollector({
@@ -792,8 +799,9 @@ async function handleTranscriptChannel(selectInteraction, rootInteraction, guild
         await setGuildConfig(client, guildId, guildConfig);
 
         await channelInteraction.followUp({
-            embeds: [successEmbed('Transcript Channel Updated', `Transcripts will be sent to ${channel}`)],
-            flags: MessageFlags.Ephemeral
+            components: [successContainer({ title: 'Transcript Channel Updated', body: `Transcripts will be sent to ${channel}` })],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
 
         await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -820,14 +828,17 @@ async function handleCheckUser(selectInteraction, rootInteraction, guildConfig, 
     const row = new ActionRowBuilder().addComponents(userSelect);
 
     await selectInteraction.followUp({
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('Check User Tickets')
-                .setDescription('Select a user to view their current open ticket count.')
-                .setColor(getColor('info')),
+        components: [
+            container({
+                parts: [
+                    text(`### Check User Tickets`),
+                    text('Select a user to view their current open ticket count.'),
+                ],
+            }),
+            row,
         ],
-        components: [row],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     const userCollector = rootInteraction.channel.createMessageComponentCollector({
@@ -846,21 +857,17 @@ async function handleCheckUser(selectInteraction, rootInteraction, guildConfig, 
         const atLimit = openCount >= maxTickets;
 
         await userInteraction.followUp({
-            embeds: [
-                new EmbedBuilder()
-                    .setTitle(`Ticket Check — ${targetUser.username}`)
-                    .setDescription(
-                        `**Open Tickets:** ${openCount} / ${maxTickets}\n` +
-                            `**Remaining:** ${Math.max(0, maxTickets - openCount)}\n\n` +
-                            (atLimit
-                                ? '⚠️ This user has reached their ticket limit.'
-                                : '✅ This user can still open more tickets.'),
-                    )
-                    .setColor(atLimit ? getColor('error') : getColor('success'))
-                    .setThumbnail(targetUser.displayAvatarURL({ size: 64 }))
-                    .setTimestamp(),
+            components: [
+                container({
+                    accentColor: atLimit ? 16711680 : 3066993,
+                    parts: [
+                        text(`### Ticket Check — ${targetUser.username}`),
+                        text(`**Open Tickets:** ${openCount} / ${maxTickets}\n**Remaining:** ${Math.max(0, maxTickets - openCount)}\n\n${atLimit ? '⚠️ This user has reached their ticket limit.' : '✅ This user can still open more tickets.'}`),
+                    ],
+                }),
             ],
-            flags: MessageFlags.Ephemeral,
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         });
     });
 
@@ -880,8 +887,16 @@ async function handleRepostPanel(btnInteraction, rootInteraction, guildConfig, g
     const panelStatus = await getTicketPanelStatus(client, rootInteraction.guild, guildConfig);
     if (panelStatus.exists) {
         await btnInteraction.followUp({
-            embeds: [infoEmbed('Panel Already Active', 'The ticket panel is already posted in the configured channel.')],
-            flags: MessageFlags.Ephemeral,
+            components: [
+                container({
+                    parts: [
+                        text(`### Panel Already Active`),
+                        text('The ticket panel is already posted in the configured channel.'),
+                    ],
+                }),
+            ],
+            flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+            allowedMentions: NO_PINGS,
         }).catch(() => {});
         await refreshDashboard(rootInteraction, guildConfig, guildId, client);
         return;
@@ -890,15 +905,14 @@ async function handleRepostPanel(btnInteraction, rootInteraction, guildConfig, g
     const sentPanel = await repostTicketPanel(client, rootInteraction.guild, guildConfig, guildId);
 
     await btnInteraction.followUp({
-        embeds: [
-            successEmbed(
-                'Panel Reposted',
-                `A new ticket panel was posted in <#${guildConfig.ticketPanelChannelId}>.${
-                    sentPanel.url ? `\n[Open panel message](${sentPanel.url})` : ''
-                }`,
-            ),
+        components: [
+            successContainer({
+                title: 'Panel Reposted',
+                body: `A new ticket panel was posted in <#${guildConfig.ticketPanelChannelId}>.${sentPanel.url ? `\n[Open panel message](${sentPanel.url})` : ''}`,
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     }).catch(() => {});
 
     await refreshDashboard(rootInteraction, guildConfig, guildId, client);
@@ -998,23 +1012,27 @@ async function handleDeleteSystem(btnInteraction, rootInteraction, guildConfig, 
     await setGuildConfig(client, guildId, guildConfig);
 
     await submitted.followUp({
-        embeds: [
-            successEmbed(
-                '✅ Ticket System Deleted',
-                'All ticket system configuration has been cleared. Run `/ticket setup` to set it up again.',
-            ),
+        components: [
+            successContainer({
+                title: '✅ Ticket System Deleted',
+                body: 'All ticket system configuration has been cleared. Run `/ticket setup` to set it up again.',
+            }),
         ],
-        flags: MessageFlags.Ephemeral,
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        allowedMentions: NO_PINGS,
     });
 
     await InteractionHelper.safeEditReply(rootInteraction, {
-        embeds: [
-            new EmbedBuilder()
-                .setTitle('Ticket System Deleted')
-                .setDescription('The ticket system configuration has been cleared.')
-                .setColor(getColor('error'))
-                .setTimestamp(),
+        components: [
+            container({
+                accentColor: 16711680,
+                parts: [
+                    text(`### Ticket System Deleted`),
+                    text('The ticket system configuration has been cleared.'),
+                ],
+            }),
         ],
-        components: [],
+        flags: v2Flags(),
+        allowedMentions: NO_PINGS,
     }).catch(() => {});
 }
