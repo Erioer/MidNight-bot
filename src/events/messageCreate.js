@@ -14,6 +14,7 @@ import { enforceAbuseProtection, formatCooldownDuration } from '../utils/abusePr
 import { NO_PINGS, container, text } from '../utils/componentsV2.js';
 import { isCommandEnabled } from '../services/commandAccessService.js';
 import { handleCountingGame } from '../services/countingGame/countingHandler.js';
+import { snapshotMessageAttachments } from '../services/messageAttachments.js';
 
 const MESSAGE_XP_RATE_LIMIT_ATTEMPTS = 12;
 const MESSAGE_XP_RATE_LIMIT_WINDOW_MS = 10000;
@@ -23,6 +24,11 @@ export default {
   async execute(message, client) {
     try {
       if (message.author.bot || !message.guild) return;
+
+      // Attachment snapshot for edit-swap detection. Runs before anything
+      // that can early-return (counting, prefix routing) so every message
+      // with files is recorded.
+      snapshotMessageAttachments(client, message).catch(() => null);
 
       logger.debug(`Message received from ${message.author.tag}: ${message.content}`);
 

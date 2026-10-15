@@ -679,7 +679,17 @@ async function handleChannelDeletion(interaction, triggerChannel, currentConfig,
 
         deleteCollector.on('end', (collected, reason) => {
             if (reason === 'time' && collected.size === 0) {
-                message.edit({ components: [] }).catch(() => {});
+                // Rebuild the expired prompt: wiping components on a V2
+                // message deletes the card itself.
+                message.edit({
+                    components: [
+                        noticeContainer({
+                            title: 'Confirmation Expired',
+                            body: `Removing **${triggerChannel.name}** was not confirmed in time. Run the command again if needed.`,
+                        }),
+                    ],
+                    flags: MessageFlags.IsComponentsV2,
+                }).catch(() => {});
             }
         });
 

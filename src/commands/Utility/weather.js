@@ -51,7 +51,7 @@ export default {
         const cityDisplay = name;
 
         const weatherResponse = await fetch(
-            `${WEATHER_URL}?latitude=${latitude}&longitude=${longitude}&current_weather=true`,
+            `${WEATHER_URL}?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m`,
             { headers: { 'User-Agent': BOT_USER_AGENT } },
         );
         const weatherData = await weatherResponse.json();
@@ -67,11 +67,17 @@ export default {
             return;
         }
 
-        const current = weatherData.current || weatherData.current_weather || {};
-        const temperature = current.temperature != null ? Math.round(current.temperature) : "N/A";
-        const humidity = current.relativehumidity ?? current.relative_humidity_2m ?? "N/A";
-        const windSpeed = current.windspeed != null ? Math.round(current.windspeed) : "N/A";
-        const weatherCode = current.weathercode ?? current.weather_code ?? null;
+        // NOTE: the legacy `current_weather=true` endpoint returns no humidity
+        // field at all — humidity needs the `current=` selector below.
+        const current = weatherData.current || {};
+        const temperature = current.temperature_2m ?? current.temperature;
+        const humidity = current.relative_humidity_2m ?? current.relativehumidity;
+        const windSpeed = current.wind_speed_10m ?? current.windspeed;
+        const weatherCode = current.weather_code ?? current.weathercode ?? null;
+
+        const displayTemp = temperature != null ? Math.round(temperature) : 'N/A';
+        const displayHumidity = humidity ?? 'N/A';
+        const displayWind = windSpeed != null ? Math.round(windSpeed) : 'N/A';
 
         const condition = getWeatherDescription(weatherCode);
 
@@ -79,7 +85,7 @@ export default {
             parts: [
                 text(`### Weather in ${cityDisplay}, ${country}`),
                 text(condition.description),
-                text(`**Temperature:** ${temperature}°C\n**Humidity:** ${humidity}%\n**Wind Speed:** ${windSpeed} km/h`),
+                text(`**Temperature:** ${displayTemp}°C\n**Humidity:** ${displayHumidity}%\n**Wind Speed:** ${displayWind} km/h`),
                 divider(),
                 text(`-# Latitude: ${latitude.toFixed(2)} | Longitude: ${longitude.toFixed(2)}`),
             ],
@@ -90,13 +96,16 @@ export default {
             userId: interaction.user.id,
             city: cityDisplay,
             country: country,
-            temperature: temperature,
+            temperature: displayTemp,
             guildId: interaction.guildId
         });
     },
 };
 
 function getWeatherDescription(code) {
+    if (code === null || code === undefined) {
+        return { description: "Unknown conditions.", emoji: "" };
+    }
     if (code >= 0 && code <= 3) {
         return { description: "Clear sky / Partly cloudy", emoji: "" };
     } else if (code >= 45 && code <= 48) {

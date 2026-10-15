@@ -200,7 +200,9 @@ export default {
                 ButtonBuilder.from(row.components[0]).setDisabled(true)
             );
 
-            interaction.editReply({ components: [disabledRow] }).catch(console.error);
+            // The card must ride along: a components-only edit on a V2
+            // message replaces the whole message, wiping the user card.
+            interaction.editReply({ components: [currentContainer, disabledRow] }).catch(console.error);
         });
     },
 };

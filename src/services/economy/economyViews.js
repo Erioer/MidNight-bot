@@ -116,7 +116,8 @@ export async function resolveDisplayName(interaction, user) {
 export function outcomeContainer({ accentColor, title, body, footer }) {
   const parts = [text(`### ${title}`)];
   if (body) parts.push(text(body));
-  if (footer) parts.push(divider(), text(footer));
+  // Footers always render as divider + -# line, no matter what the caller passes.
+  if (footer) parts.push(divider(), text(footer.startsWith('-#') ? footer : `-# ${footer}`));
   return container({ accentColor, parts });
 }
 

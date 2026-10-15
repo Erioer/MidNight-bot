@@ -1,6 +1,6 @@
 {
   "name": "midnight",
-  "version": "4.0.1",
+  "version": "4.0.2",
   "description": "MidNight is a fork of TitanBot and is made by Erioer",
   "main": "src/app.js",
   "type": "module",

@@ -1,9 +1,9 @@
-// loggingService.js
+﻿// loggingService.js
 
 import { ChannelType } from 'discord.js';
 import { getGuildConfig, updateGuildConfig } from './config/guildConfig.js';
 import { logger } from '../utils/logger.js';
-import { NO_PINGS, v2Flags, container, divider, section, text, thumbnail } from '../utils/componentsV2.js';
+import { NO_PINGS, v2Flags, container, divider, gallery, section, text, thumbnail } from '../utils/componentsV2.js';
 import {
   appendContentSection,
   buildLogDescription,
@@ -70,7 +70,7 @@ const EVENT_TYPES = {
 };
 
 const EVENT_COLORS = {
-  'moderation.ban': 0x721919,
+  'moderation.ban': 0x8b0000,
   'moderation.kick': 0xFFA500,
   'moderation.mute': 0xF1C40F,
   'moderation.warn': 0xFEE75C,
@@ -87,28 +87,28 @@ const EVENT_COLORS = {
   'leveling.milestone': 0xFFD700,
   'message.delete': 0x8b0000,
   'message.edit': 0xFFA500,
-  'message.bulkdelete': 0xFF0000,
+  'message.bulkdelete': 0x8b0000,
   'role.create': 0x2ecc71,
-  'role.delete': 0xe74c3c,
+  'role.delete': 0x8b0000,
   'role.update': 0x3498db,
   'member.join': 0x2ecc71,
-  'member.leave': 0xe74c3c,
+  'member.leave': 0x8b0000,
   'member.namechange': 0x3498db,
   'reactionrole.add': 0x2ecc71,
-  'reactionrole.remove': 0xe74c3c,
+  'reactionrole.remove': 0x8b0000,
   'reactionrole.create': 0x3498db,
   'reactionrole.delete': 0x8b0000,
   'reactionrole.update': 0xFFA500,
   'giveaway.create': 0x57F287,
   'giveaway.winner': 0xFEE75C,
   'giveaway.reroll': 0x3498DB,
-  'giveaway.delete': 0xE74C3C,
+  'giveaway.delete': 0x8b0000,
   'counter.update': 0x0099ff,
   'counter.config': 0x5865F2,
   'application.submit': 0x5865F2,
   'application.review': 0x57F287,
-  'report.file': 0xED4245,
-  'counting.broken': 0xe74c3c,
+  'report.file': 0x8b0000,
+  'counting.broken': 0x8b0000,
   'counting.restored': 0x2ecc71,
   'counting.shield': 0xFEE75C,
   'counting.milestone': 0xFFD700,
@@ -415,10 +415,15 @@ export function createLogEmbed(guild, eventType, data) {
     ? section([text(`### ${icon} ${stripTitleIcon(title)}`), text(body)], thumbnail(avatarUrl))
     : [text(`### ${icon} ${stripTitleIcon(title)}`), text(body)];
 
+  const parts = [head];
+  if (Array.isArray(data.images) && data.images.length > 0) {
+    parts.push(gallery(...data.images.filter(Boolean).slice(0, 4)));
+  }
+
   return container({
     accentColor: color,
     parts: [
-      head,
+      ...parts,
       divider(),
       text(`-# ${footerText} • <t:${Math.floor(Date.now() / 1000)}:F>`),
     ],
@@ -560,3 +565,4 @@ export function resolveApplicationLogChannel(config, roleSettings = {}, appSetti
 }
 
 export { EVENT_TYPES, EVENT_COLORS, EVENT_ICONS, LOG_DESTINATIONS };
+

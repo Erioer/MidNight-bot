@@ -75,6 +75,9 @@ function snapshotButtons(disabled = false) {
 }
 
 async function renderSnapshot(interaction, startedAt) {
+  // Snapshot the round trip BEFORE the health fan-out below: measuring after
+  // would bill the dashboard's own ~2s of API probes as "bot latency".
+  const botLatencyMs = Math.max(0, Date.now() - (interaction._commandStartTime || interaction.createdTimestamp));
   const results = await checkApiHealth();
   const status = getOverallStatus(results);
 
@@ -83,7 +86,7 @@ async function renderSnapshot(interaction, startedAt) {
     statusLine: status.line,
     startedAt,
     memoryMb: (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2),
-    botLatencyMs: Math.max(0, Date.now() - (interaction._commandStartTime || interaction.createdTimestamp)),
+    botLatencyMs,
     nodeVersion: process.version,
     discordVersion: version,
     guilds: interaction.client.guilds.cache.size.toLocaleString(),

@@ -3,6 +3,7 @@ import { logEvent, EVENT_TYPES } from '../services/loggingService.js';
 import { logger } from '../utils/logger.js';
 import { getReactionRoleMessage, deleteReactionRoleMessage } from '../services/reactionRoleService.js';
 import { formatLogLine } from '../utils/logging/logEmbeds.js';
+import { clearAttachmentSnapshot } from '../services/messageAttachments.js';
 
 const MAX_LOGGED_MESSAGE_CONTENT_LENGTH = 1024;
 
@@ -63,6 +64,12 @@ export default {
         metaLines.push(formatLogLine('Attachments', String(message.attachments.size)));
       }
 
+      // Deleted messages can't be jumped to — but their media can still be shown.
+      const imageUrls = [...(message.attachments?.values() || [])]
+        .filter((attachment) => attachment?.contentType?.startsWith('image/') && attachment.url)
+        .slice(0, 4)
+        .map((attachment) => attachment.url);
+
       await logEvent({
         client: message.client,
         guildId: message.guild.id,
@@ -72,10 +79,14 @@ export default {
           lines: metaLines,
           quoted: true,
           section: messageBody ? { title: 'Message', body: messageBody || '*(empty message)*' } : null,
+          images: imageUrls.length > 0 ? imageUrls : undefined,
           userId: message.author?.id,
           channelId: message.channel.id,
         }
       });
+
+      // Snapshot no longer needed — the delete log above carries the evidence.
+      await clearAttachmentSnapshot(message.client, message.guild.id, message.id).catch(() => null);
 
     } catch (error) {
       logger.error('Error in messageDelete event:', error);

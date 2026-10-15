@@ -168,6 +168,10 @@ export function getGuildMusicSummaryKey(guildId) {
     return `guild:${guildId}:music:summary`;
 }
 
+export function getGuildMessageAttachmentsKey(guildId, messageId) {
+    return `guild:${guildId}:msgattachments:${messageId}`;
+}
+
 /**
  * Legacy key patterns mapped to canonical builders.
  * Used by migration script and read-time fallback.

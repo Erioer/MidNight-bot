@@ -1,8 +1,8 @@
 import { getUpcomingBirthdays } from '../../../services/birthdayService.js';
 import { deleteBirthday } from '../../../utils/database.js';
 import { logger } from '../../../utils/logger.js';
-import { NO_PINGS, v2Flags } from '../../../utils/componentsV2.js';
-import { failureContainer, successContainer } from '../../../services/economy/economyViews.js';
+import { NO_PINGS, container, divider, text, v2Flags } from '../../../utils/componentsV2.js';
+import { failureContainer } from '../../../services/economy/economyViews.js';
 
 import { InteractionHelper } from '../../../utils/interactionHelper.js';
 export default {
@@ -54,7 +54,7 @@ export default {
             });
         }
 
-        let birthdayList = `🎂 **Next 5 Upcoming Birthdays**\n\nHere are the next 5 birthdays in ${interaction.guild.name}:\n\n`;
+        let birthdayList = `Here are the next 5 birthdays in ${interaction.guild.name}:\n\n`;
         displayIndex = 0;
         for (const birthday of next5) {
             const member = await interaction.guild.members.fetch(birthday.userId).catch(() => null);
@@ -77,9 +77,12 @@ export default {
 
         birthdayList += `Use /birthday set to add your birthday!`;
 
-        const card = successContainer({
-            title: 'Next 5 Upcoming Birthdays',
-            body: birthdayList,
+        // Neutral card: a birthday list is information, not an outcome.
+        const card = container({
+            parts: [
+                text('### 🎂 Next 5 Upcoming Birthdays'),
+                text(birthdayList.trimEnd()),
+            ],
         });
 
         await InteractionHelper.safeEditReply(interaction, {

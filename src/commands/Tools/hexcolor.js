@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
-import { NO_PINGS, gallery, v2Flags } from '../../utils/componentsV2.js';
-import { successContainer } from '../../services/economy/economyViews.js';
+import { NO_PINGS, container, divider, gallery, text, v2Flags } from '../../utils/componentsV2.js';
+import { ECONOMY_ACCENT } from '../../services/economy/economyViews.js';
 import { logger } from '../../utils/logger.js';
 
 import { InteractionHelper } from '../../utils/interactionHelper.js';
@@ -48,16 +48,24 @@ export default {
 
                 const colorName = getColorName(hexColor);
 
-                const colorContainer = successContainer({
-                    title: '🎨 Color Information',
-                    body: `**Hex:** \`${hexColor}\`\n` +
-                    `**RGB:** \`rgb(${r}, ${g}, ${b})\`\n` +
-                    `**HSL:** \`${rgbToHsl(r, g, b)}\`\n` +
-                    `**Name:** ${colorName || 'Custom Color'}`,
-                    footer: isRandom ? 'Randomly generated color' : undefined,
+                // Gallery lives INSIDE the card like /avatar — a top-level gallery
+                // renders as a detached block underneath.
+                const colorContainer = container({
+                    accentColor: ECONOMY_ACCENT.SUCCESS,
+                    parts: [
+                        text('### 🎨 Color Information'),
+                        text(
+                            `**Hex:** \`${hexColor}\`\n` +
+                            `**RGB:** \`rgb(${r}, ${g}, ${b})\`\n` +
+                            `**HSL:** \`${rgbToHsl(r, g, b)}\`\n` +
+                            `**Name:** ${colorName || 'Custom Color'}`,
+                        ),
+                        gallery(colorPreviewUrl),
+                        ...(isRandom ? [divider(), text('-# Randomly generated color')] : []),
+                    ],
                 });
 
-                await InteractionHelper.safeEditReply(interaction, { components: [colorContainer, gallery(colorPreviewUrl)], flags: v2Flags(), allowedMentions: NO_PINGS });
+                await InteractionHelper.safeEditReply(interaction, { components: [colorContainer], flags: v2Flags(), allowedMentions: NO_PINGS });
             },
             'Failed to generate color information. Please try again.',
             {
